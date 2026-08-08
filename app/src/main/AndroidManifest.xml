@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Necessario per leggere nome/indirizzo dei dispositivi Bluetooth accoppiati -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Necessario per rilevare lo stato della chiamata (OFFHOOK/IDLE) tramite TelephonyCallback -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <!-- Necessario per chiamare AudioManager.setCommunicationDevice -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Necessari per eseguire il Service in foreground durante le chiamate -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <!-- Necessario per mostrare la notifica persistente del Service (API 33+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- L'app funziona anche su dispositivi privi di Bluetooth (lista con le sole voci fisse) -->
+    <uses-feature
+        android:name="android.hardware.bluetooth"
+        android:required="false" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/nome_app"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.ChiamateBT">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.ChiamateBT">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".CallRoutingService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall" />
+
+    </application>
+
+</manifest>
