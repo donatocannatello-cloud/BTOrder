@@ -14,5 +14,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ChiamateBT"
+rootProject.name = "BTOrder"
 include(":app")
+include(":btorder")
