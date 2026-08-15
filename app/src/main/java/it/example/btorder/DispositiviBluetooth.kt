@@ -49,7 +49,7 @@ object DispositiviBluetooth {
             .map { dispositivo ->
                 DispositivoBluetooth(
                     indirizzo = dispositivo.address,
-                    nome = dispositivo.name ?: dispositivo.address,
+                    nome = dispositivo.nomeVisualizzato(),
                     connesso = dispositivo.address in indirizziConnessi
                 )
             }
@@ -79,3 +79,12 @@ object DispositiviBluetooth {
         }
     }
 }
+
+/**
+ * Nome da mostrare per il dispositivo: l'alias assegnato dall'utente (rinominato da
+ * Impostazioni > Bluetooth) ha sempre la precedenza sul nome trasmesso dal dispositivo
+ * stesso, così l'elenco riflette come l'utente lo ha effettivamente chiamato.
+ */
+@Suppress("MissingPermission")
+private fun BluetoothDevice.nomeVisualizzato(): String =
+    alias ?: name ?: address

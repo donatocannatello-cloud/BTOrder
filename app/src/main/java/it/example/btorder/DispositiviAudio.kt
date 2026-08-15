@@ -69,7 +69,9 @@ object DispositiviAudio {
             .map { dispositivo ->
                 VoceDispositivoAudio(
                     id = dispositivo.address,
-                    nome = dispositivo.name ?: dispositivo.address,
+                    // L'alias (rinominato dall'utente in Impostazioni > Bluetooth) ha la
+                    // precedenza sul nome trasmesso dal dispositivo stesso.
+                    nome = dispositivo.alias ?: dispositivo.name ?: dispositivo.address,
                     tipo = TipoVoceDispositivo.BLUETOOTH
                 )
             }
