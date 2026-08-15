@@ -1,6 +1,7 @@
 package it.example.btorder
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -20,6 +21,7 @@ private val Context.dataStorePriorita by preferencesDataStore(name = "chiamatebt
 object DevicePriorityStore {
 
     private val CHIAVE_ORDINE = stringPreferencesKey("ordine_dispositivi")
+    private val CHIAVE_SERVIZIO_ATTIVO = booleanPreferencesKey("servizio_chiamate_attivo")
     private const val SEPARATORE = "§"
 
     /** Flusso con la lista ordinata di ID salvata (vuota se non è mai stata salvata). */
@@ -41,4 +43,19 @@ object DevicePriorityStore {
     /** Lettura una tantum dell'ordine salvato, comoda da usare dal Service. */
     suspend fun leggiOrdineUnaVolta(context: Context): List<String> =
         osservaOrdine(context).first()
+
+    /**
+     * Se il monitoraggio chiamate è attivo, così che il pulsante nella schermata "Chiamate"
+     * mostri lo stato corretto anche dopo che l'utente ha cambiato scheda e ci è tornato
+     * (senza questo, uno stato Compose locale si azzererebbe a ogni ricomposizione, pur con
+     * il Service Android ancora effettivamente in esecuzione).
+     */
+    fun osservaServizioAttivo(context: Context): Flow<Boolean> =
+        context.dataStorePriorita.data.map { it[CHIAVE_SERVIZIO_ATTIVO] ?: false }
+
+    suspend fun impostaServizioAttivo(context: Context, attivo: Boolean) {
+        context.dataStorePriorita.edit { preferenze ->
+            preferenze[CHIAVE_SERVIZIO_ATTIVO] = attivo
+        }
+    }
 }

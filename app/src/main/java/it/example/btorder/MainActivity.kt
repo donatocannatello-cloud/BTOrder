@@ -47,6 +47,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -134,7 +135,7 @@ fun SchermataChiamate() {
     val scope = rememberCoroutineScope()
 
     var dispositivi by remember { mutableStateOf<List<VoceDispositivoAudio>>(emptyList()) }
-    var servizioAttivo by remember { mutableStateOf(false) }
+    val servizioAttivo by DevicePriorityStore.osservaServizioAttivo(context).collectAsState(initial = false)
 
     LaunchedEffect(Unit) {
         val ordineSalvato = DevicePriorityStore.leggiOrdineUnaVolta(context)
@@ -190,7 +191,9 @@ fun SchermataChiamate() {
                 } else {
                     ContextCompat.startForegroundService(context, intent)
                 }
-                servizioAttivo = !servizioAttivo
+                scope.launch {
+                    DevicePriorityStore.impostaServizioAttivo(context, !servizioAttivo)
+                }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -222,6 +225,13 @@ fun ListaDispositiviOrdinabile(
 
     LazyColumn(modifier = modifier) {
         itemsIndexed(elementi, key = { _, elemento -> elemento.id }) { indice, elemento ->
+            // Il blocco pointerInput qui sotto viene installato una sola volta (la chiave è
+            // l'id, stabile) e resta in esecuzione per tutta la vita della card: senza
+            // rememberUpdatedState, "indice" catturato da onDragStart resterebbe quello della
+            // primissima composizione, disallineandosi dalla posizione reale non appena un
+            // QUALSIASI trascinamento riordina la lista, e causando i salti/scambi sbagliati
+            // segnalati trascinando gli elementi.
+            val indiceAggiornato by rememberUpdatedState(indice)
             val inTrascinamento = indice == indiceTrascinato
             val elevazione by animateDpAsState(
                 targetValue = if (inTrascinamento) 8.dp else 1.dp,
@@ -242,7 +252,7 @@ fun ListaDispositiviOrdinabile(
                     .pointerInput(elemento.id) {
                         detectDragGesturesAfterLongPress(
                             onDragStart = {
-                                indiceTrascinato = indice
+                                indiceTrascinato = indiceAggiornato
                                 offsetTrascinamento = 0f
                             },
                             onDragEnd = {
@@ -320,12 +330,13 @@ fun SchermataAutoDispositivi() {
 
     var dispositiviAccoppiati by remember { mutableStateOf<List<DispositivoBluetooth>>(emptyList()) }
     var indirizziConnessi by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var servizioAttivo by remember { mutableStateOf(false) }
     var indirizzoInScelta by remember { mutableStateOf<String?>(null) }
 
     val dispositiviFiducia by TrustedDeviceStore.osservaDispositivi(context)
         .collectAsState(initial = emptyList())
     val avvioAutomatico by TrustedDeviceStore.osservaAvvioAutomatico(context)
+        .collectAsState(initial = false)
+    val servizioAttivo by TrustedDeviceStore.osservaServizioAttivo(context)
         .collectAsState(initial = false)
 
     fun ricaricaDispositivi() {
@@ -380,7 +391,7 @@ fun SchermataAutoDispositivi() {
                         } else {
                             ContextCompat.startForegroundService(context, intent)
                         }
-                        servizioAttivo = !servizioAttivo
+                        scope.launch { TrustedDeviceStore.impostaServizioAttivo(context, !servizioAttivo) }
                     },
                     onToggleAvvioAutomatico = { attivo ->
                         scope.launch { TrustedDeviceStore.impostaAvvioAutomatico(context, attivo) }

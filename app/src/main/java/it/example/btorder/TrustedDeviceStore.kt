@@ -37,6 +37,7 @@ object TrustedDeviceStore {
 
     private val CHIAVE_DISPOSITIVI = stringPreferencesKey("dispositivi_fiducia")
     private val CHIAVE_AVVIO_AUTOMATICO = booleanPreferencesKey("avvio_automatico_boot")
+    private val CHIAVE_SERVIZIO_ATTIVO = booleanPreferencesKey("servizio_automazioni_attivo")
 
     /** Unit Separator (0x1F): separa i campi di un singolo dispositivo. */
     private const val SEPARATORE_CAMPO = ""
@@ -80,6 +81,21 @@ object TrustedDeviceStore {
     suspend fun impostaAvvioAutomatico(context: Context, attivo: Boolean) {
         context.dataStore.edit { preferenze ->
             preferenze[CHIAVE_AVVIO_AUTOMATICO] = attivo
+        }
+    }
+
+    /**
+     * Se il monitoraggio automazioni è attivo, così che il pulsante nella schermata "Auto e
+     * dispositivi" mostri lo stato corretto anche dopo che l'utente ha cambiato scheda e ci è
+     * tornato (senza questo, uno stato Compose locale si azzererebbe a ogni ricomposizione, pur
+     * con il Service Android ancora effettivamente in esecuzione).
+     */
+    fun osservaServizioAttivo(context: Context): Flow<Boolean> =
+        context.dataStore.data.map { it[CHIAVE_SERVIZIO_ATTIVO] ?: false }
+
+    suspend fun impostaServizioAttivo(context: Context, attivo: Boolean) {
+        context.dataStore.edit { preferenze ->
+            preferenze[CHIAVE_SERVIZIO_ATTIVO] = attivo
         }
     }
 
