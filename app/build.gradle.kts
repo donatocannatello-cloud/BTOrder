@@ -17,7 +17,26 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // Keystore di debug fissa e committata nel repo: senza di questa, ogni build su
+            // un runner CI "pulito" ne genererebbe una diversa (Gradle la crea al volo se non
+            // la trova), firmando ogni APK con una chiave differente. Android rifiuta di
+            // installare un APK "aggiornato" se la firma non coincide con quella già installata
+            // (INSTALL_FAILED_UPDATE_INCOMPATIBLE), costringendo a disinstallare prima di ogni
+            // aggiornamento. Con una chiave fissa gli aggiornamenti installano normalmente sopra
+            // la versione precedente.
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(

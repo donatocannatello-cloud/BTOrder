@@ -162,6 +162,30 @@ all'avvio, valgono per entrambe le schede):
    ```
    L'APK di debug viene generato in `app/build/outputs/apk/debug/`.
 
+### Firma delle build di debug
+
+Il progetto include una keystore di debug fissa e committata
+(`app/debug.keystore`, password/alias standard `android`/`androiddebugkey`/
+`android` — non è un segreto, è la prassi comune per le build di debug) e la
+usa esplicitamente in `app/build.gradle.kts`. Senza una keystore fissa, ogni
+build su un runner CI "pulito" ne genererebbe una diversa, firmando ogni APK
+con una chiave differente: Android rifiuta poi di installare un APK
+"aggiornato" la cui firma non coincide con quella già installata
+(`INSTALL_FAILED_UPDATE_INCOMPATIBLE`), costringendo a disinstallare prima di
+ogni aggiornamento. Con la chiave fissa, gli APK di debug successivi si
+installano normalmente sopra la versione precedente.
+
+### Download dell'ultimo APK compilato
+
+Ogni push su questo branch aggiorna automaticamente la Release
+`debug-latest` del repository con l'ultimo APK compilato, tramite
+`.github/workflows/build-apk.yml`. Il link diretto (niente zip, niente
+navigazione nella pagina Actions) resta sempre lo stesso:
+
+```
+https://github.com/donatocannatello-cloud/BTOrder/releases/download/debug-latest/BTOrder-debug.apk
+```
+
 ### Nota sulla verifica automatica della build in questo ambiente
 
 In questo ambiente di sviluppo la build (`./gradlew assembleDebug`) **non è
