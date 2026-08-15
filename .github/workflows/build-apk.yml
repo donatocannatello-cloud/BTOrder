@@ -20,17 +20,11 @@ jobs:
       - name: Rendi eseguibile gradlew
         run: chmod +x gradlew
 
-      - name: Compila gli APK di debug
-        run: ./gradlew :app:assembleDebug :btorder:assembleDebug
-
-      - name: Carica APK ChiamateBT
-        uses: actions/upload-artifact@v4
-        with:
-          name: ChiamateBT-debug
-          path: app/build/outputs/apk/debug/*.apk
+      - name: Compila l'APK di debug
+        run: ./gradlew :app:assembleDebug
 
       - name: Carica APK BTOrder
         uses: actions/upload-artifact@v4
         with:
           name: BTOrder-debug
-          path: btorder/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/debug/*.apk

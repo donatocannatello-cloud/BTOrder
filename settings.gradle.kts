@@ -16,4 +16,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "BTOrder"
 include(":app")
-include(":btorder")

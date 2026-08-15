@@ -1,4 +1,4 @@
-package it.example.chiamatebt
+package it.example.btorder
 
 import android.Manifest
 import android.app.NotificationChannel
@@ -93,14 +93,14 @@ class CallRoutingService : Service() {
             "Instradamento chiamate",
             NotificationManager.IMPORTANCE_MIN
         ).apply {
-            description = "Notifica persistente mentre ChiamateBT gestisce l'audio delle chiamate"
+            description = "Notifica persistente mentre BTOrder gestisce l'audio delle chiamate"
         }
         getSystemService(NotificationManager::class.java).createNotificationChannel(canale)
     }
 
     private fun costruisciNotifica() =
         NotificationCompat.Builder(this, CANALE_NOTIFICA)
-            .setContentTitle("ChiamateBT attivo")
+            .setContentTitle("BTOrder - Instradamento chiamate attivo")
             .setContentText("In ascolto per instradare l'audio delle chiamate")
             .setSmallIcon(R.drawable.ic_notifica)
             .setPriority(NotificationCompat.PRIORITY_MIN)
@@ -109,6 +109,6 @@ class CallRoutingService : Service() {
 
     companion object {
         private const val CANALE_NOTIFICA = "canale_instradamento_chiamate"
-        private const val ID_NOTIFICA = 1
+        private const val ID_NOTIFICA = 2
     }
 }

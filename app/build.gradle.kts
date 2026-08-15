@@ -4,11 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "it.example.chiamatebt"
+    namespace = "it.example.btorder"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "it.example.chiamatebt"
+        applicationId = "it.example.btorder"
+        // API 31 richiesta da AudioManager.setCommunicationDevice e TelephonyCallback,
+        // usati dall'instradamento automatico delle chiamate.
         minSdk = 31
         targetSdk = 34
         versionCode = 1
@@ -60,7 +62,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
 
-    // Persistenza dell'ordine di priorità dei dispositivi
+    // Persistenza dei dispositivi di fiducia, delle automazioni e della priorità chiamate
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")

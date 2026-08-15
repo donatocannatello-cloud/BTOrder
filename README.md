@@ -1,40 +1,49 @@
 # BTOrder
 
-Questo repository contiene due app Android indipendenti (Kotlin + Jetpack
-Compose), entrambe pensate per semplificare l'uso del telefono in auto via
-Bluetooth:
+App Android singola (Kotlin + Jetpack Compose) per semplificare l'uso del
+telefono in auto via Bluetooth. È organizzata in due schede:
 
-- **[`app`](app) — ChiamateBT**: instrada automaticamente l'audio delle
-  chiamate verso il dispositivo Bluetooth preferito.
-- **[`btorder`](btorder) — BTOrder**: gestisce le periferiche Bluetooth
-  accoppiate e applica automazioni ("modalità auto") quando ci si connette a
-  un dispositivo di fiducia.
+- **Chiamate**: definisci un ordine di priorità personale tra i dispositivi
+  audio disponibili — cuffie/auto Bluetooth, auricolare integrato e vivavoce
+  integrato — e viene applicato automaticamente a ogni chiamata telefonica.
+- **Auto e dispositivi**: gestisci le periferiche Bluetooth accoppiate,
+  marcane una (o più) come **dispositivo di fiducia** — tipicamente l'unità
+  Bluetooth dell'auto — e applica automazioni automatiche alla connessione
+  (schermo sempre acceso, timeout schermo esteso, scorciatoia per aprire
+  un'app), ripristinate alla disconnessione.
 
-Sono due moduli Gradle separati (`:app` e `:btorder`) nello stesso progetto,
-ognuno con il proprio `applicationId` e la propria icona: si possono
-installare ed eseguire contemporaneamente sullo stesso telefono.
-
-## ChiamateBT (modulo `app`)
-
-App che permette di definire un ordine di
-priorità personale tra i dispositivi audio disponibili — cuffie/auto
-Bluetooth, auricolare integrato e vivavoce integrato — e lo applica
-automaticamente a ogni chiamata telefonica.
-
-- **Package**: `it.example.chiamatebt`
+- **Package**: `it.example.btorder`
 - **minSdk**: 31 (Android 12) — richiesto da `AudioManager.setCommunicationDevice`
-  e da `TelephonyCallback`
+  e da `TelephonyCallback` per la scheda Chiamate
 - **targetSdk / compileSdk**: 34
 
-### Come funziona
+## Nota importante sullo "sblocco sicuro"
+
+Su Android moderno **nessuna app di terze parti può bypassare davvero il
+PIN/pattern del lucchetto** in base alla prossimità Bluetooth: l'API di
+sistema che permetteva questo comportamento (`TrustAgentService`, alla base
+della vecchia funzione "Smart Lock: dispositivi affidabili") richiede dal
+2017 circa un permesso di firma riservato al sistema operativo, non
+concedibile a un'app normale. Non esiste un modo legittimo per aggirare
+questa restrizione senza root o senza essere Device Owner via MDM.
+
+Per questo BTOrder **non promette uno sblocco reale del lucchetto**: nella
+scheda "Auto e dispositivi" mostra un promemoria e un pulsante che apre le
+impostazioni di sicurezza native del telefono (`Settings.ACTION_SECURITY_SETTINGS`),
+dove — se il produttore la offre ancora — si può configurare "Smart Lock" in
+modo nativo e supportato. Le automazioni che l'app applica davvero (schermo,
+timeout, scorciatoia app, priorità audio in chiamata) sono invece azioni
+concrete e realizzabili con le API pubbliche di Android.
+
+## Scheda "Chiamate"
 
 1. **`DispositiviAudio.kt`** enumera i dispositivi Bluetooth accoppiati con
    profilo audio (`BluetoothClass.Device.Major.AUDIO_VIDEO`) e li combina con
    due voci fisse: `Audio Telefono` (id `PHONE_EARPIECE`) e `Vivavoce
    Telefono` (id `PHONE_SPEAKER`).
-2. Nella schermata principale (**`MainActivity.kt`**) l'utente riordina la
-   lista con un **drag&drop nativo Compose** (nessuna libreria esterna):
-   tenendo premuto un elemento e trascinandolo, `LazyColumn` +
+2. Nella schermata (**`MainActivity.kt`**, `SchermataChiamate`) l'utente
+   riordina la lista con un **drag&drop nativo Compose** (nessuna libreria
+   esterna): tenendo premuto un elemento e trascinandolo, `LazyColumn` +
    `Modifier.pointerInput` + `detectDragGesturesAfterLongPress` ricalcolano la
    posizione in tempo reale.
 3. L'ordine (una lista di ID: MAC address per il Bluetooth, `PHONE_EARPIECE`
@@ -56,78 +65,17 @@ automaticamente a ogni chiamata telefonica.
    coda (`DispositiviAudio.costruisciListaOrdinata`).
 
 Il servizio va avviato/fermato manualmente dal pulsante "Avvia/Ferma
-monitoraggio chiamate" nella schermata principale.
+monitoraggio chiamate".
 
-### Permessi
-
-Richiesti a runtime da `MainActivity` con
-`ActivityResultContracts.RequestMultiplePermissions`:
-
-- `BLUETOOTH_CONNECT` — per leggere nome/indirizzo dei dispositivi accoppiati
-- `READ_PHONE_STATE` — per il `TelephonyCallback`
-- `MODIFY_AUDIO_SETTINGS` — per `setCommunicationDevice`
-- `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_PHONE_CALL` — permessi "normali",
-  concessi automaticamente ma comunque richiesti esplicitamente
-- `POST_NOTIFICATIONS` (solo API 33+) — per la notifica persistente del
-  servizio
-
-### Limiti noti
-
-- `AudioManager.setCommunicationDevice` è disponibile solo da **API 31**
-  (Android 12); l'app non è installabile su versioni precedenti (`minSdk`
-  è impostato di conseguenza).
-- Alcune skin dei produttori (es. Samsung, Xiaomi) o servizi come **Android
-  Auto**/Bluetooth SCO di terze parti possono reimporre il proprio routing
-  audio dopo che l'app ha applicato il proprio, specialmente se intervengono
-  dopo l'evento `OFFHOOK` con un piccolo ritardo.
-- La lista dei dispositivi Bluetooth mostra i dispositivi **accoppiati**
-  (bonded), non necessariamente quelli connessi in questo momento: questo è
-  intenzionale, per permettere di definirne la priorità anche quando non
-  sono nel raggio d'azione; solo al momento della chiamata si verifica quali
-  siano *davvero* disponibili.
-- Il servizio va avviato manualmente dall'app; non c'è (ancora) un
-  `BroadcastReceiver` per l'avvio automatico al boot.
-
-## BTOrder (modulo `btorder`)
-
-App che gestisce le periferiche Bluetooth accoppiate e permette di marcarne
-una (o più) come **dispositivo di fiducia** — tipicamente il vivavoce/l'unità
-Bluetooth dell'auto — per applicare in automatico, alla connessione, alcune
-comodità pensate per la guida: schermo sempre acceso, timeout schermo
-allungato, scorciatoia rapida per aprire un'app (Maps, un lettore musicale,
-...). Alla disconnessione, tutto viene ripristinato com'era prima.
-
-- **Package**: `it.example.btorder`
-- **minSdk**: 26 (Android 8.0)
-- **targetSdk / compileSdk**: 34
-
-### Nota importante sullo "sblocco sicuro"
-
-Su Android moderno **nessuna app di terze parti può bypassare davvero il
-PIN/pattern del lucchetto** in base alla prossimità Bluetooth: l'API di
-sistema che permetteva questo comportamento (`TrustAgentService`, alla base
-della vecchia funzione "Smart Lock: dispositivi affidabili") richiede dal
-2017 circa un permesso di firma riservato al sistema operativo, non
-concedibile a un'app normale. Non esiste un modo legittimo per aggirare
-questa restrizione senza root o senza essere Device Owner via MDM.
-
-Per questo BTOrder **non promette uno sblocco reale del lucchetto**: nella
-schermata principale mostra un promemoria e un pulsante che apre le
-impostazioni di sicurezza native del telefono (`Settings.ACTION_SECURITY_SETTINGS`),
-dove — se il produttore la offre ancora — si può configurare "Smart Lock" in
-modo nativo e supportato. Le automazioni che l'app applica davvero
-(schermo, timeout, scorciatoia app) sono invece azioni concrete e
-realizzabili con le API pubbliche di Android.
-
-### Come funziona
+## Scheda "Auto e dispositivi"
 
 1. **`DispositiviBluetooth.kt`** enumera tutti i dispositivi Bluetooth
    accoppiati (non solo quelli audio) e osserva in tempo reale le
    connessioni/disconnessioni tramite i broadcast di sistema
    `BluetoothDevice.ACTION_ACL_CONNECTED` / `ACTION_ACL_DISCONNECTED`.
-2. Nella schermata principale (**`MainActivity.kt`**) l'utente marca uno o
-   più dispositivi come "di fiducia" con uno switch, e per ciascuno può
-   attivare le automazioni desiderate.
+2. Nella schermata (**`MainActivity.kt`**, `SchermataAutoDispositivi`)
+   l'utente marca uno o più dispositivi come "di fiducia" con uno switch, e
+   per ciascuno può attivare le automazioni desiderate.
 3. **`TrustedDeviceStore.kt`** salva con **DataStore Preferences** l'elenco
    dei dispositivi di fiducia e le relative automazioni, oltre alla
    preferenza di avvio automatico al boot.
@@ -149,27 +97,48 @@ realizzabili con le API pubbliche di Android.
    se l'utente ha attivato "Avvia automaticamente all'accensione".
 
 Il servizio va avviato/fermato manualmente dal pulsante "Avvia/Ferma
-monitoraggio automazioni" nella schermata principale, oppure automaticamente
-al boot se l'opzione è attiva.
+monitoraggio automazioni", oppure automaticamente al boot se l'opzione è
+attiva.
 
-### Permessi
+## Permessi
+
+Richiesti a runtime da `MainActivity` con
+`ActivityResultContracts.RequestMultiplePermissions` (una sola volta
+all'avvio, valgono per entrambe le schede):
 
 - `BLUETOOTH_CONNECT` — per leggere nome/indirizzo dei dispositivi accoppiati
-- `POST_NOTIFICATIONS` (solo API 33+) — per le notifiche del servizio
-- `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_CONNECTED_DEVICE` — permessi
-  "normali" per il Service in foreground
-- `RECEIVE_BOOT_COMPLETED` — per il riavvio automatico al boot (opzionale)
+- `READ_PHONE_STATE` — per il `TelephonyCallback` (scheda Chiamate)
+- `MODIFY_AUDIO_SETTINGS` — per `setCommunicationDevice` (scheda Chiamate)
+- `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_PHONE_CALL`,
+  `FOREGROUND_SERVICE_CONNECTED_DEVICE` — permessi "normali" per i due
+  Service in foreground
+- `POST_NOTIFICATIONS` (solo API 33+) — per le notifiche dei servizi
+- `RECEIVE_BOOT_COMPLETED` — per il riavvio automatico al boot (opzionale,
+  scheda Auto e dispositivi)
 - `WAKE_LOCK` — per mantenere lo schermo acceso su richiesta
 - `WRITE_SETTINGS` — permesso speciale, concesso dall'utente tramite un
   pulsante in-app che apre `Settings.ACTION_MANAGE_WRITE_SETTINGS`, usato
   solo per estendere/ripristinare il timeout schermo
 
-### Limiti noti
+## Limiti noti
 
 - Nessun vero bypass del lucchetto di sistema: vedi la nota dedicata sopra.
-- L'avvio automatico di un'app alla connessione richiede comunque un tocco
-  dell'utente sulla notifica, per rispettare le restrizioni Android
-  sull'avvio di Activity dal background.
+- `AudioManager.setCommunicationDevice` è disponibile solo da **API 31**
+  (Android 12); l'app non è installabile su versioni precedenti (`minSdk`
+  è impostato di conseguenza per l'intera app, anche per la scheda "Auto e
+  dispositivi" che da sola richiederebbe solo API 26).
+- Alcune skin dei produttori (es. Samsung, Xiaomi) o servizi come **Android
+  Auto**/Bluetooth SCO di terze parti possono reimporre il proprio routing
+  audio dopo che l'app ha applicato il proprio, specialmente se intervengono
+  dopo l'evento `OFFHOOK` con un piccolo ritardo.
+- La lista dei dispositivi Bluetooth nella scheda Chiamate mostra i
+  dispositivi **accoppiati** (bonded), non necessariamente quelli connessi in
+  questo momento: questo è intenzionale, per permettere di definirne la
+  priorità anche quando non sono nel raggio d'azione; solo al momento della
+  chiamata si verifica quali siano *davvero* disponibili.
+- L'avvio automatico di un'app alla connessione (scheda Auto e dispositivi)
+  richiede comunque un tocco dell'utente sulla notifica, per rispettare le
+  restrizioni Android sull'avvio di Activity dal background.
 - Se l'utente non concede il permesso `WRITE_SETTINGS`, l'automazione
   "estendi timeout schermo" viene semplicemente ignorata (le altre restano
   disponibili).
@@ -177,10 +146,11 @@ al boot se l'opzione è attiva.
   `PowerManager.SCREEN_DIM_WAKE_LOCK`: è una scelta deliberata, perché senza
   root/MDM è l'unico modo per un Service in background di tenere lo schermo
   acceso in risposta a un evento esterno come una connessione Bluetooth.
+- I due servizi in foreground (chiamate e automazioni auto) vanno avviati
+  manualmente dai rispettivi pulsanti; solo il monitoraggio delle
+  automazioni auto può ripartire da solo al boot, se abilitato.
 
 ## Come compilare
-
-Entrambi i moduli si compilano allo stesso modo:
 
 1. Apri la cartella del progetto con **Android Studio** (Koala o successivo
    consigliato, richiede AGP 8.4+).
@@ -188,11 +158,9 @@ Entrambi i moduli si compilano allo stesso modo:
    AndroidX, Compose) e sincronizzi il progetto.
 3. Da terminale, in alternativa:
    ```bash
-   ./gradlew :app:assembleDebug
-   ./gradlew :btorder:assembleDebug
+   ./gradlew assembleDebug
    ```
-   Gli APK di debug vengono generati in `app/build/outputs/apk/debug/` e
-   `btorder/build/outputs/apk/debug/`.
+   L'APK di debug viene generato in `app/build/outputs/apk/debug/`.
 
 ### Nota sulla verifica automatica della build in questo ambiente
 
@@ -202,7 +170,6 @@ stata verificata end-to-end**: la policy di rete del sandbox blocca
 il repository Maven da cui si scarica l'Android Gradle Plugin e le librerie
 AndroidX/Compose. Senza accesso a quel repository Gradle non riesce nemmeno a
 risolvere il plugin `com.android.application`, indipendentemente dalla
-correttezza del codice sorgente. Il codice Kotlin è stato scritto e
-riletto con attenzione, ma va comunque verificato con una build reale in un
-ambiente con accesso al Google Maven repository (Android Studio su una
-macchina normale, o una CI con rete non ristretta).
+correttezza del codice sorgente. La build viene invece verificata
+automaticamente su GitHub Actions (`.github/workflows/build-apk.yml`), che
+gira su runner con accesso di rete completo.

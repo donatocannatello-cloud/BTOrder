@@ -1,4 +1,4 @@
-package it.example.chiamatebt
+package it.example.btorder
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothClass
