@@ -1,9 +1,11 @@
 # Il Menù del Mostro
 
 Gioco Android (Kotlin + Jetpack Compose) pensato per bambini di 6/7 anni: si
-compone un menù di 3 portate (Antipasto, Primo, Dolce) scegliendo tra piatti
-"normali" e piatti "folli" da servire a **Papà Mostro**, che ad ogni turno ha
-voglie diverse (dolce, salato, piccante, verde, pazzo...).
+compone un menù di 3 portate (Antipasto, Primo, Dolce), ognuna con il proprio
+menù di piatti "normali" e piatti "folli" (schifezze mostruose), da servire a
+4 commensali mostruosi — **Mostro, Mostra, Mostrina e Mostretta** — che ad
+ogni manche hanno una richiesta diversa (es. "cibi rossi", "sono
+vegetariano", "sono carnivoro", "mi piacciono le insalate"...).
 
 Questo è un progetto Gradle **completamente indipendente** da ChiamateBT
 (nella cartella `../app`): ha proprio `settings.gradle.kts`, proprio wrapper
@@ -18,23 +20,29 @@ separatamente.
 ## Come si gioca
 
 1. Nella schermata iniziale si preme **"Gioca!"**.
-2. Ad ogni turno il Mostro esprime una voglia (es. "Voglio qualcosa di
-   CROCCANTE e SALATO!").
-3. Si toccano 3 piatti dalla griglia colorata in basso per riempire i tre
-   cerchi del menù (Antipasto/Primo/Dolce). Toccando un cerchio già pieno lo
-   si svuota per cambiare idea.
-4. Con **"Servi al Mostro!"** si scopre quante stelle (1-3) si sono
-   guadagnate, in base a quanti piatti scelti soddisfano la voglia del
-   Mostro. Il minimo è sempre 1 stella: anche il tentativo più stravagante
-   viene premiato, per restare divertente e mai frustrante.
-5. Dopo 6 clienti serviti si arriva alla schermata finale con il punteggio
-   totale, e si può ricominciare con **"Gioca ancora"**.
+2. Ad ogni manche arriva un commensale diverso (Mostro, Mostra, Mostrina o
+   Mostretta) con una richiesta (es. "Sono VEGETARIANO, niente carne o
+   pesce!" oppure "Oggi voglio solo CIBI ROSSI!").
+3. Si scorre la schermata e si sceglie **un piatto per ciascuna delle 3
+   sezioni** (Antipasto, Primo, Dolce): ogni sezione ha il proprio menù di 8
+   piatti, mescolando piatti normali e schifezze (contrassegnate con 🤪).
+   Toccando di nuovo il piatto già scelto lo si deseleziona per cambiare
+   idea.
+4. Con **"Servi il pasto!"** si scopre il punteggio della manche, da 0 a 100:
+   è la percentuale dei 3 piatti scelti che soddisfa la richiesta del
+   commensale (0, 33, 67 o 100). Una schifezza non è automaticamente
+   "sbagliata": a volte è proprio quello che il commensale vuole (es. una
+   schifezza rossa soddisfa "cibi rossi" tanto quanto un piatto normale).
+5. Dopo 4 commensali serviti si arriva alla schermata finale con il
+   punteggio totale su 400, e si può ricominciare con **"Gioca ancora"**.
 
 ## File principali
 
-- **`FoodData.kt`** — elenco dei piatti (con le loro categorie) e delle
-  possibili richieste del Mostro.
-- **`GameLogic.kt`** — calcolo delle stelle e scelta della prossima richiesta.
+- **`FoodData.kt`** — i tre menù (antipasti/primi/dolci) con le loro
+  categorie, l'elenco dei 4 commensali e le richieste possibili (ognuna con
+  la propria funzione di valutazione del pasto).
+- **`GameLogic.kt`** — calcolo del punteggio (0-100) ed estrazione casuale di
+  richieste e commensali per la partita.
 - **`MainActivity.kt`** — tutte le schermate Compose (Home, Gioco, Fine) e lo
   stato della partita.
 - **`ui/theme/`** — tema con palette allegra e colorata fissa, pensata per
@@ -60,6 +68,6 @@ una CI con accesso al repository Maven di Google.
 
 ## Idee per estensioni future
 
-- Suoni ed effetti sonori quando il Mostro mangia.
-- Più clienti mostro con personalità diverse (non solo Papà Mostro).
-- Animazioni di masticazione/coriandoli quando si ottengono 3 stelle.
+- Suoni ed effetti sonori quando il commensale mangia.
+- Più richieste e più piatti per portata, per aumentare la varietà.
+- Animazioni di masticazione/coriandoli quando si ottengono 100 punti.

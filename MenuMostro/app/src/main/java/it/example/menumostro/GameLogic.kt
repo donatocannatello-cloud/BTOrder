@@ -1,26 +1,19 @@
 package it.example.menumostro
 
+import kotlin.math.roundToInt
+
 /**
- * Calcola le stelle (1-3) ottenute servendo [scelti] alla [richiesta] del Mostro:
- * conta quanti dei 3 piatti condividono almeno una categoria con quelle desiderate.
- * Il minimo è sempre 1 stella, così anche il tentativo più stravagante viene
- * premiato e il gioco resta divertente e mai frustrante per i più piccoli.
+ * Calcola la percentuale (0-100) di [piatti] che soddisfa [condizione], arrotondata.
+ * Con 3 piatti (uno per portata) i valori possibili sono sempre 0, 33, 67 o 100.
  */
-fun calcolaStelle(scelti: List<Piatto>, richiesta: RichiestaMostro): Int {
-    val corrispondenze = scelti.count { piatto -> piatto.categorie.any { it in richiesta.categorieDesiderate } }
-    return when (corrispondenze) {
-        3 -> 3
-        2 -> 2
-        else -> 1
-    }
+fun frazionePunti(piatti: List<Piatto>, condizione: (Piatto) -> Boolean): Int {
+    if (piatti.isEmpty()) return 0
+    val corrispondenti = piatti.count(condizione)
+    return ((corrispondenti * 100.0) / piatti.size).roundToInt()
 }
 
-/** Sceglie una nuova richiesta casuale, diversa dalla [precedente] quando possibile. */
-fun prossimaRichiesta(precedente: RichiestaMostro?): RichiestaMostro {
-    if (elencoRichieste.size <= 1) return elencoRichieste.first()
-    var nuova: RichiestaMostro
-    do {
-        nuova = elencoRichieste.random()
-    } while (nuova == precedente)
-    return nuova
-}
+/** Estrae [quante] richieste distinte a caso, in ordine casuale: una per manche, mai ripetute nella partita. */
+fun estraiRichieste(quante: Int): List<RichiestaMostro> = elencoRichieste.shuffled().take(quante)
+
+/** Estrae [quanti] commensali distinti a caso, in ordine casuale. */
+fun estraiCommensali(quanti: Int): List<Commensale> = elencoCommensali.shuffled().take(quanti)

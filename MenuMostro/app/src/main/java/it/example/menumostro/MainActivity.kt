@@ -4,11 +4,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -18,11 +18,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -46,9 +45,8 @@ import it.example.menumostro.ui.theme.MenuMostroTheme
 import it.example.menumostro.ui.theme.SfondoChiaro
 import it.example.menumostro.ui.theme.palettePiatti
 
-private const val NUMERO_CLIENTI = 6
-private const val STELLE_PER_CLIENTE = 3
-private val ETICHETTE_PORTATE = listOf("Antipasto", "Primo", "Dolce")
+private const val NUMERO_MANCHE = 4
+private const val PUNTEGGIO_MASSIMO_MANCHA = 100
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,14 +66,16 @@ private enum class Schermata { HOME, GIOCO, FINE }
 @Composable
 fun AppMenuMostro() {
     var schermata by remember { mutableStateOf(Schermata.HOME) }
-    var numeroCliente by remember { mutableStateOf(1) }
-    var stelleTotali by remember { mutableStateOf(0) }
-    var richiestaCorrente by remember { mutableStateOf(elencoRichieste.random()) }
+    var numeroManche by remember { mutableStateOf(1) }
+    var punteggioTotale by remember { mutableStateOf(0) }
+    var ordineCommensali by remember { mutableStateOf(estraiCommensali(NUMERO_MANCHE)) }
+    var ordineRichieste by remember { mutableStateOf(estraiRichieste(NUMERO_MANCHE)) }
 
     fun iniziaPartita() {
-        numeroCliente = 1
-        stelleTotali = 0
-        richiestaCorrente = elencoRichieste.random()
+        numeroManche = 1
+        punteggioTotale = 0
+        ordineCommensali = estraiCommensali(NUMERO_MANCHE)
+        ordineRichieste = estraiRichieste(NUMERO_MANCHE)
         schermata = Schermata.GIOCO
     }
 
@@ -83,23 +83,23 @@ fun AppMenuMostro() {
         Schermata.HOME -> SchermataHome(onGioca = { iniziaPartita() })
 
         Schermata.GIOCO -> SchermataGioco(
-            numeroCliente = numeroCliente,
-            stelleTotali = stelleTotali,
-            richiesta = richiestaCorrente,
-            onClienteServito = { stelleGuadagnate ->
-                stelleTotali += stelleGuadagnate
-                if (numeroCliente >= NUMERO_CLIENTI) {
+            numeroManche = numeroManche,
+            punteggioTotale = punteggioTotale,
+            commensale = ordineCommensali[numeroManche - 1],
+            richiesta = ordineRichieste[numeroManche - 1],
+            onManchaServita = { punteggio ->
+                punteggioTotale += punteggio
+                if (numeroManche >= NUMERO_MANCHE) {
                     schermata = Schermata.FINE
                 } else {
-                    richiestaCorrente = prossimaRichiesta(richiestaCorrente)
-                    numeroCliente += 1
+                    numeroManche += 1
                 }
             }
         )
 
         Schermata.FINE -> SchermataFine(
-            stelleTotali = stelleTotali,
-            stelleMassime = NUMERO_CLIENTI * STELLE_PER_CLIENTE,
+            punteggioTotale = punteggioTotale,
+            puntiMassimi = NUMERO_MANCHE * PUNTEGGIO_MASSIMO_MANCHA,
             onGiocaAncora = { iniziaPartita() }
         )
     }
@@ -115,7 +115,7 @@ fun SchermataHome(onGioca: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "👹", fontSize = 96.sp)
+        Text(text = "👹🍽️👻", fontSize = 72.sp)
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "Il Menù del Mostro",
@@ -124,8 +124,9 @@ fun SchermataHome(onGioca: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Prepara piatti buffi (e un po' pazzi) per accontentare Papà Mostro, " +
-                "che ogni volta ha voglia di qualcosa di diverso!",
+            text = "Componi antipasto, primo e dolce scegliendo tra piatti normali e " +
+                "schifezze mostruose. 4 commensali, 4 gusti diversi: accontentali per fare " +
+                "più punti possibile!",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )
@@ -142,26 +143,20 @@ fun SchermataHome(onGioca: () -> Unit) {
 
 @Composable
 fun SchermataGioco(
-    numeroCliente: Int,
-    stelleTotali: Int,
+    numeroManche: Int,
+    punteggioTotale: Int,
+    commensale: Commensale,
     richiesta: RichiestaMostro,
-    onClienteServito: (Int) -> Unit
+    onManchaServita: (Int) -> Unit
 ) {
-    // Chiave sul numero di cliente: ad ogni nuovo cliente il piatto e il
+    // Chiave sul numero di manche: ad ogni nuovo commensale le scelte e il
     // risultato precedente vengono azzerati automaticamente.
-    var piattiScelti by remember(numeroCliente) { mutableStateOf<List<Piatto?>>(listOf(null, null, null)) }
-    var risultato by remember(numeroCliente) { mutableStateOf<Int?>(null) }
+    var sceltaAntipasto by remember(numeroManche) { mutableStateOf<Piatto?>(null) }
+    var sceltaPrimo by remember(numeroManche) { mutableStateOf<Piatto?>(null) }
+    var sceltaDolce by remember(numeroManche) { mutableStateOf<Piatto?>(null) }
+    var risultato by remember(numeroManche) { mutableStateOf<Int?>(null) }
 
-    fun aggiungiPiatto(piatto: Piatto) {
-        val indiceLibero = piattiScelti.indexOfFirst { it == null }
-        if (indiceLibero != -1) {
-            piattiScelti = piattiScelti.toMutableList().apply { set(indiceLibero, piatto) }
-        }
-    }
-
-    fun rimuoviPiatto(indice: Int) {
-        piattiScelti = piattiScelti.toMutableList().apply { set(indice, null) }
-    }
+    val menuCompleto = sceltaAntipasto != null && sceltaPrimo != null && sceltaDolce != null
 
     Box(
         modifier = Modifier
@@ -171,6 +166,7 @@ fun SchermataGioco(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
             Row(
@@ -178,134 +174,212 @@ fun SchermataGioco(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "Cliente $numeroCliente/$NUMERO_CLIENTI", style = MaterialTheme.typography.titleLarge)
-                Text(text = "⭐ $stelleTotali", style = MaterialTheme.typography.titleLarge)
-            }
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiary),
-                shape = RoundedCornerShape(24.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(text = "👹", fontSize = 48.sp)
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = richiesta.frase,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                piattiScelti.forEachIndexed { indice, piatto ->
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(
-                            modifier = Modifier
-                                .size(84.dp)
-                                .clip(CircleShape)
-                                .background(if (piatto != null) Color.White else Color(0xFFE0D9F5))
-                                .clickable(enabled = piatto != null) { rimuoviPiatto(indice) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = piatto?.emoji ?: "❓", fontSize = 36.sp)
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = ETICHETTE_PORTATE[indice], style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
+                Text(
+                    text = "Commensale $numeroManche/$NUMERO_MANCHE",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(text = "🏅 $punteggioTotale", style = MaterialTheme.typography.titleLarge)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Tocca un piatto per aggiungerlo al menù, tocca un cerchio pieno per toglierlo.",
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+            CartaRichiesta(commensale = commensale, richiesta = richiesta)
+            Spacer(modifier = Modifier.height(4.dp))
+
+            SezioneMenu(
+                portata = Portata.ANTIPASTO,
+                piatti = menuAntipasti,
+                selezionato = sceltaAntipasto,
+                onSeleziona = { piatto -> sceltaAntipasto = if (piatto == sceltaAntipasto) null else piatto }
             )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 8.dp)
-            ) {
-                itemsIndexed(elencoPiatti) { indice, piatto ->
-                    val colore = palettePiatti[indice % palettePiatti.size]
-                    Card(
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .clickable { aggiungiPiatto(piatto) },
-                        colors = CardDefaults.cardColors(containerColor = colore),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(4.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(text = piatto.emoji, fontSize = 30.sp)
-                            Text(
-                                text = piatto.nome,
-                                fontSize = 11.sp,
-                                lineHeight = 13.sp,
-                                textAlign = TextAlign.Center,
-                                maxLines = 2,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
+            SezioneMenu(
+                portata = Portata.PRIMO,
+                piatti = menuPrimi,
+                selezionato = sceltaPrimo,
+                onSeleziona = { piatto -> sceltaPrimo = if (piatto == sceltaPrimo) null else piatto }
+            )
+            SezioneMenu(
+                portata = Portata.DOLCE,
+                piatti = menuDolci,
+                selezionato = sceltaDolce,
+                onSeleziona = { piatto -> sceltaDolce = if (piatto == sceltaDolce) null else piatto }
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
             Button(
                 onClick = {
-                    val scelti = piattiScelti.filterNotNull()
-                    risultato = calcolaStelle(scelti, richiesta)
+                    val piatti = listOfNotNull(sceltaAntipasto, sceltaPrimo, sceltaDolce)
+                    risultato = richiesta.valuta(piatti)
                 },
-                enabled = piattiScelti.all { it != null },
+                enabled = menuCompleto,
                 shape = RoundedCornerShape(50),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
             ) {
-                Text(text = "🍽️ Servi al Mostro!", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(text = "🍽️ Servi il pasto!", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
-        risultato?.let { stelle ->
+        risultato?.let { punteggio ->
             RisultatoOverlay(
-                stelle = stelle,
-                ultimoCliente = numeroCliente >= NUMERO_CLIENTI,
-                onContinua = { onClienteServito(stelle) }
+                punteggio = punteggio,
+                ultimaMancha = numeroManche >= NUMERO_MANCHE,
+                onContinua = { onManchaServita(punteggio) }
             )
         }
     }
 }
 
 @Composable
-fun RisultatoOverlay(stelle: Int, ultimoCliente: Boolean, onContinua: () -> Unit) {
-    val (emoji, messaggio) = when (stelle) {
-        3 -> "🤩" to "Delizioso! Il Mostro è al settimo cielo!"
-        2 -> "😋" to "Mmm, buonissimo! Il Mostro è soddisfatto."
-        else -> "😅" to "Che sapore strano... ma il Mostro lo mangia lo stesso, con una smorfia buffa!"
+fun CartaRichiesta(commensale: Commensale, richiesta: RichiestaMostro) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiary),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = commensale.emoji, fontSize = 36.sp)
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(text = commensale.nome, style = MaterialTheme.typography.titleLarge)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = richiesta.frase,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+private const val COLONNE_MENU = 3
+
+@Composable
+fun SezioneMenu(
+    portata: Portata,
+    piatti: List<Piatto>,
+    selezionato: Piatto?,
+    onSeleziona: (Piatto) -> Unit
+) {
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = portata.emoji, fontSize = 22.sp)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = portata.etichetta, style = MaterialTheme.typography.titleLarge)
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = selezionato?.let { "${it.emoji} scelto" } ?: "tocca per scegliere",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+
+        piatti.withIndex().chunked(COLONNE_MENU).forEach { riga ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                riga.forEach { (indice, piatto) ->
+                    CartaPiattoMenu(
+                        piatto = piatto,
+                        selezionato = piatto == selezionato,
+                        colore = palettePiatti[indice % palettePiatti.size],
+                        modifier = Modifier.weight(1f),
+                        onClick = { onSeleziona(piatto) }
+                    )
+                }
+                repeat(COLONNE_MENU - riga.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+fun CartaPiattoMenu(
+    piatto: Piatto,
+    selezionato: Boolean,
+    colore: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .aspectRatio(1f)
+            .then(
+                if (selezionato) {
+                    Modifier.border(3.dp, Color.White, RoundedCornerShape(16.dp))
+                } else {
+                    Modifier
+                }
+            )
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = colore),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(text = piatto.emoji, fontSize = 26.sp)
+                Text(
+                    text = piatto.nome,
+                    fontSize = 10.sp,
+                    lineHeight = 12.sp,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            if (piatto.schifezza) {
+                Text(
+                    text = "🤪",
+                    fontSize = 14.sp,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(3.dp)
+                )
+            }
+            if (selezionato) {
+                Text(
+                    text = "✔️",
+                    fontSize = 16.sp,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(3.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun RisultatoOverlay(punteggio: Int, ultimaMancha: Boolean, onContinua: () -> Unit) {
+    val (emoji, messaggio) = when (punteggio) {
+        100 -> "🤩" to "PERFETTO! Il commensale è al settimo cielo!"
+        67 -> "😋" to "Niente male! Il commensale è quasi soddisfatto."
+        33 -> "😅" to "Mmm, ci siamo quasi... il commensale storce un po' il naso."
+        else -> "😬" to "Il commensale non è per niente convinto... ma ci riprova!"
     }
 
     Box(
@@ -323,13 +397,12 @@ fun RisultatoOverlay(stelle: Int, ultimoCliente: Boolean, onContinua: () -> Unit
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(text = emoji, fontSize = 72.sp)
-                Spacer(modifier = Modifier.height(12.dp))
-                Row {
-                    repeat(STELLE_PER_CLIENTE) { indice ->
-                        Text(text = if (indice < stelle) "⭐" else "☆", fontSize = 32.sp)
-                    }
-                }
+                Text(text = emoji, fontSize = 64.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "$punteggio/100 punti",
+                    style = MaterialTheme.typography.headlineMedium
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = messaggio,
@@ -339,7 +412,7 @@ fun RisultatoOverlay(stelle: Int, ultimoCliente: Boolean, onContinua: () -> Unit
                 Spacer(modifier = Modifier.height(20.dp))
                 Button(onClick = onContinua, shape = RoundedCornerShape(50)) {
                     Text(
-                        text = if (ultimoCliente) "Vedi il risultato finale 🏁" else "Prossimo cliente ➡️",
+                        text = if (ultimaMancha) "Vedi il risultato finale 🏁" else "Prossimo commensale ➡️",
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -349,12 +422,13 @@ fun RisultatoOverlay(stelle: Int, ultimoCliente: Boolean, onContinua: () -> Unit
 }
 
 @Composable
-fun SchermataFine(stelleTotali: Int, stelleMassime: Int, onGiocaAncora: () -> Unit) {
-    val percentuale = stelleTotali.toFloat() / stelleMassime
+fun SchermataFine(punteggioTotale: Int, puntiMassimi: Int, onGiocaAncora: () -> Unit) {
+    val percentuale = punteggioTotale.toFloat() / puntiMassimi
     val (emoji, messaggio) = when {
-        percentuale >= 0.85f -> "🏆" to "Sei un vero Chef dei Mostri!"
-        percentuale >= 0.6f -> "🎉" to "Ottimo lavoro, il Mostro è tornato ogni volta contento!"
-        else -> "👍" to "Bel tentativo! Il Mostro ha adorato la tua fantasia."
+        percentuale >= 0.85f -> "🏆" to "Sei il Cuoco Supremo dei Mostri!"
+        percentuale >= 0.6f -> "🎉" to "Che banchetto! I mostri sono tornati contenti."
+        percentuale >= 0.35f -> "👍" to "Bel tentativo, i mostri crescono col tuo talento!"
+        else -> "😄" to "Che serata pazza in cucina! Riprova per stupirli ancora di più."
     }
 
     Column(
@@ -368,13 +442,13 @@ fun SchermataFine(stelleTotali: Int, stelleMassime: Int, onGiocaAncora: () -> Un
         Text(text = emoji, fontSize = 96.sp)
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Hai servito $NUMERO_CLIENTI clienti oggi!",
+            text = "Hai servito $NUMERO_MANCHE commensali oggi!",
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Stelle raccolte: $stelleTotali su $stelleMassime ⭐",
+            text = "Punteggio totale: $punteggioTotale/$puntiMassimi",
             style = MaterialTheme.typography.titleLarge
         )
         Spacer(modifier = Modifier.height(8.dp))

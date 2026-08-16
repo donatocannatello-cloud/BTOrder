@@ -1,52 +1,87 @@
 package it.example.menumostro
 
-/** Un piatto che il giocatore può usare per comporre il menù del Mostro. */
+/** Le tre portate che compongono il pasto da servire ad ogni commensale. */
+enum class Portata(val etichetta: String, val emoji: String) {
+    ANTIPASTO("Antipasto", "🥗"),
+    PRIMO("Primo", "🍝"),
+    DOLCE("Dolce", "🍰")
+}
+
+/** Un piatto selezionabile in una portata: può essere un piatto normale oppure una "schifezza" mostruosa. */
 data class Piatto(
     val nome: String,
     val emoji: String,
-    val categorie: Set<String>
+    val schifezza: Boolean,
+    val colore: String,
+    val categorie: Set<String> = emptySet()
 )
 
-/**
- * Piatti disponibili nel banco degli ingredienti: metà "normali" e metà
- * "folli", pensati per essere buffi ma mai spaventosi per bambini di 6/7 anni.
- */
-val elencoPiatti: List<Piatto> = listOf(
-    // Piatti normali
-    Piatto("Pizza Margherita", "🍕", setOf("salato", "caldo", "normale")),
-    Piatto("Gelato al Cioccolato", "🍦", setOf("dolce", "freddo", "normale")),
-    Piatto("Mela Rossa", "🍎", setOf("dolce", "croccante", "normale")),
-    Piatto("Pollo Arrosto", "🍗", setOf("salato", "caldo", "croccante", "normale")),
-    Piatto("Insalata Verde", "🥗", setOf("verde", "freddo", "normale")),
-    Piatto("Popcorn Salati", "🍿", setOf("salato", "croccante", "normale")),
-    Piatto("Torta di Compleanno", "🎂", setOf("dolce", "normale")),
-    Piatto("Banana", "🍌", setOf("dolce", "normale")),
+/** Vero se il piatto non contiene né carne né pesce (usato dalla richiesta "sono vegetariano"). */
+val Piatto.vegetariano: Boolean get() = "carne" !in categorie && "pesce" !in categorie
 
-    // Piatti folli del Mostro
-    Piatto("Vermi Gommosi al Cioccolato", "🪱", setOf("dolce", "pazzo")),
-    Piatto("Occhio di Ciclope Gelatinoso", "👁️", setOf("freddo", "pazzo", "verde")),
-    Piatto("Melma Verde Frizzante", "🫙", setOf("verde", "freddo", "pazzo")),
-    Piatto("Ragnetti Croccanti allo Zucchero", "🕷️", setOf("croccante", "dolce", "pazzo")),
-    Piatto("Zampa di Drago Piccantissima", "🐉", setOf("piccante", "caldo", "pazzo")),
-    Piatto("Bava di Lumaca Viola", "🐌", setOf("viola", "freddo", "pazzo")),
-    Piatto("Alga Puzzolente del Pantano", "🌿", setOf("verde", "pazzo", "salato")),
-    Piatto("Sorpresa Misteriosa del Mostro", "🎲", setOf("pazzo"))
+/** Menù dell'antipasto: mix di piatti normali e piatti folli. */
+val menuAntipasti: List<Piatto> = listOf(
+    Piatto("Bruschetta al Pomodoro", "🍅", schifezza = false, colore = "rosso"),
+    Piatto("Insalata Verde Croccante", "🥗", schifezza = false, colore = "verde", categorie = setOf("insalata")),
+    Piatto("Prosciutto e Melone", "🍈", schifezza = false, colore = "arancione", categorie = setOf("carne", "frutta")),
+    Piatto("Tagliere di Formaggi", "🧀", schifezza = false, colore = "giallo", categorie = setOf("formaggio")),
+    Piatto("Bastoncini di Pesce Fritti", "🐟", schifezza = false, colore = "giallo", categorie = setOf("pesce")),
+    Piatto("Vermi Rossi in Salamoia", "🪱", schifezza = true, colore = "rosso"),
+    Piatto("Occhi di Rospo in Gelatina Verde", "👁️", schifezza = true, colore = "verde", categorie = setOf("viscido")),
+    Piatto("Ragnetti Fritti Piccanti", "🕷️", schifezza = true, colore = "marrone", categorie = setOf("piccante"))
 )
 
-/** Una richiesta del Mostro: cosa desidera mangiare in quel turno. */
+/** Menù del primo: mix di piatti normali e piatti folli. */
+val menuPrimi: List<Piatto> = listOf(
+    Piatto("Spaghetti al Pomodoro", "🍝", schifezza = false, colore = "rosso"),
+    Piatto("Insalata di Riso Fredda", "🍚", schifezza = false, colore = "verde", categorie = setOf("insalata")),
+    Piatto("Pollo alla Griglia", "🍗", schifezza = false, colore = "giallo", categorie = setOf("carne")),
+    Piatto("Filetto di Salmone al Limone", "🐟", schifezza = false, colore = "arancione", categorie = setOf("pesce")),
+    Piatto("Spaghetti coi Vermi Veri", "🪱", schifezza = true, colore = "marrone"),
+    Piatto("Zuppa di Fango Fumante", "🍲", schifezza = true, colore = "marrone"),
+    Piatto("Purè di Melma Verde", "🥣", schifezza = true, colore = "verde", categorie = setOf("viscido")),
+    Piatto("Riso al Veleno Fluorescente", "🍚", schifezza = true, colore = "giallo", categorie = setOf("piccante"))
+)
+
+/** Menù del dolce: mix di piatti normali e piatti folli. */
+val menuDolci: List<Piatto> = listOf(
+    Piatto("Macedonia di Frutta Fresca", "🍇", schifezza = false, colore = "viola", categorie = setOf("frutta")),
+    Piatto("Gelato alla Fragola", "🍨", schifezza = false, colore = "rosso"),
+    Piatto("Torta al Cioccolato", "🍫", schifezza = false, colore = "marrone"),
+    Piatto("Formaggio con Miele", "🧀", schifezza = false, colore = "giallo", categorie = setOf("formaggio")),
+    Piatto("Budino di Melma Verde", "🍮", schifezza = true, colore = "verde", categorie = setOf("viscido")),
+    Piatto("Gelato ai Vermi Gommosi", "🍦", schifezza = true, colore = "viola"),
+    Piatto("Occhi di Gelatina Gialla", "👁️", schifezza = true, colore = "giallo"),
+    Piatto("Gelato al Prosciutto Piccante", "🍦", schifezza = true, colore = "rosa", categorie = setOf("carne", "piccante"))
+)
+
+/** Un commensale mostruoso da servire: ogni manche ne porta uno diverso, con la sua richiesta. */
+data class Commensale(val nome: String, val emoji: String)
+
+val elencoCommensali: List<Commensale> = listOf(
+    Commensale("Mostro", "👹"),
+    Commensale("Mostra", "👺"),
+    Commensale("Mostrina", "👻"),
+    Commensale("Mostretta", "🧌")
+)
+
+/** Una richiesta di un commensale: descrive cosa vuole e come si valuta il pasto servito (0-100). */
 data class RichiestaMostro(
     val frase: String,
-    val categorieDesiderate: Set<String>
+    val emoji: String,
+    val valuta: (List<Piatto>) -> Int
 )
 
-/** Le richieste possibili, scelte a caso ad ogni cliente per variare i gusti del Mostro. */
+/** Le richieste possibili: ad ogni manche se ne estraggono 4 diverse, una per commensale. */
 val elencoRichieste: List<RichiestaMostro> = listOf(
-    RichiestaMostro("Oggi ho una fame... DOLCE e un po' PAZZA! 🍬", setOf("dolce", "pazzo")),
-    RichiestaMostro("Voglio qualcosa di CROCCANTE e SALATO! 😋", setOf("croccante", "salato")),
-    RichiestaMostro("Ho voglia di cibo VERDE e FREDDO! 🥶", setOf("verde", "freddo")),
-    RichiestaMostro("Datemi qualcosa di PICCANTE, sono un mostro coraggioso! 🌶️", setOf("piccante")),
-    RichiestaMostro("Oggi voglio solo cose NORMALI, sono stanco di stranezze! 😌", setOf("normale")),
-    RichiestaMostro("Sorprendetemi con qualcosa di STRANISSIMO! 🤪", setOf("pazzo")),
-    RichiestaMostro("Mi piace tutto ciò che è VIOLA e FREDDO! 💜", setOf("viola", "freddo")),
-    RichiestaMostro("Ho voglia di qualcosa di CALDO e SALATO! 🔥", setOf("caldo", "salato"))
+    RichiestaMostro("Oggi voglio solo CIBI ROSSI! 🔴", "🔴") { piatti -> frazionePunti(piatti) { it.colore == "rosso" } },
+    RichiestaMostro("Sono VEGETARIANO, niente carne o pesce! 🥦", "🥦") { piatti -> frazionePunti(piatti) { it.vegetariano } },
+    RichiestaMostro("Sono CARNIVORO, voglio tanta carne! 🍖", "🍖") { piatti -> frazionePunti(piatti) { "carne" in it.categorie } },
+    RichiestaMostro("Mi piacciono le INSALATE fresche! 🥗", "🥗") { piatti -> frazionePunti(piatti) { "insalata" in it.categorie } },
+    RichiestaMostro("Voglio solo cose VERDI! 🟢", "🟢") { piatti -> frazionePunti(piatti) { it.colore == "verde" } },
+    RichiestaMostro("Adoro il FORMAGGIO, mettetene ovunque! 🧀", "🧀") { piatti -> frazionePunti(piatti) { "formaggio" in it.categorie } },
+    RichiestaMostro("Datemi qualcosa di PICCANTE che scotta! 🌶️", "🌶️") { piatti -> frazionePunti(piatti) { "piccante" in it.categorie } },
+    RichiestaMostro("Adoro la FRUTTA fresca! 🍇", "🍇") { piatti -> frazionePunti(piatti) { "frutta" in it.categorie } },
+    RichiestaMostro("Voglio cose GIALLE, il mio colore preferito! 🟡", "🟡") { piatti -> frazionePunti(piatti) { it.colore == "giallo" } },
+    RichiestaMostro("Adoro tutto ciò che è VISCIDO e BAVOSO! 🐌", "🐌") { piatti -> frazionePunti(piatti) { "viscido" in it.categorie } }
 )
