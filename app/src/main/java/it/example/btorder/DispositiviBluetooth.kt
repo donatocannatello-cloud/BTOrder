@@ -56,6 +56,33 @@ object DispositiviBluetooth {
             .sortedBy { it.nome.lowercase() }
     }
 
+    /**
+     * Disaccoppia (dimentica) un dispositivo Bluetooth. Android non espone un metodo pubblico
+     * per farlo (`removeBond()` esiste sulla classe ma non è nella API pubblica), quindi viene
+     * invocato per reflection: è l'approccio comune usato da app di gestione Bluetooth, ma non
+     * è garantito su ogni produttore/versione — se fallisce va gestito riportando l'utente alle
+     * impostazioni Bluetooth di sistema perché lo faccia manualmente.
+     *
+     * @return true se il disaccoppiamento è stato avviato con successo.
+     */
+    @Suppress("MissingPermission")
+    fun dimenticaDispositivo(context: Context, indirizzo: String): Boolean {
+        if (!haPermessoBluetooth(context)) return false
+        val bluetoothManager =
+            context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+        val adapter = bluetoothManager?.adapter ?: return false
+        val dispositivo = adapter.bondedDevices.firstOrNull { it.address == indirizzo } ?: return false
+
+        return try {
+            val metodo = dispositivo.javaClass.getMethod("removeBond")
+            metodo.invoke(dispositivo) as? Boolean ?: false
+        } catch (e: ReflectiveOperationException) {
+            false
+        } catch (e: SecurityException) {
+            false
+        }
+    }
+
     /** Filtro per i broadcast di sistema emessi alla connessione/disconnessione ACL. */
     fun filtroEventiConnessione(): IntentFilter = IntentFilter().apply {
         addAction(BluetoothDevice.ACTION_ACL_CONNECTED)

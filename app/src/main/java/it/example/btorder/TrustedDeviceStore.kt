@@ -38,6 +38,7 @@ object TrustedDeviceStore {
     private val CHIAVE_DISPOSITIVI = stringPreferencesKey("dispositivi_fiducia")
     private val CHIAVE_AVVIO_AUTOMATICO = booleanPreferencesKey("avvio_automatico_boot")
     private val CHIAVE_SERVIZIO_ATTIVO = booleanPreferencesKey("servizio_automazioni_attivo")
+    private val CHIAVE_ULTIME_CONNESSIONI = stringPreferencesKey("ultime_connessioni")
 
     /** Unit Separator (0x1F): separa i campi di un singolo dispositivo. */
     private const val SEPARATORE_CAMPO = ""
@@ -97,6 +98,45 @@ object TrustedDeviceStore {
         context.dataStore.edit { preferenze ->
             preferenze[CHIAVE_SERVIZIO_ATTIVO] = attivo
         }
+    }
+
+    /**
+     * Data/ora (epoch millis) dell'ultima volta in cui BTOrder ha osservato la connessione di
+     * ciascun dispositivo Bluetooth, registrata dal Service delle automazioni e dalla
+     * schermata principale quando sono attivi. Non è una cronologia completa fornita dal
+     * sistema (Android non la espone alle app): riflette solo ciò che BTOrder ha visto mentre
+     * era in esecuzione, per questo è mostrata come informazione "se disponibile".
+     */
+    fun osservaUltimeConnessioni(context: Context): Flow<Map<String, Long>> =
+        context.dataStore.data.map { deserializzaConnessioni(it[CHIAVE_ULTIME_CONNESSIONI].orEmpty()) }
+
+    suspend fun registraConnessione(context: Context, indirizzo: String, istante: Long) {
+        context.dataStore.edit { preferenze ->
+            val attuali = deserializzaConnessioni(preferenze[CHIAVE_ULTIME_CONNESSIONI].orEmpty()).toMutableMap()
+            attuali[indirizzo] = istante
+            preferenze[CHIAVE_ULTIME_CONNESSIONI] = serializzaConnessioni(attuali)
+        }
+    }
+
+    suspend fun rimuoviUltimaConnessione(context: Context, indirizzo: String) {
+        context.dataStore.edit { preferenze ->
+            val attuali = deserializzaConnessioni(preferenze[CHIAVE_ULTIME_CONNESSIONI].orEmpty()).toMutableMap()
+            attuali.remove(indirizzo)
+            preferenze[CHIAVE_ULTIME_CONNESSIONI] = serializzaConnessioni(attuali)
+        }
+    }
+
+    private fun serializzaConnessioni(mappa: Map<String, Long>): String =
+        mappa.entries.joinToString(SEPARATORE_RECORD) { (indirizzo, istante) -> "$indirizzo$SEPARATORE_CAMPO$istante" }
+
+    private fun deserializzaConnessioni(testo: String): Map<String, Long> {
+        if (testo.isBlank()) return emptyMap()
+        return testo.split(SEPARATORE_RECORD).mapNotNull { record ->
+            val campi = record.split(SEPARATORE_CAMPO)
+            if (campi.size < 2) return@mapNotNull null
+            val istante = campi[1].toLongOrNull() ?: return@mapNotNull null
+            campi[0] to istante
+        }.toMap()
     }
 
     private fun serializza(dispositivi: List<DispositivoFiducia>): String =

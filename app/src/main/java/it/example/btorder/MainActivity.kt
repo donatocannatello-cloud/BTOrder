@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.text.format.DateUtils
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -29,6 +30,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -113,6 +115,7 @@ fun SchermataPrincipale() {
     var dispositiviAccoppiati by remember { mutableStateOf<List<DispositivoBluetooth>>(emptyList()) }
     var indirizziConnessi by remember { mutableStateOf<Set<String>>(emptySet()) }
     var indirizzoInScelta by remember { mutableStateOf<String?>(null) }
+    var indirizzoDaEliminare by remember { mutableStateOf<String?>(null) }
     var idEspanso by remember { mutableStateOf<String?>(null) }
     var indiceTrascinato by remember { mutableStateOf<Int?>(null) }
     var offsetTrascinamento by remember { mutableStateOf(0f) }
@@ -127,6 +130,8 @@ fun SchermataPrincipale() {
         .collectAsState(initial = false)
     val ordineSalvato by DevicePriorityStore.osservaOrdine(context)
         .collectAsState(initial = emptyList())
+    val ultimeConnessioni by TrustedDeviceStore.osservaUltimeConnessioni(context)
+        .collectAsState(initial = emptyMap())
 
     fun ricaricaDispositivi() {
         dispositiviAccoppiati = DispositiviBluetooth.elencaDispositiviAccoppiati(context, indirizziConnessi)
@@ -140,6 +145,9 @@ fun SchermataPrincipale() {
         val ricevitore = DispositiviBluetooth.creaRicevitoreConnessioni { indirizzo, connesso ->
             indirizziConnessi = if (connesso) indirizziConnessi + indirizzo else indirizziConnessi - indirizzo
             ricaricaDispositivi()
+            if (connesso) {
+                scope.launch { TrustedDeviceStore.registraConnessione(context, indirizzo, System.currentTimeMillis()) }
+            }
         }
         ContextCompat.registerReceiver(
             context,
@@ -150,8 +158,8 @@ fun SchermataPrincipale() {
         onDispose { context.unregisterReceiver(ricevitore) }
     }
 
-    val voci = remember(dispositiviAccoppiati, dispositiviFiducia, ordineSalvato) {
-        VociDispositivi.costruisci(dispositiviAccoppiati, dispositiviFiducia, ordineSalvato)
+    val voci = remember(dispositiviAccoppiati, dispositiviFiducia, ordineSalvato, ultimeConnessioni) {
+        VociDispositivi.costruisci(dispositiviAccoppiati, dispositiviFiducia, ordineSalvato, ultimeConnessioni)
     }
     var elementi by remember(voci) { mutableStateOf(voci) }
 
@@ -277,7 +285,8 @@ fun SchermataPrincipale() {
                     scope.launch {
                         TrustedDeviceStore.salvaDispositivo(context, f.copy(appDaAvviarePackage = null, appDaAvviareNome = null))
                     }
-                }
+                },
+                onEliminaRichiesta = { indirizzoDaEliminare = elemento.id }
             )
         }
     }
@@ -298,6 +307,40 @@ fun SchermataPrincipale() {
                 indirizzoInScelta = null
             },
             onAnnulla = { indirizzoInScelta = null }
+        )
+    }
+
+    val indirizzo = indirizzoDaEliminare
+    if (indirizzo != null) {
+        val nome = elementi.firstOrNull { it.id == indirizzo }?.nome ?: indirizzo
+        AlertDialog(
+            onDismissRequest = { indirizzoDaEliminare = null },
+            title = { Text("Eliminare \"$nome\"?") },
+            text = {
+                Text(
+                    "Il dispositivo verrà disaccoppiato dal telefono, insieme alle sue automazioni " +
+                        "salvate in BTOrder. Potrai accoppiarlo di nuovo in qualsiasi momento dalle " +
+                        "impostazioni Bluetooth."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val riuscito = DispositiviBluetooth.dimenticaDispositivo(context, indirizzo)
+                    scope.launch {
+                        TrustedDeviceStore.rimuoviDispositivo(context, indirizzo)
+                        TrustedDeviceStore.rimuoviUltimaConnessione(context, indirizzo)
+                    }
+                    if (riuscito) {
+                        ricaricaDispositivi()
+                    } else {
+                        context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
+                    }
+                    indirizzoDaEliminare = null
+                }) { Text("Elimina") }
+            },
+            dismissButton = {
+                TextButton(onClick = { indirizzoDaEliminare = null }) { Text("Annulla") }
+            }
         )
     }
 }
@@ -384,8 +427,10 @@ private fun RigaDispositivo(
     onCambiaEstendiTimeout: (Boolean) -> Unit,
     onScegliTimeout: (Int) -> Unit,
     onScegliApp: () -> Unit,
-    onRimuoviApp: () -> Unit
+    onRimuoviApp: () -> Unit,
+    onEliminaRichiesta: () -> Unit
 ) {
+    val context = LocalContext.current
     val espandibile = elemento.tipo == TipoVoceDispositivo.BLUETOOTH
     val elevazione by animateDpAsState(
         targetValue = if (inTrascinamento) 8.dp else 1.dp,
@@ -465,6 +510,20 @@ private fun RigaDispositivo(
                     Switch(checked = elemento.fiducia != null, onCheckedChange = onCambiaFiducia)
                 }
 
+                if (elemento.ultimaConnessione != null) {
+                    Text(
+                        text = "Ultima connessione: " + DateUtils.getRelativeDateTimeString(
+                            context,
+                            elemento.ultimaConnessione,
+                            DateUtils.MINUTE_IN_MILLIS,
+                            DateUtils.WEEK_IN_MILLIS,
+                            0
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+
                 val fiducia = elemento.fiducia
                 if (fiducia != null) {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
@@ -519,6 +578,14 @@ private fun RigaDispositivo(
                             TextButton(onClick = onScegliApp) { Text("Scegli") }
                         }
                     }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                TextButton(
+                    onClick = onEliminaRichiesta,
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Elimina periferica")
                 }
             }
         }

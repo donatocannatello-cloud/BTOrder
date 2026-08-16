@@ -11,7 +11,9 @@ data class VoceDispositivo(
     val nome: String,
     val tipo: TipoVoceDispositivo,
     val connesso: Boolean = false,
-    val fiducia: DispositivoFiducia? = null
+    val fiducia: DispositivoFiducia? = null,
+    /** Epoch millis dell'ultima connessione osservata da BTOrder, se nota (vedi TrustedDeviceStore). */
+    val ultimaConnessione: Long? = null
 )
 
 object VociDispositivi {
@@ -32,7 +34,8 @@ object VociDispositivi {
     fun costruisci(
         bluetooth: List<DispositivoBluetooth>,
         fiducia: List<DispositivoFiducia>,
-        ordineSalvato: List<String>
+        ordineSalvato: List<String>,
+        ultimeConnessioni: Map<String, Long> = emptyMap()
     ): List<VoceDispositivo> {
         val fiduciaPerIndirizzo = fiducia.associateBy { it.indirizzo }
         val tutte = bluetooth.map { dispositivo ->
@@ -41,7 +44,8 @@ object VociDispositivi {
                 nome = dispositivo.nome,
                 tipo = TipoVoceDispositivo.BLUETOOTH,
                 connesso = dispositivo.connesso,
-                fiducia = fiduciaPerIndirizzo[dispositivo.indirizzo]
+                fiducia = fiduciaPerIndirizzo[dispositivo.indirizzo],
+                ultimaConnessione = ultimeConnessioni[dispositivo.indirizzo]
             )
         } + vociFisseTelefono()
 

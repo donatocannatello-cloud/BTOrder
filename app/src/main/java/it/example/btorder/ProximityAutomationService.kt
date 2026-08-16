@@ -47,7 +47,14 @@ class ProximityAutomationService : Service() {
     private val timeoutOriginalePerDispositivo = mutableMapOf<String, Int>()
 
     private val ricevitoreConnessioni = DispositiviBluetooth.creaRicevitoreConnessioni { indirizzo, connesso ->
-        if (connesso) gestisciConnessione(indirizzo) else gestisciDisconnessione(indirizzo)
+        if (connesso) {
+            gestisciConnessione(indirizzo)
+            ambitoCoroutine.launch {
+                TrustedDeviceStore.registraConnessione(applicationContext, indirizzo, System.currentTimeMillis())
+            }
+        } else {
+            gestisciDisconnessione(indirizzo)
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
