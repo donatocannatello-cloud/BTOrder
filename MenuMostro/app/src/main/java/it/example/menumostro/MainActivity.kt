@@ -44,9 +44,13 @@ import androidx.compose.ui.unit.sp
 import it.example.menumostro.ui.theme.MenuMostroTheme
 import it.example.menumostro.ui.theme.SfondoChiaro
 import it.example.menumostro.ui.theme.palettePiatti
+import java.util.Locale
 
 private const val NUMERO_MANCHE = 4
 private const val PUNTEGGIO_MASSIMO_MANCHA = 100
+
+/** Tutto il testo del gioco va in MAIUSCOLO: più facile da leggere per i bambini che iniziano a leggere. */
+private fun String.maiuscolo(): String = uppercase(Locale.ITALIAN)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -118,15 +122,13 @@ fun SchermataHome(onGioca: () -> Unit) {
         Text(text = "👹🍽️👻", fontSize = 72.sp)
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Il Menù del Mostro",
+            text = "Il Menù del Mostro".maiuscolo(),
             style = MaterialTheme.typography.headlineLarge,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Componi antipasto, primo e dolce scegliendo tra piatti normali e " +
-                "schifezze mostruose. 4 commensali, 4 gusti diversi: accontentali per fare " +
-                "più punti possibile!",
+            text = "Scegli tre cibi per ogni mostro. Ogni mostro vuole cose diverse. Fai tanti punti!".maiuscolo(),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )
@@ -136,7 +138,7 @@ fun SchermataHome(onGioca: () -> Unit) {
             shape = RoundedCornerShape(50),
             modifier = Modifier.size(width = 220.dp, height = 64.dp)
         ) {
-            Text(text = "🎮 Gioca!", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(text = "🎮 Gioca!".maiuscolo(), fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -175,10 +177,10 @@ fun SchermataGioco(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Commensale $numeroManche/$NUMERO_MANCHE",
+                    text = "Mostro $numeroManche di $NUMERO_MANCHE".maiuscolo(),
                     style = MaterialTheme.typography.titleLarge
                 )
-                Text(text = "🏅 $punteggioTotale", style = MaterialTheme.typography.titleLarge)
+                Text(text = "🏅 $punteggioTotale".maiuscolo(), style = MaterialTheme.typography.titleLarge)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -216,7 +218,7 @@ fun SchermataGioco(
                     .fillMaxWidth()
                     .height(56.dp)
             ) {
-                Text(text = "🍽️ Servi il pasto!", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(text = "🍽️ Dai da mangiare!".maiuscolo(), fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -253,10 +255,10 @@ fun CartaRichiesta(commensale: Commensale, richiesta: RichiestaMostro) {
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column {
-                Text(text = commensale.nome, style = MaterialTheme.typography.titleLarge)
+                Text(text = commensale.nome.maiuscolo(), style = MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = richiesta.frase,
+                    text = richiesta.frase.maiuscolo(),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -278,10 +280,10 @@ fun SezioneMenu(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(text = portata.emoji, fontSize = 22.sp)
             Spacer(modifier = Modifier.width(8.dp))
-            Text(text = portata.etichetta, style = MaterialTheme.typography.titleLarge)
+            Text(text = portata.etichetta.maiuscolo(), style = MaterialTheme.typography.titleLarge)
             Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = selezionato?.let { "${it.emoji} scelto" } ?: "tocca per scegliere",
+                text = (selezionato?.let { "${it.emoji} scelto" } ?: "tocca qui").maiuscolo(),
                 style = MaterialTheme.typography.bodyMedium
             )
         }
@@ -342,7 +344,7 @@ fun CartaPiattoMenu(
             ) {
                 Text(text = piatto.emoji, fontSize = 26.sp)
                 Text(
-                    text = piatto.nome,
+                    text = piatto.nome.maiuscolo(),
                     fontSize = 10.sp,
                     lineHeight = 12.sp,
                     textAlign = TextAlign.Center,
@@ -376,10 +378,10 @@ fun CartaPiattoMenu(
 @Composable
 fun RisultatoOverlay(punteggio: Int, ultimaMancha: Boolean, onContinua: () -> Unit) {
     val (emoji, messaggio) = when (punteggio) {
-        100 -> "🤩" to "PERFETTO! Il commensale è al settimo cielo!"
-        67 -> "😋" to "Niente male! Il commensale è quasi soddisfatto."
-        33 -> "😅" to "Mmm, ci siamo quasi... il commensale storce un po' il naso."
-        else -> "😬" to "Il commensale non è per niente convinto... ma ci riprova!"
+        100 -> "🤩" to "Perfetto! Il mostro è felice!"
+        67 -> "😋" to "Bravo! Al mostro piace!"
+        33 -> "😅" to "Mmm... così così."
+        else -> "😬" to "Oh no! Non gli piace. Riprova!"
     }
 
     Box(
@@ -400,19 +402,19 @@ fun RisultatoOverlay(punteggio: Int, ultimaMancha: Boolean, onContinua: () -> Un
                 Text(text = emoji, fontSize = 64.sp)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "$punteggio/100 punti",
+                    text = "$punteggio su 100 punti".maiuscolo(),
                     style = MaterialTheme.typography.headlineMedium
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = messaggio,
+                    text = messaggio.maiuscolo(),
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(20.dp))
                 Button(onClick = onContinua, shape = RoundedCornerShape(50)) {
                     Text(
-                        text = if (ultimaMancha) "Vedi il risultato finale 🏁" else "Prossimo commensale ➡️",
+                        text = (if (ultimaMancha) "Guarda i punti finali 🏁" else "Prossimo mostro ➡️").maiuscolo(),
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -425,10 +427,10 @@ fun RisultatoOverlay(punteggio: Int, ultimaMancha: Boolean, onContinua: () -> Un
 fun SchermataFine(punteggioTotale: Int, puntiMassimi: Int, onGiocaAncora: () -> Unit) {
     val percentuale = punteggioTotale.toFloat() / puntiMassimi
     val (emoji, messaggio) = when {
-        percentuale >= 0.85f -> "🏆" to "Sei il Cuoco Supremo dei Mostri!"
-        percentuale >= 0.6f -> "🎉" to "Che banchetto! I mostri sono tornati contenti."
-        percentuale >= 0.35f -> "👍" to "Bel tentativo, i mostri crescono col tuo talento!"
-        else -> "😄" to "Che serata pazza in cucina! Riprova per stupirli ancora di più."
+        percentuale >= 0.85f -> "🏆" to "Sei il miglior cuoco!"
+        percentuale >= 0.6f -> "🎉" to "Bravo! I mostri sono contenti!"
+        percentuale >= 0.35f -> "👍" to "Bravo! Continua così!"
+        else -> "😄" to "Riprova! Puoi fare meglio!"
     }
 
     Column(
@@ -442,24 +444,24 @@ fun SchermataFine(punteggioTotale: Int, puntiMassimi: Int, onGiocaAncora: () -> 
         Text(text = emoji, fontSize = 96.sp)
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Hai servito $NUMERO_MANCHE commensali oggi!",
+            text = "Hai dato da mangiare a $NUMERO_MANCHE mostri!".maiuscolo(),
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Punteggio totale: $punteggioTotale/$puntiMassimi",
+            text = "Punti totali: $punteggioTotale su $puntiMassimi".maiuscolo(),
             style = MaterialTheme.typography.titleLarge
         )
         Spacer(modifier = Modifier.height(8.dp))
-        Text(text = messaggio, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
+        Text(text = messaggio.maiuscolo(), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(32.dp))
         Button(
             onClick = onGiocaAncora,
             shape = RoundedCornerShape(50),
             modifier = Modifier.size(width = 220.dp, height = 64.dp)
         ) {
-            Text(text = "🔁 Gioca ancora", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(text = "🔁 Gioca ancora".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
