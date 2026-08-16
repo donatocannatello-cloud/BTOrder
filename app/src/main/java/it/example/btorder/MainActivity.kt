@@ -11,17 +11,19 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -35,8 +37,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -55,7 +55,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
@@ -77,6 +76,10 @@ private fun permessiRichiesti(): Array<String> = buildList {
     }
 }.toTypedArray()
 
+/** Altezza fissa della parte "collassata" di ogni riga: usata anche per il calcolo del
+ *  trascinamento, quindi resta invariata anche quando la riga sopra o sotto è espansa. */
+private val ALTEZZA_ELEMENTO = 72.dp
+
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,261 +95,46 @@ class MainActivity : ComponentActivity() {
 }
 
 /**
- * Schermata radice: richiede una volta sola tutti i permessi necessari a entrambe le
- * funzionalità dell'app e le presenta come due schede ("Chiamate" e "Auto e dispositivi").
+ * Unica schermata dell'app: un elenco di dispositivi (periferiche Bluetooth accoppiate più le
+ * due voci fisse del telefono) che serve sia per l'ordine di priorità delle chiamate (si
+ * trascina dalle lineette) sia per le automazioni di prossimità (si tocca una riga per aprirla
+ * a tendina e accedere ai suoi settaggi).
  */
 @Composable
 fun SchermataPrincipale() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     val launcherPermessi = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) {}
-
-    LaunchedEffect(Unit) {
-        launcherPermessi.launch(permessiRichiesti())
-    }
-
-    var schedaSelezionata by remember { mutableStateOf(0) }
-    val titoliSchede = listOf("Chiamate", "Auto e dispositivi")
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        TabRow(selectedTabIndex = schedaSelezionata) {
-            titoliSchede.forEachIndexed { indice, titolo ->
-                Tab(
-                    selected = schedaSelezionata == indice,
-                    onClick = { schedaSelezionata = indice },
-                    text = { Text(titolo) }
-                )
-            }
-        }
-        when (schedaSelezionata) {
-            0 -> SchermataChiamate()
-            else -> SchermataAutoDispositivi()
-        }
-    }
-}
-
-// ============================================================================================
-// Scheda "Chiamate": priorità dei dispositivi audio per l'instradamento automatico in chiamata
-// ============================================================================================
-
-@Composable
-fun SchermataChiamate() {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
-    var dispositivi by remember { mutableStateOf<List<VoceDispositivoAudio>>(emptyList()) }
-    val servizioAttivo by DevicePriorityStore.osservaServizioAttivo(context).collectAsState(initial = false)
-
-    LaunchedEffect(Unit) {
-        val ordineSalvato = DevicePriorityStore.leggiOrdineUnaVolta(context)
-        dispositivi = DispositiviAudio.costruisciListaOrdinata(context, ordineSalvato)
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "Tieni premuto e trascina un dispositivo per impostare l'ordine di priorità " +
-                "usato automaticamente durante le chiamate.",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        ListaDispositiviOrdinabile(
-            dispositivi = dispositivi,
-            modifier = Modifier.weight(1f),
-            onOrdineCambiato = { nuovoOrdine ->
-                dispositivi = nuovoOrdine
-                scope.launch {
-                    DevicePriorityStore.salvaOrdine(context, nuovoOrdine.map { it.id })
-                }
-            }
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Button(
-            onClick = {
-                scope.launch {
-                    val ordineCorrente = dispositivi.map { it.id }
-                    val nuovaLista = DispositiviAudio.costruisciListaOrdinata(context, ordineCorrente)
-                    dispositivi = nuovaLista
-                    DevicePriorityStore.salvaOrdine(context, nuovaLista.map { it.id })
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Aggiorna elenco dispositivi")
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Button(
-            onClick = {
-                val intent = Intent(context, CallRoutingService::class.java)
-                if (servizioAttivo) {
-                    context.stopService(intent)
-                } else {
-                    ContextCompat.startForegroundService(context, intent)
-                }
-                scope.launch {
-                    DevicePriorityStore.impostaServizioAttivo(context, !servizioAttivo)
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(if (servizioAttivo) "Ferma monitoraggio chiamate" else "Avvia monitoraggio chiamate")
-        }
-    }
-}
-
-private val ALTEZZA_ELEMENTO: Dp = 72.dp
-
-/**
- * Lista riordinabile con drag&drop nativo Compose: nessuna libreria esterna,
- * solo LazyColumn + Modifier.pointerInput. L'utente tiene premuto un elemento
- * e lo trascina verticalmente; la posizione viene ricalcolata in base allo
- * spostamento accumulato rispetto all'altezza di una riga.
- */
-@Composable
-fun ListaDispositiviOrdinabile(
-    dispositivi: List<VoceDispositivoAudio>,
-    onOrdineCambiato: (List<VoceDispositivoAudio>) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var elementi by remember(dispositivi) { mutableStateOf(dispositivi) }
-    var indiceTrascinato by remember { mutableStateOf<Int?>(null) }
-    var offsetTrascinamento by remember { mutableStateOf(0f) }
-
-    val densita = LocalDensity.current
-    val altezzaElementoPx = with(densita) { ALTEZZA_ELEMENTO.toPx() }
-
-    LazyColumn(modifier = modifier) {
-        itemsIndexed(elementi, key = { _, elemento -> elemento.id }) { indice, elemento ->
-            // Il blocco pointerInput qui sotto viene installato una sola volta (la chiave è
-            // l'id, stabile) e resta in esecuzione per tutta la vita della card: senza
-            // rememberUpdatedState, "indice" catturato da onDragStart resterebbe quello della
-            // primissima composizione, disallineandosi dalla posizione reale non appena un
-            // QUALSIASI trascinamento riordina la lista, e causando i salti/scambi sbagliati
-            // segnalati trascinando gli elementi.
-            val indiceAggiornato by rememberUpdatedState(indice)
-            val inTrascinamento = indice == indiceTrascinato
-            val elevazione by animateDpAsState(
-                targetValue = if (inTrascinamento) 8.dp else 1.dp,
-                label = "elevazioneElemento"
-            )
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(ALTEZZA_ELEMENTO)
-                    .padding(vertical = 4.dp)
-                    .graphicsLayer {
-                        translationY = if (inTrascinato(indice, indiceTrascinato)) offsetTrascinamento else 0f
-                    }
-                    .zIndex(if (inTrascinamento) 1f else 0f)
-                    // Chiave stabile sull'id, NON sulla lista: quest'ultima viene mutata
-                    // durante lo stesso trascinamento e riavviare pointerInput lo interromperebbe.
-                    .pointerInput(elemento.id) {
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = {
-                                indiceTrascinato = indiceAggiornato
-                                offsetTrascinamento = 0f
-                            },
-                            onDragEnd = {
-                                indiceTrascinato = null
-                                offsetTrascinamento = 0f
-                                onOrdineCambiato(elementi)
-                            },
-                            onDragCancel = {
-                                indiceTrascinato = null
-                                offsetTrascinamento = 0f
-                            },
-                            onDrag = { change, trascinamento ->
-                                change.consume()
-                                val indiceCorrente = indiceTrascinato
-                                if (indiceCorrente != null) {
-                                    offsetTrascinamento += trascinamento.y
-                                    val spostamento = (offsetTrascinamento / altezzaElementoPx).roundToInt()
-                                    val nuovoIndice = (indiceCorrente + spostamento)
-                                        .coerceIn(0, elementi.lastIndex)
-
-                                    if (nuovoIndice != indiceCorrente) {
-                                        elementi = elementi.toMutableList().apply {
-                                            add(nuovoIndice, removeAt(indiceCorrente))
-                                        }
-                                        offsetTrascinamento -= (nuovoIndice - indiceCorrente) * altezzaElementoPx
-                                        indiceTrascinato = nuovoIndice
-                                    }
-                                }
-                            }
-                        )
-                    },
-                elevation = CardDefaults.cardElevation(defaultElevation = elevazione)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${indice + 1}.",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(end = 12.dp)
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(text = elemento.nome, style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            text = descrizioneTipo(elemento.tipo),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                    Text(text = "☰", style = MaterialTheme.typography.titleLarge)
-                }
-            }
-        }
-    }
-}
-
-private fun inTrascinato(indice: Int, indiceTrascinato: Int?): Boolean = indice == indiceTrascinato
-
-private fun descrizioneTipo(tipo: TipoVoceDispositivo): String = when (tipo) {
-    TipoVoceDispositivo.BLUETOOTH -> "Dispositivo Bluetooth"
-    TipoVoceDispositivo.AURICOLARE_TELEFONO -> "Auricolare integrato"
-    TipoVoceDispositivo.VIVAVOCE_TELEFONO -> "Altoparlante integrato"
-}
-
-// ============================================================================================
-// Scheda "Auto e dispositivi": gestione periferiche Bluetooth e automazioni di prossimità
-// ============================================================================================
-
-@Composable
-fun SchermataAutoDispositivi() {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) { launcherPermessi.launch(permessiRichiesti()) }
 
     var dispositiviAccoppiati by remember { mutableStateOf<List<DispositivoBluetooth>>(emptyList()) }
     var indirizziConnessi by remember { mutableStateOf<Set<String>>(emptySet()) }
     var indirizzoInScelta by remember { mutableStateOf<String?>(null) }
+    var idEspanso by remember { mutableStateOf<String?>(null) }
+    var indiceTrascinato by remember { mutableStateOf<Int?>(null) }
+    var offsetTrascinamento by remember { mutableStateOf(0f) }
 
     val dispositiviFiducia by TrustedDeviceStore.osservaDispositivi(context)
         .collectAsState(initial = emptyList())
     val avvioAutomatico by TrustedDeviceStore.osservaAvvioAutomatico(context)
         .collectAsState(initial = false)
-    val servizioAttivo by TrustedDeviceStore.osservaServizioAttivo(context)
+    val servizioAutomazioniAttivo by TrustedDeviceStore.osservaServizioAttivo(context)
         .collectAsState(initial = false)
+    val servizioChiamateAttivo by DevicePriorityStore.osservaServizioAttivo(context)
+        .collectAsState(initial = false)
+    val ordineSalvato by DevicePriorityStore.osservaOrdine(context)
+        .collectAsState(initial = emptyList())
 
     fun ricaricaDispositivi() {
         dispositiviAccoppiati = DispositiviBluetooth.elencaDispositiviAccoppiati(context, indirizziConnessi)
     }
-
     LaunchedEffect(Unit) { ricaricaDispositivi() }
 
     // Ricevitore locale solo per aggiornare in tempo reale il badge "Connesso" in questa
-    // schermata; le automazioni vere e proprie sono gestite dal Service, indipendentemente
+    // schermata; le automazioni vere e proprie sono gestite dai Service, indipendentemente
     // dal fatto che questa Activity sia visibile o meno.
     DisposableEffect(Unit) {
         val ricevitore = DispositiviBluetooth.creaRicevitoreConnessioni { indirizzo, connesso ->
@@ -362,115 +150,135 @@ fun SchermataAutoDispositivi() {
         onDispose { context.unregisterReceiver(ricevitore) }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                Text(
-                    text = "Segna l'auto (o un'altra periferica) come dispositivo di fiducia per " +
-                        "applicare automazioni automatiche quando ti connetti in Bluetooth.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
+    val voci = remember(dispositiviAccoppiati, dispositiviFiducia, ordineSalvato) {
+        VociDispositivi.costruisci(dispositiviAccoppiati, dispositiviFiducia, ordineSalvato)
+    }
+    var elementi by remember(voci) { mutableStateOf(voci) }
 
-            item { AvvisoLimiteSblocco(context) }
+    val densita = LocalDensity.current
+    val altezzaElementoPx = with(densita) { ALTEZZA_ELEMENTO.toPx() }
 
-            item {
-                PannelloControlli(
-                    servizioAttivo = servizioAttivo,
-                    avvioAutomatico = avvioAutomatico,
-                    puoScrivereImpostazioni = Settings.System.canWrite(context),
-                    onAggiornaElenco = { ricaricaDispositivi() },
-                    onToggleServizio = {
-                        val intent = Intent(context, ProximityAutomationService::class.java)
-                        if (servizioAttivo) {
-                            context.stopService(intent)
-                        } else {
-                            ContextCompat.startForegroundService(context, intent)
-                        }
-                        scope.launch { TrustedDeviceStore.impostaServizioAttivo(context, !servizioAttivo) }
-                    },
-                    onToggleAvvioAutomatico = { attivo ->
-                        scope.launch { TrustedDeviceStore.impostaAvvioAutomatico(context, attivo) }
-                    },
-                    onConsentiScritturaImpostazioni = {
-                        context.startActivity(
-                            Intent(
-                                Settings.ACTION_MANAGE_WRITE_SETTINGS,
-                                Uri.parse("package:${context.packageName}")
-                            )
-                        )
-                    }
-                )
-            }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text(text = "BTOrder", style = MaterialTheme.typography.headlineMedium)
+            Text(
+                text = "Trascina un dispositivo dalle lineette per impostare l'ordine di " +
+                    "priorità usato in chiamata. Tocca un dispositivo Bluetooth per segnarlo " +
+                    "come dispositivo di fiducia (es. l'auto) e scegliere le sue automazioni.",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
 
-            item {
-                Text(
-                    text = "Dispositivi accoppiati",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
+        item { AvvisoLimiteSblocco(context) }
 
-            if (dispositiviAccoppiati.isEmpty()) {
-                item {
-                    Text(
-                        text = "Nessun dispositivo Bluetooth accoppiato trovato.",
-                        style = MaterialTheme.typography.bodyMedium
+        item {
+            PannelloControlli(
+                servizioChiamateAttivo = servizioChiamateAttivo,
+                servizioAutomazioniAttivo = servizioAutomazioniAttivo,
+                avvioAutomatico = avvioAutomatico,
+                puoScrivereImpostazioni = Settings.System.canWrite(context),
+                onAggiornaElenco = { ricaricaDispositivi() },
+                onToggleServizioChiamate = {
+                    val intent = Intent(context, CallRoutingService::class.java)
+                    if (servizioChiamateAttivo) context.stopService(intent) else ContextCompat.startForegroundService(context, intent)
+                    scope.launch { DevicePriorityStore.impostaServizioAttivo(context, !servizioChiamateAttivo) }
+                },
+                onToggleServizioAutomazioni = {
+                    val intent = Intent(context, ProximityAutomationService::class.java)
+                    if (servizioAutomazioniAttivo) context.stopService(intent) else ContextCompat.startForegroundService(context, intent)
+                    scope.launch { TrustedDeviceStore.impostaServizioAttivo(context, !servizioAutomazioniAttivo) }
+                },
+                onToggleAvvioAutomatico = { attivo ->
+                    scope.launch { TrustedDeviceStore.impostaAvvioAutomatico(context, attivo) }
+                },
+                onConsentiScritturaImpostazioni = {
+                    context.startActivity(
+                        Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:${context.packageName}"))
                     )
                 }
-            }
+            )
+        }
 
-            items(dispositiviAccoppiati, key = { it.indirizzo }) { dispositivo ->
-                val fiducia = dispositiviFiducia.firstOrNull { it.indirizzo == dispositivo.indirizzo }
-                SchedaDispositivo(
-                    dispositivo = dispositivo,
-                    fiducia = fiducia,
-                    onCambiaFiducia = { attivo ->
-                        scope.launch {
-                            if (attivo) {
-                                TrustedDeviceStore.salvaDispositivo(
-                                    context,
-                                    DispositivoFiducia(indirizzo = dispositivo.indirizzo, nome = dispositivo.nome)
-                                )
-                            } else {
-                                TrustedDeviceStore.rimuoviDispositivo(context, dispositivo.indirizzo)
+        item {
+            Text(text = "Dispositivi", style = MaterialTheme.typography.titleMedium)
+        }
+
+        itemsIndexed(elementi, key = { _, elemento -> elemento.id }) { indice, elemento ->
+            RigaDispositivo(
+                indice = indice,
+                elemento = elemento,
+                espanso = idEspanso == elemento.id,
+                inTrascinamento = indice == indiceTrascinato,
+                offsetTrascinamento = offsetTrascinamento,
+                onEspandiToggle = {
+                    idEspanso = if (idEspanso == elemento.id) null else elemento.id
+                },
+                onDragStart = {
+                    idEspanso = null
+                    indiceTrascinato = indice
+                    offsetTrascinamento = 0f
+                },
+                onDrag = { deltaY ->
+                    val indiceCorrente = indiceTrascinato
+                    if (indiceCorrente != null) {
+                        offsetTrascinamento += deltaY
+                        val spostamento = (offsetTrascinamento / altezzaElementoPx).roundToInt()
+                        val nuovoIndice = (indiceCorrente + spostamento).coerceIn(0, elementi.lastIndex)
+                        if (nuovoIndice != indiceCorrente) {
+                            elementi = elementi.toMutableList().apply {
+                                add(nuovoIndice, removeAt(indiceCorrente))
                             }
-                        }
-                    },
-                    onCambiaSchermoSempreAcceso = { attivo ->
-                        val f = fiducia ?: return@SchedaDispositivo
-                        scope.launch {
-                            TrustedDeviceStore.salvaDispositivo(context, f.copy(schermoSempreAcceso = attivo))
-                        }
-                    },
-                    onCambiaEstendiTimeout = { attivo ->
-                        val f = fiducia ?: return@SchedaDispositivo
-                        scope.launch {
-                            TrustedDeviceStore.salvaDispositivo(context, f.copy(estendiTimeoutSchermo = attivo))
-                        }
-                    },
-                    onScegliTimeout = { secondi ->
-                        val f = fiducia ?: return@SchedaDispositivo
-                        scope.launch {
-                            TrustedDeviceStore.salvaDispositivo(context, f.copy(timeoutEstesoSecondi = secondi))
-                        }
-                    },
-                    onScegliApp = { indirizzoInScelta = dispositivo.indirizzo },
-                    onRimuoviApp = {
-                        val f = fiducia ?: return@SchedaDispositivo
-                        scope.launch {
-                            TrustedDeviceStore.salvaDispositivo(
-                                context,
-                                f.copy(appDaAvviarePackage = null, appDaAvviareNome = null)
-                            )
+                            offsetTrascinamento -= (nuovoIndice - indiceCorrente) * altezzaElementoPx
+                            indiceTrascinato = nuovoIndice
                         }
                     }
-                )
-            }
+                },
+                onDragEnd = {
+                    indiceTrascinato = null
+                    offsetTrascinamento = 0f
+                    scope.launch { DevicePriorityStore.salvaOrdine(context, elementi.map { it.id }) }
+                },
+                onDragCancel = {
+                    indiceTrascinato = null
+                    offsetTrascinamento = 0f
+                },
+                onCambiaFiducia = { attivo ->
+                    scope.launch {
+                        if (attivo) {
+                            TrustedDeviceStore.salvaDispositivo(
+                                context,
+                                DispositivoFiducia(indirizzo = elemento.id, nome = elemento.nome)
+                            )
+                        } else {
+                            TrustedDeviceStore.rimuoviDispositivo(context, elemento.id)
+                        }
+                    }
+                },
+                onCambiaSchermoSempreAcceso = { attivo ->
+                    val f = elemento.fiducia ?: return@RigaDispositivo
+                    scope.launch { TrustedDeviceStore.salvaDispositivo(context, f.copy(schermoSempreAcceso = attivo)) }
+                },
+                onCambiaEstendiTimeout = { attivo ->
+                    val f = elemento.fiducia ?: return@RigaDispositivo
+                    scope.launch { TrustedDeviceStore.salvaDispositivo(context, f.copy(estendiTimeoutSchermo = attivo)) }
+                },
+                onScegliTimeout = { secondi ->
+                    val f = elemento.fiducia ?: return@RigaDispositivo
+                    scope.launch { TrustedDeviceStore.salvaDispositivo(context, f.copy(timeoutEstesoSecondi = secondi)) }
+                },
+                onScegliApp = { indirizzoInScelta = elemento.id },
+                onRimuoviApp = {
+                    val f = elemento.fiducia ?: return@RigaDispositivo
+                    scope.launch {
+                        TrustedDeviceStore.salvaDispositivo(context, f.copy(appDaAvviarePackage = null, appDaAvviareNome = null))
+                    }
+                }
+            )
         }
     }
 
@@ -498,10 +306,7 @@ fun SchermataAutoDispositivi() {
 private fun AvvisoLimiteSblocco(context: Context) {
     Card {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Nota sullo sblocco lucchetto",
-                style = MaterialTheme.typography.titleSmall
-            )
+            Text(text = "Nota sullo sblocco lucchetto", style = MaterialTheme.typography.titleSmall)
             Text(
                 text = "Android non permette alle app di terze parti di bypassare davvero il " +
                     "PIN o il pattern (serve un permesso di sistema riservato). Per lo sblocco " +
@@ -511,9 +316,7 @@ private fun AvvisoLimiteSblocco(context: Context) {
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
             )
-            TextButton(onClick = {
-                context.startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS))
-            }) {
+            TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS)) }) {
                 Text("Apri impostazioni di sicurezza")
             }
         }
@@ -522,11 +325,13 @@ private fun AvvisoLimiteSblocco(context: Context) {
 
 @Composable
 private fun PannelloControlli(
-    servizioAttivo: Boolean,
+    servizioChiamateAttivo: Boolean,
+    servizioAutomazioniAttivo: Boolean,
     avvioAutomatico: Boolean,
     puoScrivereImpostazioni: Boolean,
     onAggiornaElenco: () -> Unit,
-    onToggleServizio: () -> Unit,
+    onToggleServizioChiamate: () -> Unit,
+    onToggleServizioAutomazioni: () -> Unit,
     onToggleAvvioAutomatico: (Boolean) -> Unit,
     onConsentiScritturaImpostazioni: () -> Unit
 ) {
@@ -534,8 +339,11 @@ private fun PannelloControlli(
         Button(onClick = onAggiornaElenco, modifier = Modifier.fillMaxWidth()) {
             Text("Aggiorna elenco dispositivi")
         }
-        Button(onClick = onToggleServizio, modifier = Modifier.fillMaxWidth()) {
-            Text(if (servizioAttivo) "Ferma monitoraggio automazioni" else "Avvia monitoraggio automazioni")
+        Button(onClick = onToggleServizioChiamate, modifier = Modifier.fillMaxWidth()) {
+            Text(if (servizioChiamateAttivo) "Ferma instradamento chiamate" else "Avvia instradamento chiamate")
+        }
+        Button(onClick = onToggleServizioAutomazioni, modifier = Modifier.fillMaxWidth()) {
+            Text(if (servizioAutomazioniAttivo) "Ferma automazioni auto" else "Avvia automazioni auto")
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -553,10 +361,24 @@ private fun PannelloControlli(
     }
 }
 
+/**
+ * Una riga della lista unica: la parte superiore (sempre visibile) mostra posizione, nome e
+ * stato, con una maniglia dedicata per il trascinamento; toccando il resto della riga (solo per
+ * i dispositivi Bluetooth reali) si apre a tendina la parte con le impostazioni di fiducia e le
+ * automazioni.
+ */
 @Composable
-private fun SchedaDispositivo(
-    dispositivo: DispositivoBluetooth,
-    fiducia: DispositivoFiducia?,
+private fun RigaDispositivo(
+    indice: Int,
+    elemento: VoceDispositivo,
+    espanso: Boolean,
+    inTrascinamento: Boolean,
+    offsetTrascinamento: Float,
+    onEspandiToggle: () -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
     onCambiaFiducia: (Boolean) -> Unit,
     onCambiaSchermoSempreAcceso: (Boolean) -> Unit,
     onCambiaEstendiTimeout: (Boolean) -> Unit,
@@ -564,79 +386,151 @@ private fun SchedaDispositivo(
     onScegliApp: () -> Unit,
     onRimuoviApp: () -> Unit
 ) {
-    Card(elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = dispositivo.nome, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        text = if (dispositivo.connesso) "Connesso ora" else "Non connesso",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                Switch(checked = fiducia != null, onCheckedChange = onCambiaFiducia)
+    val espandibile = elemento.tipo == TipoVoceDispositivo.BLUETOOTH
+    val elevazione by animateDpAsState(
+        targetValue = if (inTrascinamento) 8.dp else 1.dp,
+        label = "elevazioneElemento"
+    )
+
+    // La maniglia di trascinamento resta in esecuzione per tutta la vita della riga (la chiave
+    // è l'id, stabile): senza rememberUpdatedState continuerebbe a richiamare le lambda della
+    // primissima composizione, con "indice" ed "elementi" ormai disallineati non appena la
+    // lista viene riordinata da un ALTRO trascinamento.
+    val onDragStartAggiornato by rememberUpdatedState(onDragStart)
+    val onDragAggiornato by rememberUpdatedState(onDrag)
+    val onDragEndAggiornato by rememberUpdatedState(onDragEnd)
+    val onDragCancelAggiornato by rememberUpdatedState(onDragCancel)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .graphicsLayer { translationY = if (inTrascinamento) offsetTrascinamento else 0f }
+            .zIndex(if (inTrascinamento) 1f else 0f),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevazione)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(ALTEZZA_ELEMENTO)
+                .then(if (espandibile) Modifier.clickable(onClick = onEspandiToggle) else Modifier)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${indice + 1}.",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(end = 12.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = elemento.nome, style = MaterialTheme.typography.titleMedium)
+                Text(text = sottotitolo(elemento), style = MaterialTheme.typography.bodySmall)
             }
+            if (espandibile) {
+                Text(
+                    text = if (espanso) "⌄" else "›",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .pointerInput(elemento.id) {
+                        detectDragGestures(
+                            onDragStart = { onDragStartAggiornato() },
+                            onDragEnd = { onDragEndAggiornato() },
+                            onDragCancel = { onDragCancelAggiornato() },
+                            onDrag = { change, trascinamento ->
+                                change.consume()
+                                onDragAggiornato(trascinamento.y)
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = "☰", style = MaterialTheme.typography.titleLarge)
+            }
+        }
 
-            if (fiducia != null) {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                Text(text = "Automazioni alla connessione", style = MaterialTheme.typography.labelLarge)
-
+        if (espanso && espandibile) {
+            HorizontalDivider()
+            Column(modifier = Modifier.padding(16.dp)) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "Mantieni lo schermo acceso", style = MaterialTheme.typography.bodyMedium)
-                    Switch(checked = fiducia.schermoSempreAcceso, onCheckedChange = onCambiaSchermoSempreAcceso)
+                    Text(text = "Dispositivo di fiducia (es. l'auto)", style = MaterialTheme.typography.bodyMedium)
+                    Switch(checked = elemento.fiducia != null, onCheckedChange = onCambiaFiducia)
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(text = "Estendi il timeout schermo", style = MaterialTheme.typography.bodyMedium)
-                    Switch(checked = fiducia.estendiTimeoutSchermo, onCheckedChange = onCambiaEstendiTimeout)
-                }
+                val fiducia = elemento.fiducia
+                if (fiducia != null) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                    Text(text = "Automazioni alla connessione", style = MaterialTheme.typography.labelLarge)
 
-                if (fiducia.estendiTimeoutSchermo) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "Mantieni lo schermo acceso", style = MaterialTheme.typography.bodyMedium)
+                        Switch(checked = fiducia.schermoSempreAcceso, onCheckedChange = onCambiaSchermoSempreAcceso)
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        listOf(5 * 60 to "5 min", 10 * 60 to "10 min", 30 * 60 to "30 min").forEach { (secondi, etichetta) ->
-                            FilterChip(
-                                selected = fiducia.timeoutEstesoSecondi == secondi,
-                                onClick = { onScegliTimeout(secondi) },
-                                label = { Text(etichetta) }
-                            )
+                        Text(text = "Estendi il timeout schermo", style = MaterialTheme.typography.bodyMedium)
+                        Switch(checked = fiducia.estendiTimeoutSchermo, onCheckedChange = onCambiaEstendiTimeout)
+                    }
+
+                    if (fiducia.estendiTimeoutSchermo) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf(5 * 60 to "5 min", 10 * 60 to "10 min", 30 * 60 to "30 min").forEach { (secondi, etichetta) ->
+                                FilterChip(
+                                    selected = fiducia.timeoutEstesoSecondi == secondi,
+                                    onClick = { onScegliTimeout(secondi) },
+                                    label = { Text(etichetta) }
+                                )
+                            }
                         }
                     }
-                }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = fiducia.appDaAvviareNome?.let { "Apri automaticamente: $it" }
-                            ?: "Nessuna app da aprire",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (fiducia.appDaAvviareNome != null) {
-                        TextButton(onClick = onRimuoviApp) { Text("Rimuovi") }
-                    } else {
-                        TextButton(onClick = onScegliApp) { Text("Scegli") }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = fiducia.appDaAvviareNome?.let { "Apri automaticamente: $it" } ?: "Nessuna app da aprire",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (fiducia.appDaAvviareNome != null) {
+                            TextButton(onClick = onRimuoviApp) { Text("Rimuovi") }
+                        } else {
+                            TextButton(onClick = onScegliApp) { Text("Scegli") }
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+private fun sottotitolo(elemento: VoceDispositivo): String = when (elemento.tipo) {
+    TipoVoceDispositivo.AURICOLARE_TELEFONO -> "Auricolare integrato"
+    TipoVoceDispositivo.VIVAVOCE_TELEFONO -> "Altoparlante integrato"
+    TipoVoceDispositivo.BLUETOOTH -> {
+        val stato = if (elemento.connesso) "Connesso ora" else "Non connesso"
+        if (elemento.fiducia != null) "$stato · Di fiducia" else stato
     }
 }
 
