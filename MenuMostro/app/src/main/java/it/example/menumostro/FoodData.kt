@@ -1,10 +1,13 @@
 package it.example.menumostro
 
-/** Le tre portate che compongono il pasto da servire ad ogni commensale. */
+/** Le portate del gioco, nell'ordine in cui vengono sbloccate salendo di livello. */
 enum class Portata(val etichetta: String, val emoji: String) {
-    ANTIPASTO("Antipasto", "🥗"),
     PRIMO("Primo", "🍝"),
-    DOLCE("Dolce", "🍰")
+    SECONDO("Secondo", "🍗"),
+    BIBITA("Bibita", "🥤"),
+    POZIONE("Pozione Magica", "🧪"),
+    DOLCE("Dolce", "🍰"),
+    CAFFE("Caffè", "☕")
 }
 
 /** Un piatto selezionabile in una portata: può essere un piatto normale oppure una "schifezza" mostruosa. */
@@ -19,18 +22,6 @@ data class Piatto(
 /** Vero se il piatto non contiene né carne né pesce (usato dalla richiesta "sono vegetariano"). */
 val Piatto.vegetariano: Boolean get() = "carne" !in categorie && "pesce" !in categorie
 
-/** Menù dell'antipasto: mix di piatti normali e piatti folli. */
-val menuAntipasti: List<Piatto> = listOf(
-    Piatto("Pane e Pomodoro", "🍅", schifezza = false, colore = "rosso"),
-    Piatto("Insalata Verde", "🥗", schifezza = false, colore = "verde", categorie = setOf("insalata")),
-    Piatto("Prosciutto e Melone", "🍈", schifezza = false, colore = "arancione", categorie = setOf("carne", "frutta")),
-    Piatto("Formaggio", "🧀", schifezza = false, colore = "giallo", categorie = setOf("formaggio")),
-    Piatto("Bastoncini di Pesce", "🐟", schifezza = false, colore = "giallo", categorie = setOf("pesce")),
-    Piatto("Vermi Rossi", "🪱", schifezza = true, colore = "rosso"),
-    Piatto("Occhi di Rospo", "👁️", schifezza = true, colore = "verde", categorie = setOf("viscido")),
-    Piatto("Ragni Piccanti", "🕷️", schifezza = true, colore = "marrone", categorie = setOf("piccante"))
-)
-
 /** Menù del primo: mix di piatti normali e piatti folli. */
 val menuPrimi: List<Piatto> = listOf(
     Piatto("Spaghetti al Pomodoro", "🍝", schifezza = false, colore = "rosso"),
@@ -41,6 +32,48 @@ val menuPrimi: List<Piatto> = listOf(
     Piatto("Zuppa di Fango", "🍲", schifezza = true, colore = "marrone"),
     Piatto("Purè di Melma", "🥣", schifezza = true, colore = "verde", categorie = setOf("viscido")),
     Piatto("Riso Velenoso", "🍚", schifezza = true, colore = "giallo", categorie = setOf("piccante"))
+)
+
+/** Menù del secondo: mix di piatti normali e piatti folli. */
+val menuSecondi: List<Piatto> = listOf(
+    Piatto("Pollo Arrosto", "🍗", schifezza = false, colore = "giallo", categorie = setOf("carne")),
+    Piatto("Pesce al Forno", "🐟", schifezza = false, colore = "arancione", categorie = setOf("pesce")),
+    Piatto("Bistecca alla Griglia", "🥩", schifezza = false, colore = "rosso", categorie = setOf("carne")),
+    Piatto("Frittata di Formaggio", "🍳", schifezza = false, colore = "giallo", categorie = setOf("formaggio")),
+    Piatto("Insalata di Verdure", "🥗", schifezza = false, colore = "verde", categorie = setOf("insalata")),
+    Piatto("Zampa di Drago", "🐉", schifezza = true, colore = "rosso", categorie = setOf("carne", "piccante")),
+    Piatto("Tentacolo di Piovra", "🐙", schifezza = true, colore = "viola", categorie = setOf("pesce")),
+    Piatto("Bistecca di Alieno", "👽", schifezza = true, colore = "verde", categorie = setOf("carne"))
+)
+
+/**
+ * Menù delle bibite: solo bevande analcoliche adatte ai bambini (acqua, succhi,
+ * bibite gassate) più le versioni folli del Mostro.
+ */
+val menuBibite: List<Piatto> = listOf(
+    Piatto("Acqua Fresca", "💧", schifezza = false, colore = "azzurro"),
+    Piatto("Succo di Frutta", "🧃", schifezza = false, colore = "arancione", categorie = setOf("frutta")),
+    Piatto("Aranciata", "🍊", schifezza = false, colore = "arancione", categorie = setOf("frutta")),
+    Piatto("Cola Frizzante", "🥤", schifezza = false, colore = "marrone"),
+    Piatto("Melma da Bere", "🥤", schifezza = true, colore = "verde", categorie = setOf("viscido")),
+    Piatto("Pozione Fumante", "🧪", schifezza = true, colore = "viola"),
+    Piatto("Succo di Vermi", "🪱", schifezza = true, colore = "rosso"),
+    Piatto("Bava di Lumaca Frizzante", "🐌", schifezza = true, colore = "verde", categorie = setOf("viscido"))
+)
+
+/**
+ * Menù delle pozioni magiche: al posto degli amari (alcolici, non adatti a un gioco
+ * per bambini) i mostri bevono pozioni fantastiche dopo il pasto.
+ */
+val menuPozioni: List<Piatto> = listOf(
+    Piatto("Pozione della Forza", "💪", schifezza = false, colore = "rosso"),
+    Piatto("Pozione Arcobaleno", "🌈", schifezza = false, colore = "viola"),
+    Piatto("Elisir di Luna", "🌙", schifezza = false, colore = "giallo"),
+    Piatto("Pozione Scintillante", "✨", schifezza = false, colore = "giallo"),
+    Piatto("Pozione Puzzolente", "🤢", schifezza = true, colore = "verde", categorie = setOf("viscido")),
+    Piatto("Bava di Mostro in Bottiglia", "🧟", schifezza = true, colore = "verde", categorie = setOf("viscido")),
+    Piatto("Pozione di Fango", "🟤", schifezza = true, colore = "marrone"),
+    Piatto("Succo di Ragnatela", "🕸️", schifezza = true, colore = "grigio")
 )
 
 /** Menù del dolce: mix di piatti normali e piatti folli. */
@@ -54,6 +87,38 @@ val menuDolci: List<Piatto> = listOf(
     Piatto("Occhi Gialli", "👁️", schifezza = true, colore = "giallo"),
     Piatto("Gelato e Prosciutto", "🍦", schifezza = true, colore = "rosa", categorie = setOf("carne", "piccante"))
 )
+
+/** Menù del caffè: solo caffè in tutte le sue varianti, nessun alcolico. */
+val menuCaffe: List<Piatto> = listOf(
+    Piatto("Caffè Liscio", "☕", schifezza = false, colore = "marrone"),
+    Piatto("Caffè Macchiato", "☕", schifezza = false, colore = "marrone"),
+    Piatto("Cappuccino", "☕", schifezza = false, colore = "bianco"),
+    Piatto("Caffè Decaffeinato", "☕", schifezza = false, colore = "marrone"),
+    Piatto("Caffè di Vermi", "☕", schifezza = true, colore = "marrone"),
+    Piatto("Caffè al Fango", "☕", schifezza = true, colore = "marrone"),
+    Piatto("Caffè Puzzolente", "☕", schifezza = true, colore = "verde"),
+    Piatto("Caffè Occhio Ghiacciato", "☕", schifezza = true, colore = "giallo")
+)
+
+fun menuPer(portata: Portata): List<Piatto> = when (portata) {
+    Portata.PRIMO -> menuPrimi
+    Portata.SECONDO -> menuSecondi
+    Portata.BIBITA -> menuBibite
+    Portata.POZIONE -> menuPozioni
+    Portata.DOLCE -> menuDolci
+    Portata.CAFFE -> menuCaffe
+}
+
+/** Ordine in cui le portate si sbloccano salendo di livello. */
+val ordinePortate: List<Portata> = Portata.entries.toList()
+
+/** Un livello di difficoltà: quante e quali portate bisogna comporre per ogni commensale. */
+data class Livello(val numero: Int, val portate: List<Portata>)
+
+/** Livello 1 = solo il primo, livello 2 = primo + secondo, ... fino a tutte le portate. */
+val elencoLivelli: List<Livello> = ordinePortate.indices.map { indice ->
+    Livello(numero = indice + 1, portate = ordinePortate.take(indice + 1))
+}
 
 /** Un commensale mostruoso da servire: ogni manche ne porta uno diverso, con la sua richiesta. */
 data class Commensale(val nome: String, val emoji: String)

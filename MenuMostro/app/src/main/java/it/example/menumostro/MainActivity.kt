@@ -26,6 +26,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -65,17 +66,19 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Schermata { HOME, GIOCO, FINE }
+private enum class Schermata { HOME, LIVELLI, GIOCO, FINE }
 
 @Composable
 fun AppMenuMostro() {
     var schermata by remember { mutableStateOf(Schermata.HOME) }
+    var livelloScelto by remember { mutableStateOf(elencoLivelli.first()) }
     var numeroManche by remember { mutableStateOf(1) }
     var punteggioTotale by remember { mutableStateOf(0) }
     var ordineCommensali by remember { mutableStateOf(estraiCommensali(NUMERO_MANCHE)) }
     var ordineRichieste by remember { mutableStateOf(estraiRichieste(NUMERO_MANCHE)) }
 
-    fun iniziaPartita() {
+    fun iniziaLivello(livello: Livello) {
+        livelloScelto = livello
         numeroManche = 1
         punteggioTotale = 0
         ordineCommensali = estraiCommensali(NUMERO_MANCHE)
@@ -84,9 +87,12 @@ fun AppMenuMostro() {
     }
 
     when (schermata) {
-        Schermata.HOME -> SchermataHome(onGioca = { iniziaPartita() })
+        Schermata.HOME -> SchermataHome(onGioca = { schermata = Schermata.LIVELLI })
+
+        Schermata.LIVELLI -> SchermataLivelli(onScegli = { livello -> iniziaLivello(livello) })
 
         Schermata.GIOCO -> SchermataGioco(
+            livello = livelloScelto,
             numeroManche = numeroManche,
             punteggioTotale = punteggioTotale,
             commensale = ordineCommensali[numeroManche - 1],
@@ -104,7 +110,8 @@ fun AppMenuMostro() {
         Schermata.FINE -> SchermataFine(
             punteggioTotale = punteggioTotale,
             puntiMassimi = NUMERO_MANCHE * PUNTEGGIO_MASSIMO_MANCHA,
-            onGiocaAncora = { iniziaPartita() }
+            onGiocaAncora = { iniziaLivello(livelloScelto) },
+            onCambiaLivello = { schermata = Schermata.LIVELLI }
         )
     }
 }
@@ -128,7 +135,7 @@ fun SchermataHome(onGioca: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Scegli tre cibi per ogni mostro. Ogni mostro vuole cose diverse. Fai tanti punti!".maiuscolo(),
+            text = "Scegli i cibi giusti per ogni mostro. Più sali di livello, più piatti devi fare!".maiuscolo(),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )
@@ -144,7 +151,67 @@ fun SchermataHome(onGioca: () -> Unit) {
 }
 
 @Composable
+fun SchermataLivelli(onScegli: (Livello) -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SfondoChiaro)
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = "🎚️", fontSize = 56.sp)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "Scegli il livello".maiuscolo(), style = MaterialTheme.typography.headlineMedium)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Più è alto, più piatti devi preparare!".maiuscolo(),
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        elencoLivelli.forEach { livello ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp)
+                    .clickable { onScegli(livello) },
+                colors = CardDefaults.cardColors(
+                    containerColor = palettePiatti[(livello.numero - 1) % palettePiatti.size]
+                ),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Livello ${livello.numero}".maiuscolo(),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = livello.portate.joinToString(" + ") { it.etichetta }.maiuscolo(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White
+                        )
+                    }
+                    Text(text = livello.portate.joinToString("") { it.emoji }, fontSize = 26.sp)
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+@Composable
 fun SchermataGioco(
+    livello: Livello,
     numeroManche: Int,
     punteggioTotale: Int,
     commensale: Commensale,
@@ -153,12 +220,18 @@ fun SchermataGioco(
 ) {
     // Chiave sul numero di manche: ad ogni nuovo commensale le scelte e il
     // risultato precedente vengono azzerati automaticamente.
-    var sceltaAntipasto by remember(numeroManche) { mutableStateOf<Piatto?>(null) }
-    var sceltaPrimo by remember(numeroManche) { mutableStateOf<Piatto?>(null) }
-    var sceltaDolce by remember(numeroManche) { mutableStateOf<Piatto?>(null) }
-    var risultato by remember(numeroManche) { mutableStateOf<Int?>(null) }
+    var scelte by remember(numeroManche, livello) {
+        mutableStateOf(livello.portate.associateWith { null as Piatto? })
+    }
+    var risultato by remember(numeroManche, livello) { mutableStateOf<Int?>(null) }
 
-    val menuCompleto = sceltaAntipasto != null && sceltaPrimo != null && sceltaDolce != null
+    fun selezionaPiatto(portata: Portata, piatto: Piatto) {
+        scelte = scelte.toMutableMap().apply {
+            this[portata] = if (this[portata] == piatto) null else piatto
+        }
+    }
+
+    val menuCompleto = livello.portate.all { scelte[it] != null }
 
     Box(
         modifier = Modifier
@@ -182,34 +255,28 @@ fun SchermataGioco(
                 )
                 Text(text = "🏅 $punteggioTotale".maiuscolo(), style = MaterialTheme.typography.titleLarge)
             }
+            Text(
+                text = "Livello ${livello.numero}".maiuscolo(),
+                style = MaterialTheme.typography.bodyMedium
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
             CartaRichiesta(commensale = commensale, richiesta = richiesta)
             Spacer(modifier = Modifier.height(4.dp))
 
-            SezioneMenu(
-                portata = Portata.ANTIPASTO,
-                piatti = menuAntipasti,
-                selezionato = sceltaAntipasto,
-                onSeleziona = { piatto -> sceltaAntipasto = if (piatto == sceltaAntipasto) null else piatto }
-            )
-            SezioneMenu(
-                portata = Portata.PRIMO,
-                piatti = menuPrimi,
-                selezionato = sceltaPrimo,
-                onSeleziona = { piatto -> sceltaPrimo = if (piatto == sceltaPrimo) null else piatto }
-            )
-            SezioneMenu(
-                portata = Portata.DOLCE,
-                piatti = menuDolci,
-                selezionato = sceltaDolce,
-                onSeleziona = { piatto -> sceltaDolce = if (piatto == sceltaDolce) null else piatto }
-            )
+            livello.portate.forEach { portata ->
+                SezioneMenu(
+                    portata = portata,
+                    piatti = menuPer(portata),
+                    selezionato = scelte[portata],
+                    onSeleziona = { piatto -> selezionaPiatto(portata, piatto) }
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
             Button(
                 onClick = {
-                    val piatti = listOfNotNull(sceltaAntipasto, sceltaPrimo, sceltaDolce)
+                    val piatti = livello.portate.mapNotNull { scelte[it] }
                     risultato = richiesta.valuta(piatti)
                 },
                 enabled = menuCompleto,
@@ -424,7 +491,12 @@ fun RisultatoOverlay(punteggio: Int, ultimaMancha: Boolean, onContinua: () -> Un
 }
 
 @Composable
-fun SchermataFine(punteggioTotale: Int, puntiMassimi: Int, onGiocaAncora: () -> Unit) {
+fun SchermataFine(
+    punteggioTotale: Int,
+    puntiMassimi: Int,
+    onGiocaAncora: () -> Unit,
+    onCambiaLivello: () -> Unit
+) {
     val percentuale = punteggioTotale.toFloat() / puntiMassimi
     val (emoji, messaggio) = when {
         percentuale >= 0.85f -> "🏆" to "Sei il miglior cuoco!"
@@ -462,6 +534,14 @@ fun SchermataFine(punteggioTotale: Int, puntiMassimi: Int, onGiocaAncora: () -> 
             modifier = Modifier.size(width = 220.dp, height = 64.dp)
         ) {
             Text(text = "🔁 Gioca ancora".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        OutlinedButton(
+            onClick = onCambiaLivello,
+            shape = RoundedCornerShape(50),
+            modifier = Modifier.size(width = 220.dp, height = 56.dp)
+        ) {
+            Text(text = "🎚️ Cambia livello".maiuscolo(), fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
