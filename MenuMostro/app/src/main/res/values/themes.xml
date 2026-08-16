@@ -1,0 +1,4 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Tema base della piattaforma: la UI è interamente realizzata con Jetpack Compose -->
+    <style name="Theme.MenuMostro" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

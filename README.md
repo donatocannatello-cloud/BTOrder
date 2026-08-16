@@ -1,5 +1,9 @@
 # ChiamateBT
 
+> Questo repository contiene due progetti Android **indipendenti** (ognuno
+> con il proprio Gradle wrapper): `app/` (ChiamateBT, descritto qui sotto) e
+> `MenuMostro/` (un gioco per bambini — vedi [`MenuMostro/README.md`](MenuMostro/README.md)).
+
 App Android (Kotlin + Jetpack Compose) che permette di definire un ordine di
 priorità personale tra i dispositivi audio disponibili — cuffie/auto
 Bluetooth, auricolare integrato e vivavoce integrato — e lo applica

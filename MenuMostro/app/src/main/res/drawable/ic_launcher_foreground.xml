@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icona placeholder: un mostriciattolo buffo, da sostituire con un'icona definitiva -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Cornetti -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M40,26 L46,10 L50,28 Z" />
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M68,28 L72,10 L78,26 Z" />
+    <!-- Testa -->
+    <path
+        android:fillColor="#66BB6A"
+        android:pathData="M54,54 m -32,0 a32,32 0 1,0 64,0 a32,32 0 1,0 -64,0" />
+    <!-- Occhi -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M42,46 m -9,0 a9,9 0 1,0 18,0 a9,9 0 1,0 -18,0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M68,46 m -9,0 a9,9 0 1,0 18,0 a9,9 0 1,0 -18,0" />
+    <path
+        android:fillColor="#212121"
+        android:pathData="M44,46 m -4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+    <path
+        android:fillColor="#212121"
+        android:pathData="M70,46 m -4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+    <!-- Bocca con dentini -->
+    <path
+        android:fillColor="#212121"
+        android:pathData="M38,68 Q54,86 70,68 Q54,76 38,68 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M46,68 L50,75 L54,68 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M56,68 L60,75 L64,68 Z" />
+</vector>
