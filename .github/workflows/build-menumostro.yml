@@ -33,10 +33,16 @@ jobs:
         working-directory: MenuMostro
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Rename APK
+      - name: Prepara i file da pubblicare
         run: |
           mkdir -p dist
           cp MenuMostro/app/build/outputs/apk/debug/app-debug.apk dist/MenuMostro-debug.apk
+          # Alcuni browser mobili (e Google Play Protect) bloccano o non
+          # finalizzano il download di un file .apk "nudo" scaricato via
+          # redirect HTTPS. Un .zip che lo contiene non viene filtrato allo
+          # stesso modo ed è un fallback affidabile: si estrae con qualunque
+          # gestore file e si installa l'apk risultante.
+          cd dist && zip MenuMostro-debug.zip MenuMostro-debug.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -47,15 +53,16 @@ jobs:
 
       # Pubblica l'APK come asset di una Release con tag fisso: a differenza degli
       # artifact delle Actions (sempre zippati e scaricabili solo da chi ha accesso
-      # al repo/API), l'asset di una Release è un link diretto al singolo file .apk,
+      # al repo/API), l'asset di una Release è un link diretto al singolo file,
       # stabile nel tempo e scaricabile pubblicamente da un repository pubblico.
       # Il tag viene ricreato ad ogni build così il link resta sempre lo stesso.
+      # Pubblichiamo sia l'apk "nudo" sia lo zip di fallback (vedi step sopra).
       - name: Pubblica la Release con l'APK
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           gh release delete menu-mostro-latest --yes --cleanup-tag || true
-          gh release create menu-mostro-latest dist/MenuMostro-debug.apk \
+          gh release create menu-mostro-latest dist/MenuMostro-debug.apk dist/MenuMostro-debug.zip \
             --repo "${{ github.repository }}" \
             --title "Menù del Mostro (debug) - build ${{ github.run_number }}" \
-            --notes "APK di debug generato automaticamente dal commit ${{ github.sha }}. Firmato con il keystore di debug versionato: installa sopra la versione precedente senza disinstallare."
+            --notes "APK di debug generato automaticamente dal commit ${{ github.sha }}. Firmato con il keystore di debug versionato: installa sopra la versione precedente senza disinstallare. Se il download di MenuMostro-debug.apk non si finalizza sul telefono, prova MenuMostro-debug.zip: estrailo con un file manager e installa l'apk al suo interno."
