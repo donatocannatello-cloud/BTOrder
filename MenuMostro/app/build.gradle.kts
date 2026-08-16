@@ -15,7 +15,25 @@ android {
         versionName = "1.1"
     }
 
+    // Keystore di debug fisso e versionato (debug.keystore, credenziali di default
+    // di Android): senza questo, ogni ambiente (Android Studio locale, ogni run di
+    // CI) genera/usa un keystore di debug diverso, quindi le firme non combaciano e
+    // Android rifiuta l'aggiornamento di un APK già installato ("pacchetto in
+    // conflitto"). Firmando sempre con lo stesso keystore, gli APK di debug si
+    // aggiornano l'uno sull'altro senza doverli disinstallare prima.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("../debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
