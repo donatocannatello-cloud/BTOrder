@@ -11,8 +11,8 @@ android {
         applicationId = "it.example.menumostro"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 4
+        versionName = "1.3"
     }
 
     // Keystore di debug fisso e versionato (debug.keystore, credenziali di default

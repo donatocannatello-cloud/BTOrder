@@ -3,6 +3,7 @@ package it.example.menumostro
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,7 +27,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,7 +37,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -66,33 +69,37 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Schermata { HOME, LIVELLI, GIOCO, FINE }
+private enum class Schermata { HOME, GIOCO, FINE }
 
 @Composable
 fun AppMenuMostro() {
     var schermata by remember { mutableStateOf(Schermata.HOME) }
-    var livelloScelto by remember { mutableStateOf(elencoLivelli.first()) }
+    var livelloCorrente by remember { mutableStateOf(elencoLivelli.first()) }
     var numeroManche by remember { mutableStateOf(1) }
     var punteggioTotale by remember { mutableStateOf(0) }
     var ordineCommensali by remember { mutableStateOf(estraiCommensali(NUMERO_MANCHE)) }
     var ordineRichieste by remember { mutableStateOf(estraiRichieste(NUMERO_MANCHE)) }
 
-    fun iniziaLivello(livello: Livello) {
-        livelloScelto = livello
+    // Prepara la prossima manche (stesso livello, 4 nuovi commensali) e torna al gioco.
+    fun iniziaManche() {
         numeroManche = 1
-        punteggioTotale = 0
         ordineCommensali = estraiCommensali(NUMERO_MANCHE)
         ordineRichieste = estraiRichieste(NUMERO_MANCHE)
         schermata = Schermata.GIOCO
     }
 
-    when (schermata) {
-        Schermata.HOME -> SchermataHome(onGioca = { schermata = Schermata.LIVELLI })
+    // Il gioco è sequenziale: si parte sempre dal livello 1 e si sale un livello alla volta.
+    fun nuovaPartita() {
+        livelloCorrente = elencoLivelli.first()
+        punteggioTotale = 0
+        iniziaManche()
+    }
 
-        Schermata.LIVELLI -> SchermataLivelli(onScegli = { livello -> iniziaLivello(livello) })
+    when (schermata) {
+        Schermata.HOME -> SchermataHome(onGioca = { nuovaPartita() })
 
         Schermata.GIOCO -> SchermataGioco(
-            livello = livelloScelto,
+            livello = livelloCorrente,
             numeroManche = numeroManche,
             punteggioTotale = punteggioTotale,
             commensale = ordineCommensali[numeroManche - 1],
@@ -108,104 +115,69 @@ fun AppMenuMostro() {
         )
 
         Schermata.FINE -> SchermataFine(
+            livelloCompletato = livelloCorrente,
             punteggioTotale = punteggioTotale,
-            puntiMassimi = NUMERO_MANCHE * PUNTEGGIO_MASSIMO_MANCHA,
-            onGiocaAncora = { iniziaLivello(livelloScelto) },
-            onCambiaLivello = { schermata = Schermata.LIVELLI }
+            onProssimoLivello = {
+                livelloCorrente = elencoLivelli[livelloCorrente.numero]
+                iniziaManche()
+            },
+            onNuovaPartita = { nuovaPartita() }
         )
     }
 }
 
 @Composable
 fun SchermataHome(onGioca: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SfondoChiaro)
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(text = "👹🍽️👻", fontSize = 72.sp)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Il Menù del Mostro".maiuscolo(),
-            style = MaterialTheme.typography.headlineLarge,
-            textAlign = TextAlign.Center
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.sfondo_taverna_mostri),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Scegli i cibi giusti per ogni mostro. Più sali di livello, più piatti devi fare!".maiuscolo(),
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center
+        // Sfumatura scura solo nella metà inferiore: l'illustrazione resta ben
+        // visibile in alto, il testo resta leggibile in basso.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to Color.Transparent,
+                        0.5f to Color.Transparent,
+                        1.0f to Color(0xE6000000)
+                    )
+                )
         )
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(
-            onClick = onGioca,
-            shape = RoundedCornerShape(50),
-            modifier = Modifier.size(width = 220.dp, height = 64.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Bottom
         ) {
-            Text(text = "🎮 Gioca!".maiuscolo(), fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-@Composable
-fun SchermataLivelli(onScegli: (Livello) -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SfondoChiaro)
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(text = "🎚️", fontSize = 56.sp)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "Scegli il livello".maiuscolo(), style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = "Più è alto, più piatti devi preparare!".maiuscolo(),
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        elencoLivelli.forEach { livello ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp)
-                    .clickable { onScegli(livello) },
-                colors = CardDefaults.cardColors(
-                    containerColor = palettePiatti[(livello.numero - 1) % palettePiatti.size]
-                ),
-                shape = RoundedCornerShape(20.dp)
+            Text(
+                text = "Il Menù del Mostro".maiuscolo(),
+                style = MaterialTheme.typography.headlineLarge,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Scegli i cibi giusti per ogni mostro. Livello dopo livello, i piatti da fare aumentano!".maiuscolo(),
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            Button(
+                onClick = onGioca,
+                shape = RoundedCornerShape(50),
+                modifier = Modifier.size(width = 220.dp, height = 64.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Livello ${livello.numero}".maiuscolo(),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = livello.portate.joinToString(" + ") { it.etichetta }.maiuscolo(),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White
-                        )
-                    }
-                    Text(text = livello.portate.joinToString("") { it.emoji }, fontSize = 26.sp)
-                }
+                Text(text = "🎮 Gioca!".maiuscolo(), fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }
+            Spacer(modifier = Modifier.height(32.dp))
         }
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
@@ -492,17 +464,24 @@ fun RisultatoOverlay(punteggio: Int, ultimaMancha: Boolean, onContinua: () -> Un
 
 @Composable
 fun SchermataFine(
+    livelloCompletato: Livello,
     punteggioTotale: Int,
-    puntiMassimi: Int,
-    onGiocaAncora: () -> Unit,
-    onCambiaLivello: () -> Unit
+    onProssimoLivello: () -> Unit,
+    onNuovaPartita: () -> Unit
 ) {
-    val percentuale = punteggioTotale.toFloat() / puntiMassimi
-    val (emoji, messaggio) = when {
-        percentuale >= 0.85f -> "🏆" to "Sei il miglior cuoco!"
-        percentuale >= 0.6f -> "🎉" to "Bravo! I mostri sono contenti!"
-        percentuale >= 0.35f -> "👍" to "Bravo! Continua così!"
-        else -> "😄" to "Riprova! Puoi fare meglio!"
+    val ultimoLivello = livelloCompletato.numero >= elencoLivelli.size
+    val puntiMassimiFinora = NUMERO_MANCHE * PUNTEGGIO_MASSIMO_MANCHA * livelloCompletato.numero
+    val percentuale = punteggioTotale.toFloat() / puntiMassimiFinora
+
+    val (emoji, messaggio) = if (ultimoLivello) {
+        "🏆" to "Hai finito tutti i livelli! Sei un campione!"
+    } else {
+        when {
+            percentuale >= 0.85f -> "🎉" to "Livello ${livelloCompletato.numero} finito benissimo!"
+            percentuale >= 0.6f -> "😋" to "Livello ${livelloCompletato.numero} finito! I mostri sono contenti!"
+            percentuale >= 0.35f -> "👍" to "Livello ${livelloCompletato.numero} finito! Continua così!"
+            else -> "😄" to "Livello ${livelloCompletato.numero} finito! Puoi fare meglio!"
+        }
     }
 
     Column(
@@ -516,32 +495,32 @@ fun SchermataFine(
         Text(text = emoji, fontSize = 96.sp)
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Hai dato da mangiare a $NUMERO_MANCHE mostri!".maiuscolo(),
+            text = messaggio.maiuscolo(),
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Punti totali: $punteggioTotale su $puntiMassimi".maiuscolo(),
+            text = "Punti totali: $punteggioTotale su $puntiMassimiFinora".maiuscolo(),
             style = MaterialTheme.typography.titleLarge
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = messaggio.maiuscolo(), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(32.dp))
-        Button(
-            onClick = onGiocaAncora,
-            shape = RoundedCornerShape(50),
-            modifier = Modifier.size(width = 220.dp, height = 64.dp)
-        ) {
-            Text(text = "🔁 Gioca ancora".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-        OutlinedButton(
-            onClick = onCambiaLivello,
-            shape = RoundedCornerShape(50),
-            modifier = Modifier.size(width = 220.dp, height = 56.dp)
-        ) {
-            Text(text = "🎚️ Cambia livello".maiuscolo(), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        if (ultimoLivello) {
+            Button(
+                onClick = onNuovaPartita,
+                shape = RoundedCornerShape(50),
+                modifier = Modifier.size(width = 240.dp, height = 64.dp)
+            ) {
+                Text(text = "🔁 Nuova partita".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            }
+        } else {
+            Button(
+                onClick = onProssimoLivello,
+                shape = RoundedCornerShape(50),
+                modifier = Modifier.size(width = 240.dp, height = 64.dp)
+            ) {
+                Text(text = "➡️ Prossimo livello".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

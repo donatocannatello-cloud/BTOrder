@@ -8,8 +8,10 @@ diversa (es. "cibi rossi", "niente carne o pesce", "mi piace l'insalata"...).
 Tutti i testi sono in MAIUSCOLO e con parole semplici, pensati per essere
 letti da bambini che stanno imparando a leggere.
 
-Il gioco ha **6 livelli di difficoltà**, scelti prima di iniziare: più si
-sale, più portate bisogna comporre per ogni commensale.
+Il gioco ha **6 livelli di difficoltà** ed è sequenziale: si parte sempre
+dal livello 1 e, completandolo, si sale automaticamente al successivo (non
+c'è una schermata di scelta del livello). Più si sale, più portate bisogna
+comporre per ogni commensale.
 
 | Livello | Portate da comporre |
 | --- | --- |
@@ -36,13 +38,13 @@ separatamente.
 
 ## Come si gioca
 
-1. Nella schermata iniziale si preme **"Gioca!"**, poi si sceglie un
-   **livello** (1-6): ogni riga mostra quante e quali portate servono.
+1. Nella schermata iniziale (con l'illustrazione della taverna dei mostri
+   come sfondo) si preme **"Gioca!"**: si parte sempre dal **livello 1**.
 2. Ad ogni manche arriva un commensale diverso (Mostro, Mostra, Mostrina o
    Mostretta) con una richiesta (es. "NIENTE CARNE E NIENTE PESCE!" oppure
    "VOGLIO SOLO CIBI ROSSI!").
 3. Si scorre la schermata e si sceglie **un piatto per ciascuna portata del
-   livello** (da 1 a 6 a seconda del livello scelto): ogni portata ha il
+   livello** (da 1 a 6 a seconda del livello raggiunto): ogni portata ha il
    proprio menù di 8 piatti, mescolando piatti normali e schifezze
    (contrassegnate con 🤪). Toccando di nuovo il piatto già scelto lo si
    deseleziona per cambiare idea.
@@ -51,10 +53,10 @@ separatamente.
    commensale. Una schifezza non è automaticamente "sbagliata": a volte è
    proprio quello che il commensale vuole (es. una schifezza rossa soddisfa
    "cibi rossi" tanto quanto un piatto normale).
-5. Dopo 4 commensali serviti si arriva alla schermata finale con il
-   punteggio totale su 400: si può rigiocare lo stesso livello con **"Gioca
-   ancora"** oppure tornare alla scelta del livello con **"Cambia
-   livello"**.
+5. Dopo 4 commensali serviti si arriva alla schermata di fine livello: con
+   **"Prossimo livello"** si sale automaticamente al livello successivo
+   (una portata in più). Dopo aver completato il livello 6 compare invece
+   **"Nuova partita"**, che ricomincia da capo dal livello 1.
 
 ## File principali
 
@@ -64,10 +66,12 @@ separatamente.
   pasto).
 - **`GameLogic.kt`** — calcolo del punteggio (0-100) ed estrazione casuale di
   richieste e commensali per la partita.
-- **`MainActivity.kt`** — tutte le schermate Compose (Home, Livelli, Gioco,
-  Fine) e lo stato della partita.
+- **`MainActivity.kt`** — tutte le schermate Compose (Home, Gioco, Fine) e lo
+  stato della partita.
 - **`ui/theme/`** — tema con palette allegra e colorata fissa, pensata per
   bambini (non segue il tema scuro di sistema).
+- **`res/drawable-nodpi/sfondo_taverna_mostri.png`** — illustrazione usata
+  come sfondo della schermata iniziale.
 
 ## Come compilare
 
@@ -89,6 +93,9 @@ una CI con accesso al repository Maven di Google.
 
 ## Idee per estensioni future
 
+- Salvare la partita in corso (livello e punteggio) per poterla riprendere
+  riaprendo l'app, con una schermata iniziale che offra "Continua" e
+  "Nuova partita".
 - Suoni ed effetti sonori quando il commensale mangia.
 - Più richieste e più piatti per portata, per aumentare la varietà.
 - Animazioni di masticazione/coriandoli quando si ottengono 100 punti.
