@@ -1,0 +1,72 @@
+name: RipassoFoto - build APK
+
+on:
+  push:
+    paths:
+      - "ripassofoto/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - "gradlew"
+      - "gradlew.bat"
+      - ".github/workflows/ripassofoto-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repository
+        uses: actions/checkout@v4
+
+      - name: Imposta JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache delle dipendenze Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Permessi di esecuzione per gradlew
+        run: chmod +x gradlew
+
+      - name: Compila l'APK di debug di RipassoFoto
+        run: ./gradlew :ripassofoto:assembleDebug --no-daemon
+
+      - name: Individua l'APK generato
+        id: apk
+        run: |
+          apk_path=$(find ripassofoto/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          if [ -z "$apk_path" ]; then
+            echo "Nessun APK trovato in ripassofoto/build/outputs/apk/debug" >&2
+            exit 1
+          fi
+          echo "path=$apk_path" >> "$GITHUB_OUTPUT"
+
+      - name: Carica l'APK come artifact del workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: ripassofoto-debug-apk
+          path: ${{ steps.apk.outputs.path }}
+
+      - name: Pubblica/aggiorna la release con l'ultimo APK
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ripassofoto-latest
+          name: RipassoFoto - ultima build automatica
+          commit: ${{ github.sha }}
+          body: |
+            APK di debug di RipassoFoto generato automaticamente da GitHub Actions
+            a ogni modifica del modulo `ripassofoto/`.
+
+            Commit: ${{ github.sha }}
+            Branch: ${{ github.ref_name }}
+          allowUpdates: true
+          replacesArtifacts: true
+          makeLatest: false
+          artifacts: ${{ steps.apk.outputs.path }}
+          token: ${{ secrets.GITHUB_TOKEN }}

@@ -14,5 +14,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "RipassoFoto"
-include(":app")
+rootProject.name = "BTOrder"
+include(":chiamatebt")
+include(":ripassofoto")

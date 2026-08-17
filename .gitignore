@@ -8,4 +8,5 @@
 .externalNativeBuild
 .cxx
 local.properties
-/app/build
+/chiamatebt/build
+/ripassofoto/build
