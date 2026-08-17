@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Icona placeholder: un semplice segnaposto a forma di "pin", da sostituire con un'icona definitiva -->
+<!-- Icona placeholder: un libro aperto con un segno di spunta, da sostituire con un'icona definitiva -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -7,5 +7,11 @@
     android:viewportHeight="108">
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,24c-11.6,0 -21,9.4 -21,21c0,15.8 21,39 21,39s21,-23.2 21,-39C75,33.4 65.6,24 54,24zM54,52.5c-4.1,0 -7.5,-3.4 -7.5,-7.5s3.4,-7.5 7.5,-7.5s7.5,3.4 7.5,7.5S58.1,52.5 54,52.5z" />
+        android:pathData="M54,38 C48,32 38,29 29,29 C27.3,29 26,30.3 26,32 L26,74 C26,75.7 27.3,77 29,77 C38,77 48,80 54,86 C60,80 70,77 79,77 C80.7,77 82,75.7 82,74 L82,32 C82,30.3 80.7,29 79,29 C70,29 60,32 54,38 Z" />
+    <path
+        android:fillColor="#00695C"
+        android:pathData="M54,38 L54,86 C48,80 38,77 29,77 C27.3,77 26,75.7 26,74 L26,32 C26,30.3 27.3,29 29,29 C38,29 48,32 54,38 Z" />
+    <path
+        android:fillColor="#FFCA28"
+        android:pathData="M46.5,55.5 L52,61 L64,49 L67,52 L52,67 L43.5,58.5 Z" />
 </vector>

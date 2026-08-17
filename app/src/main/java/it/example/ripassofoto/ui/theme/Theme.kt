@@ -1,4 +1,4 @@
-package it.example.chiamatebt.ui.theme
+package it.example.ripassofoto.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -11,19 +11,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val SchemaScuro = darkColorScheme(
-    primary = BluSecondario,
-    secondary = BluPrimario
+    primary = VerdeChiaroSecondario,
+    secondary = AmbraAccento
 )
 
 private val SchemaChiaro = lightColorScheme(
-    primary = BluPrimario,
-    secondary = BluSecondario,
+    primary = VerdeScuroPrimario,
+    secondary = AmbraAccento,
     background = GrigioSfondo
 )
 
 @Composable
-fun ChiamateBTTheme(
-    usaColoriDinamici: Boolean = true,
+fun RipassoFotoTheme(
+    usaColoriDinamici: Boolean = false,
     contenuto: @Composable () -> Unit
 ) {
     val temaScuro = isSystemInDarkTheme()
