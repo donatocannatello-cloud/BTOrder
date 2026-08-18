@@ -2,11 +2,11 @@
 
 App Android (Kotlin + Jetpack Compose) pensata per bambini di 6/7 anni: è
 una **suite di giochi**. All'avvio si apre una home ("Free Games") da cui si
-sceglie a quale gioco giocare; per ora c'è **Monster Restaurant**, gli altri
-sono caselle "presto disponibile" (vedi [Idee per estensioni
-future](#idee-per-estensioni-future)). Tutti i testi sono in MAIUSCOLO e con
-parole semplici, pensati per essere letti da bambini che stanno imparando a
-leggere.
+sceglie a quale gioco giocare; per ora ci sono **Monster Restaurant** e
+**Monster Panino**, gli altri sono caselle "presto disponibile" (vedi [Idee
+per estensioni future](#idee-per-estensioni-future)). Tutti i testi sono in
+MAIUSCOLO e con parole semplici, pensati per essere letti da bambini che
+stanno imparando a leggere.
 
 ## Monster Restaurant
 
@@ -67,20 +67,54 @@ separatamente.
    (una portata in più). Dopo aver completato il livello 6 compare invece
    **"Nuova partita"**, che ricomincia da capo dal livello 1.
 
+## Monster Panino
+
+Stesso principio di Monster Restaurant, applicato a un panino: si scelgono
+ingredienti (normali o folli 🤪) da un unico banco, invece di comporre più
+portate separate, per accontentare la richiesta del commensale di turno
+(es. "voglio solo cibi rossi!" → tutti ingredienti rossi). Anche qui **5
+livelli di difficoltà sequenziali**: si parte da un panino di 2 ingredienti
+e via via se ne aggiunge uno in più, fino a 6.
+
+Riusa quasi tutto da Monster Restaurant (stessi 4 commensali, stesse 10
+richieste, stesso calcolo del punteggio 0-100): solo il banco ingredienti e
+il modo di comporli sono diversi, così i due giochi restano coerenti tra
+loro pur essendo distinti.
+
+### Come si gioca
+
+1. Dalla home "Free Games" si tocca la casella **"Monster Panino"**.
+2. Si preme **"Gioca!"**: si parte sempre dal **livello 1** (2
+   ingredienti). La freccia ⬅️ in alto a sinistra torna alla home.
+3. Arriva un commensale con una richiesta, esattamente come in Monster
+   Restaurant.
+4. Si toccano gli ingredienti dal banco (unico, non diviso in portate) fino
+   a riempire tutti gli "slot" del panino per il livello corrente; toccando
+   di nuovo un ingrediente già scelto lo si toglie. Gli ingredienti non
+   selezionabili (perché il panino è già pieno) appaiono in grigio.
+5. Con **"Fai il panino!"** si scopre il punteggio della manche (0-100), poi
+   si passa al prossimo commensale.
+6. Dopo 4 commensali si sale automaticamente di livello (un ingrediente in
+   più), fino al livello 5; poi si può ricominciare con "Nuova partita".
+
 ## File principali
 
-- **`MainActivity.kt`** — contiene sia la suite (`AppSuite`, `SchermataHub`
-  e l'elenco `elencoGiochi` dei giochi disponibili/in arrivo) sia tutte le
-  schermate Compose di Monster Restaurant (Home, Gioco, Fine) con il relativo
-  stato di partita. Un gioco futuro andrà aggiunto qui come un nuovo ramo del
-  `when` in `AppSuite`, idealmente spostando prima Monster Restaurant nel suo
-  file dedicato.
-- **`FoodData.kt`** — le 6 portate e i loro menù (con le categorie usate
-  dalle richieste), i 6 livelli di difficoltà, l'elenco dei 4 commensali e
-  le richieste possibili (ognuna con la propria funzione di valutazione del
-  pasto) di Monster Restaurant.
+- **`MainActivity.kt`** — contiene la suite (`AppSuite`, `SchermataHub` e
+  l'elenco `elencoGiochi` dei giochi disponibili/in arrivo), tutte le
+  schermate Compose di Monster Restaurant (Home, Gioco, Fine) e, in fondo al
+  file, quelle di Monster Panino (`AppMonsterPanino` e schermate correlate).
+  Monster Panino riusa direttamente `Piatto`, `Commensale`, `RichiestaMostro`,
+  `CartaRichiesta`, `CartaPiattoMenu` e `RisultatoOverlay` già definiti per
+  Monster Restaurant. Un gioco futuro andrà aggiunto qui come un nuovo ramo
+  del `when` in `AppSuite`, idealmente spostando ogni gioco nel proprio file
+  dedicato quando la suite cresce ancora.
+- **`FoodData.kt`** — dati di entrambi i giochi: per Monster Restaurant le 6
+  portate e i loro menù, i 6 livelli di difficoltà; per Monster Panino il
+  banco ingredienti (`elencoIngredientiPanino`) e i suoi 5 livelli
+  (`elencoLivelliPanino`); condivisi da entrambi l'elenco dei 4 commensali e
+  le 10 richieste possibili (ognuna con la propria funzione di valutazione).
 - **`GameLogic.kt`** — calcolo del punteggio (0-100) ed estrazione casuale di
-  richieste e commensali per la partita di Monster Restaurant.
+  richieste e commensali, usato da entrambi i giochi.
 - **`ui/theme/`** — tema con palette allegra e colorata fissa, pensata per
   bambini (non segue il tema scuro di sistema), condiviso da tutta la suite.
 - **`res/drawable-nodpi/sfondo_taverna_mostri.png`** — illustrazione usata

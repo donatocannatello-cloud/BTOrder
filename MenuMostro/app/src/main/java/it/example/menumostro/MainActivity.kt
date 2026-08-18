@@ -69,13 +69,14 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** I giochi della suite: per ora solo Monster Restaurant è giocabile, gli altri sono "presto disponibili". */
-enum class Gioco { MOSTRO }
+/** I giochi della suite: Monster Restaurant e Monster Panino sono giocabili, gli altri sono "presto disponibili". */
+enum class Gioco { MOSTRO, PANINO }
 
 private data class VoceGioco(val nome: String, val emoji: String, val gioco: Gioco?)
 
 private val elencoGiochi = listOf(
     VoceGioco("Monster Restaurant", "🍽️👹", Gioco.MOSTRO),
+    VoceGioco("Monster Panino", "🥪👹", Gioco.PANINO),
     VoceGioco("Memory dei Mostri", "🧠👻", null),
     VoceGioco("Vesti il Mostro", "🎨🧌", null),
     VoceGioco("Ritmo Mostruoso", "🎵🐙", null)
@@ -89,6 +90,7 @@ fun AppSuite() {
     when (giocoAttivo) {
         null -> SchermataHub(onSeleziona = { gioco -> giocoAttivo = gioco })
         Gioco.MOSTRO -> AppMenuMostro(onTornaAiGiochi = { giocoAttivo = null })
+        Gioco.PANINO -> AppMonsterPanino(onTornaAiGiochi = { giocoAttivo = null })
     }
 }
 
@@ -582,6 +584,320 @@ fun SchermataFine(
 
     val (emoji, messaggio) = if (ultimoLivello) {
         "🏆" to "Hai finito tutti i livelli! Sei un campione!"
+    } else {
+        when {
+            percentuale >= 0.85f -> "🎉" to "Livello ${livelloCompletato.numero} finito benissimo!"
+            percentuale >= 0.6f -> "😋" to "Livello ${livelloCompletato.numero} finito! I mostri sono contenti!"
+            percentuale >= 0.35f -> "👍" to "Livello ${livelloCompletato.numero} finito! Continua così!"
+            else -> "😄" to "Livello ${livelloCompletato.numero} finito! Puoi fare meglio!"
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SfondoChiaro)
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(text = emoji, fontSize = 96.sp)
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = messaggio.maiuscolo(),
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Punti totali: $punteggioTotale su $puntiMassimiFinora".maiuscolo(),
+            style = MaterialTheme.typography.titleLarge
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+        if (ultimoLivello) {
+            Button(
+                onClick = onNuovaPartita,
+                shape = RoundedCornerShape(50),
+                modifier = Modifier.size(width = 240.dp, height = 64.dp)
+            ) {
+                Text(text = "🔁 Nuova partita".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            }
+        } else {
+            Button(
+                onClick = onProssimoLivello,
+                shape = RoundedCornerShape(50),
+                modifier = Modifier.size(width = 240.dp, height = 64.dp)
+            ) {
+                Text(text = "➡️ Prossimo livello".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------
+// Monster Panino: stesso concept di Monster Restaurant (richiesta del mostro da
+// soddisfare per fare punti) applicato a un unico panino invece che a più portate.
+// Riusa Piatto, Commensale, RichiestaMostro, CartaRichiesta, CartaPiattoMenu e
+// RisultatoOverlay già definiti sopra per Monster Restaurant.
+// ---------------------------------------------------------------------------------
+
+private enum class SchermataPanino { HOME, GIOCO, FINE }
+
+@Composable
+fun AppMonsterPanino(onTornaAiGiochi: () -> Unit) {
+    var schermata by remember { mutableStateOf(SchermataPanino.HOME) }
+    var livelloCorrente by remember { mutableStateOf(elencoLivelliPanino.first()) }
+    var numeroManche by remember { mutableStateOf(1) }
+    var punteggioTotale by remember { mutableStateOf(0) }
+    var ordineCommensali by remember { mutableStateOf(estraiCommensali(NUMERO_MANCHE)) }
+    var ordineRichieste by remember { mutableStateOf(estraiRichieste(NUMERO_MANCHE)) }
+
+    fun iniziaManche() {
+        numeroManche = 1
+        ordineCommensali = estraiCommensali(NUMERO_MANCHE)
+        ordineRichieste = estraiRichieste(NUMERO_MANCHE)
+        schermata = SchermataPanino.GIOCO
+    }
+
+    fun nuovaPartita() {
+        livelloCorrente = elencoLivelliPanino.first()
+        punteggioTotale = 0
+        iniziaManche()
+    }
+
+    when (schermata) {
+        SchermataPanino.HOME -> SchermataHomePanino(onGioca = { nuovaPartita() }, onTornaAiGiochi = onTornaAiGiochi)
+
+        SchermataPanino.GIOCO -> SchermataGiocoPanino(
+            livello = livelloCorrente,
+            numeroManche = numeroManche,
+            punteggioTotale = punteggioTotale,
+            commensale = ordineCommensali[numeroManche - 1],
+            richiesta = ordineRichieste[numeroManche - 1],
+            onManchaServita = { punteggio ->
+                punteggioTotale += punteggio
+                if (numeroManche >= NUMERO_MANCHE) {
+                    schermata = SchermataPanino.FINE
+                } else {
+                    numeroManche += 1
+                }
+            }
+        )
+
+        SchermataPanino.FINE -> SchermataFinePanino(
+            livelloCompletato = livelloCorrente,
+            punteggioTotale = punteggioTotale,
+            onProssimoLivello = {
+                livelloCorrente = elencoLivelliPanino[livelloCorrente.numero]
+                iniziaManche()
+            },
+            onNuovaPartita = { nuovaPartita() }
+        )
+    }
+}
+
+@Composable
+fun SchermataHomePanino(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SfondoChiaro)
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp)
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(Color(0x33000000))
+                .clickable(onClick = onTornaAiGiochi),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = "⬅️", fontSize = 22.sp)
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(text = "🥪👹", fontSize = 72.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Monster Panino".maiuscolo(),
+                style = MaterialTheme.typography.headlineLarge,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Scegli gli ingredienti giusti per il panino del mostro!".maiuscolo(),
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            Button(
+                onClick = onGioca,
+                shape = RoundedCornerShape(50),
+                modifier = Modifier.size(width = 220.dp, height = 64.dp)
+            ) {
+                Text(text = "🎮 Gioca!".maiuscolo(), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+fun SchermataGiocoPanino(
+    livello: LivelloPanino,
+    numeroManche: Int,
+    punteggioTotale: Int,
+    commensale: Commensale,
+    richiesta: RichiestaMostro,
+    onManchaServita: (Int) -> Unit
+) {
+    // Chiave sul numero di manche: ad ogni nuovo commensale il panino e il
+    // risultato precedente vengono azzerati automaticamente.
+    var selezione by remember(numeroManche, livello) { mutableStateOf<List<Piatto>>(emptyList()) }
+    var risultato by remember(numeroManche, livello) { mutableStateOf<Int?>(null) }
+
+    fun toggleIngrediente(ingrediente: Piatto) {
+        selezione = if (ingrediente in selezione) {
+            selezione - ingrediente
+        } else if (selezione.size < livello.numeroIngredienti) {
+            selezione + ingrediente
+        } else {
+            selezione
+        }
+    }
+
+    val pronto = selezione.size == livello.numeroIngredienti
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SfondoChiaro)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Panino $numeroManche di $NUMERO_MANCHE".maiuscolo(),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(text = "🏅 $punteggioTotale".maiuscolo(), style = MaterialTheme.typography.titleLarge)
+            }
+            Text(
+                text = "Livello ${livello.numero}".maiuscolo(),
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+            CartaRichiesta(commensale = commensale, richiesta = richiesta)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Il tuo panino: ${selezione.size} su ${livello.numeroIngredienti}".maiuscolo(),
+                style = MaterialTheme.typography.titleLarge
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (selezione.isEmpty()) {
+                    Text(text = "🍞", fontSize = 32.sp)
+                } else {
+                    selezione.forEach { ingrediente -> Text(text = ingrediente.emoji, fontSize = 32.sp) }
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            GrigliaIngredientiPanino(
+                ingredienti = elencoIngredientiPanino,
+                selezionati = selezione,
+                massimo = livello.numeroIngredienti,
+                onToggle = { ingrediente -> toggleIngrediente(ingrediente) }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = { risultato = richiesta.valuta(selezione) },
+                enabled = pronto,
+                shape = RoundedCornerShape(50),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Text(text = "🥪 Fai il panino!".maiuscolo(), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        risultato?.let { punteggio ->
+            RisultatoOverlay(
+                punteggio = punteggio,
+                ultimaMancha = numeroManche >= NUMERO_MANCHE,
+                onContinua = { onManchaServita(punteggio) }
+            )
+        }
+    }
+}
+
+@Composable
+fun GrigliaIngredientiPanino(
+    ingredienti: List<Piatto>,
+    selezionati: List<Piatto>,
+    massimo: Int,
+    onToggle: (Piatto) -> Unit
+) {
+    Column {
+        Text(text = "Ingredienti".maiuscolo(), style = MaterialTheme.typography.titleLarge)
+        Spacer(modifier = Modifier.height(6.dp))
+
+        ingredienti.withIndex().chunked(COLONNE_MENU).forEach { riga ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                riga.forEach { (indice, ingrediente) ->
+                    val selezionato = ingrediente in selezionati
+                    val bloccato = !selezionato && selezionati.size >= massimo
+                    CartaPiattoMenu(
+                        piatto = ingrediente,
+                        selezionato = selezionato,
+                        colore = if (bloccato) Color(0xFFBDBDBD) else palettePiatti[indice % palettePiatti.size],
+                        modifier = Modifier.weight(1f),
+                        onClick = { if (!bloccato) onToggle(ingrediente) }
+                    )
+                }
+                repeat(COLONNE_MENU - riga.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+fun SchermataFinePanino(
+    livelloCompletato: LivelloPanino,
+    punteggioTotale: Int,
+    onProssimoLivello: () -> Unit,
+    onNuovaPartita: () -> Unit
+) {
+    val ultimoLivello = livelloCompletato.numero >= elencoLivelliPanino.size
+    val puntiMassimiFinora = NUMERO_MANCHE * PUNTEGGIO_MASSIMO_MANCHA * livelloCompletato.numero
+    val percentuale = punteggioTotale.toFloat() / puntiMassimiFinora
+
+    val (emoji, messaggio) = if (ultimoLivello) {
+        "🏆" to "Hai finito tutti i livelli! Sei il re dei panini!"
     } else {
         when {
             percentuale >= 0.85f -> "🎉" to "Livello ${livelloCompletato.numero} finito benissimo!"

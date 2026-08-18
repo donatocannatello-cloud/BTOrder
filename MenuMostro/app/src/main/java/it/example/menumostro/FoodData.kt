@@ -137,7 +137,11 @@ data class RichiestaMostro(
     val valuta: (List<Piatto>) -> Int
 )
 
-/** Le richieste possibili: ad ogni manche se ne estraggono 4 diverse, una per commensale. */
+/**
+ * Le richieste possibili: ad ogni manche se ne estraggono 4 diverse, una per commensale.
+ * Sono generiche (valutano colore/categorie di una lista di [Piatto]) e vengono usate sia
+ * da Monster Restaurant sia da Monster Panino.
+ */
 val elencoRichieste: List<RichiestaMostro> = listOf(
     RichiestaMostro("Voglio solo cibi rossi! 🔴", "🔴") { piatti -> frazionePunti(piatti) { it.colore == "rosso" } },
     RichiestaMostro("Niente carne e niente pesce! 🥦", "🥦") { piatti -> frazionePunti(piatti) { it.vegetariano } },
@@ -150,3 +154,37 @@ val elencoRichieste: List<RichiestaMostro> = listOf(
     RichiestaMostro("Voglio solo cose gialle! 🟡", "🟡") { piatti -> frazionePunti(piatti) { it.colore == "giallo" } },
     RichiestaMostro("Voglio cose bavose! 🐌", "🐌") { piatti -> frazionePunti(piatti) { "viscido" in it.categorie } }
 )
+
+/**
+ * Ingredienti di Monster Panino: un unico pool (niente portate separate) da cui si
+ * scelgono via via più ingredienti salendo di livello, mescolando ingredienti normali
+ * e ingredienti folli del Mostro. Riusa [Piatto] e le stesse [elencoRichieste] di
+ * Monster Restaurant.
+ */
+val elencoIngredientiPanino: List<Piatto> = listOf(
+    Piatto("Pane Morbido", "🍞", schifezza = false, colore = "giallo"),
+    Piatto("Pomodoro", "🍅", schifezza = false, colore = "rosso"),
+    Piatto("Formaggio", "🧀", schifezza = false, colore = "giallo", categorie = setOf("formaggio")),
+    Piatto("Prosciutto", "🍖", schifezza = false, colore = "rosa", categorie = setOf("carne")),
+    Piatto("Lattuga", "🥬", schifezza = false, colore = "verde", categorie = setOf("insalata")),
+    Piatto("Tonno", "🐟", schifezza = false, colore = "grigio", categorie = setOf("pesce")),
+    Piatto("Uovo Sodo", "🥚", schifezza = false, colore = "giallo"),
+    Piatto("Salame Piccante", "🌭", schifezza = false, colore = "rosso", categorie = setOf("carne", "piccante")),
+    Piatto("Uva", "🍇", schifezza = false, colore = "viola", categorie = setOf("frutta")),
+    Piatto("Vermi Croccanti", "🪱", schifezza = true, colore = "marrone"),
+    Piatto("Occhio di Ciclope", "👁️", schifezza = true, colore = "verde", categorie = setOf("viscido")),
+    Piatto("Melma Verde", "🫙", schifezza = true, colore = "verde", categorie = setOf("viscido")),
+    Piatto("Ragnetti Piccanti", "🕷️", schifezza = true, colore = "marrone", categorie = setOf("piccante")),
+    Piatto("Formaggio Puzzolente", "🧀", schifezza = true, colore = "verde", categorie = setOf("formaggio")),
+    Piatto("Bava di Lumaca", "🐌", schifezza = true, colore = "marrone", categorie = setOf("viscido")),
+    Piatto("Fango Croccante", "🟤", schifezza = true, colore = "marrone"),
+    Piatto("Formica Gigante", "🐜", schifezza = true, colore = "marrone")
+)
+
+/** Un livello di difficoltà per Monster Panino: quanti ingredienti bisogna scegliere. */
+data class LivelloPanino(val numero: Int, val numeroIngredienti: Int)
+
+/** Livello 1 = panino con 2 ingredienti, via via più farcito fino a 6 ingredienti. */
+val elencoLivelliPanino: List<LivelloPanino> = listOf(2, 3, 4, 5, 6).mapIndexed { indice, numeroIngredienti ->
+    LivelloPanino(numero = indice + 1, numeroIngredienti = numeroIngredienti)
+}
