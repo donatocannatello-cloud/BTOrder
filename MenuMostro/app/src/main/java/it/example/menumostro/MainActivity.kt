@@ -698,18 +698,33 @@ fun AppMonsterPanino(onTornaAiGiochi: () -> Unit) {
 
 @Composable
 fun SchermataHomePanino(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SfondoChiaro)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.sfondo_panino_mostri),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        // Sfumatura scura solo nella metà inferiore: l'illustrazione resta ben
+        // visibile in alto, il testo resta leggibile in basso.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to Color.Transparent,
+                        0.5f to Color.Transparent,
+                        1.0f to Color(0xE6000000)
+                    )
+                )
+        )
         Box(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(16.dp)
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(Color(0x33000000))
+                .background(Color(0x99000000))
                 .clickable(onClick = onTornaAiGiochi),
             contentAlignment = Alignment.Center
         ) {
@@ -720,19 +735,19 @@ fun SchermataHomePanino(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
                 .fillMaxSize()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Bottom
         ) {
-            Text(text = "🥪👹", fontSize = 72.sp)
-            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Monster Panino".maiuscolo(),
                 style = MaterialTheme.typography.headlineLarge,
+                color = Color.White,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Scegli gli ingredienti giusti per il panino del mostro!".maiuscolo(),
                 style = MaterialTheme.typography.bodyLarge,
+                color = Color.White,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(32.dp))
@@ -743,6 +758,7 @@ fun SchermataHomePanino(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
             ) {
                 Text(text = "🎮 Gioca!".maiuscolo(), fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }

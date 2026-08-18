@@ -119,6 +119,8 @@ loro pur essendo distinti.
   bambini (non segue il tema scuro di sistema), condiviso da tutta la suite.
 - **`res/drawable-nodpi/sfondo_taverna_mostri.png`** — illustrazione usata
   come sfondo della schermata iniziale di Monster Restaurant.
+- **`res/drawable-nodpi/sfondo_panino_mostri.jpg`** — illustrazione usata
+  come sfondo della schermata iniziale di Monster Panino.
 
 ## Come compilare
 
