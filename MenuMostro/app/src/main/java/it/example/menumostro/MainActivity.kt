@@ -70,7 +70,7 @@ class MainActivity : ComponentActivity() {
 }
 
 /** I giochi della suite: per ora solo Monster Restaurant è giocabile, gli altri sono "presto disponibili". */
-private enum class Gioco { MOSTRO }
+enum class Gioco { MOSTRO }
 
 private data class VoceGioco(val nome: String, val emoji: String, val gioco: Gioco?)
 
