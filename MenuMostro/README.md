@@ -1,12 +1,19 @@
-# Il Menù del Mostro
+# Free Games
 
-Gioco Android (Kotlin + Jetpack Compose) pensato per bambini di 6/7 anni: si
-compongono i pasti scegliendo tra piatti "normali" e piatti "folli"
+App Android (Kotlin + Jetpack Compose) pensata per bambini di 6/7 anni: è
+una **suite di giochi**. All'avvio si apre una home ("Free Games") da cui si
+sceglie a quale gioco giocare; per ora c'è **Monster Restaurant**, gli altri
+sono caselle "presto disponibile" (vedi [Idee per estensioni
+future](#idee-per-estensioni-future)). Tutti i testi sono in MAIUSCOLO e con
+parole semplici, pensati per essere letti da bambini che stanno imparando a
+leggere.
+
+## Monster Restaurant
+
+Si compongono i pasti scegliendo tra piatti "normali" e piatti "folli"
 (schifezze mostruose) da servire a 4 commensali mostruosi — **Mostro,
 Mostra, Mostrina e Mostretta** — che ad ogni manche hanno una richiesta
 diversa (es. "cibi rossi", "niente carne o pesce", "mi piace l'insalata"...).
-Tutti i testi sono in MAIUSCOLO e con parole semplici, pensati per essere
-letti da bambini che stanno imparando a leggere.
 
 Il gioco ha **6 livelli di difficoltà** ed è sequenziale: si parte sempre
 dal livello 1 e, completandolo, si sale automaticamente al successivo (non
@@ -36,42 +43,48 @@ separatamente.
 - **minSdk**: 26 — **targetSdk / compileSdk**: 34
 - Nessun permesso richiesto: il gioco non usa rete, Bluetooth né telefono.
 
-## Come si gioca
+### Come si gioca
 
-1. Nella schermata iniziale (con l'illustrazione della taverna dei mostri
-   come sfondo) si preme **"Gioca!"**: si parte sempre dal **livello 1**.
-2. Ad ogni manche arriva un commensale diverso (Mostro, Mostra, Mostrina o
+1. Dalla home "Free Games" si tocca la casella **"Monster Restaurant"**.
+2. Nella schermata iniziale del gioco (con l'illustrazione della taverna dei
+   mostri come sfondo) si preme **"Gioca!"**: si parte sempre dal **livello
+   1**. La freccia ⬅️ in alto a sinistra torna alla home "Free Games".
+3. Ad ogni manche arriva un commensale diverso (Mostro, Mostra, Mostrina o
    Mostretta) con una richiesta (es. "NIENTE CARNE E NIENTE PESCE!" oppure
    "VOGLIO SOLO CIBI ROSSI!").
-3. Si scorre la schermata e si sceglie **un piatto per ciascuna portata del
+4. Si scorre la schermata e si sceglie **un piatto per ciascuna portata del
    livello** (da 1 a 6 a seconda del livello raggiunto): ogni portata ha il
    proprio menù di 8 piatti, mescolando piatti normali e schifezze
    (contrassegnate con 🤪). Toccando di nuovo il piatto già scelto lo si
    deseleziona per cambiare idea.
-4. Con **"Dai da mangiare!"** si scopre il punteggio della manche, da 0 a
+5. Con **"Dai da mangiare!"** si scopre il punteggio della manche, da 0 a
    100: è la percentuale dei piatti scelti che soddisfa la richiesta del
    commensale. Una schifezza non è automaticamente "sbagliata": a volte è
    proprio quello che il commensale vuole (es. una schifezza rossa soddisfa
    "cibi rossi" tanto quanto un piatto normale).
-5. Dopo 4 commensali serviti si arriva alla schermata di fine livello: con
+6. Dopo 4 commensali serviti si arriva alla schermata di fine livello: con
    **"Prossimo livello"** si sale automaticamente al livello successivo
    (una portata in più). Dopo aver completato il livello 6 compare invece
    **"Nuova partita"**, che ricomincia da capo dal livello 1.
 
 ## File principali
 
+- **`MainActivity.kt`** — contiene sia la suite (`AppSuite`, `SchermataHub`
+  e l'elenco `elencoGiochi` dei giochi disponibili/in arrivo) sia tutte le
+  schermate Compose di Monster Restaurant (Home, Gioco, Fine) con il relativo
+  stato di partita. Un gioco futuro andrà aggiunto qui come un nuovo ramo del
+  `when` in `AppSuite`, idealmente spostando prima Monster Restaurant nel suo
+  file dedicato.
 - **`FoodData.kt`** — le 6 portate e i loro menù (con le categorie usate
   dalle richieste), i 6 livelli di difficoltà, l'elenco dei 4 commensali e
   le richieste possibili (ognuna con la propria funzione di valutazione del
-  pasto).
+  pasto) di Monster Restaurant.
 - **`GameLogic.kt`** — calcolo del punteggio (0-100) ed estrazione casuale di
-  richieste e commensali per la partita.
-- **`MainActivity.kt`** — tutte le schermate Compose (Home, Gioco, Fine) e lo
-  stato della partita.
+  richieste e commensali per la partita di Monster Restaurant.
 - **`ui/theme/`** — tema con palette allegra e colorata fissa, pensata per
-  bambini (non segue il tema scuro di sistema).
+  bambini (non segue il tema scuro di sistema), condiviso da tutta la suite.
 - **`res/drawable-nodpi/sfondo_taverna_mostri.png`** — illustrazione usata
-  come sfondo della schermata iniziale.
+  come sfondo della schermata iniziale di Monster Restaurant.
 
 ## Come compilare
 
@@ -93,9 +106,28 @@ una CI con accesso al repository Maven di Google.
 
 ## Idee per estensioni future
 
+Prossimi giochi da aggiungere alla suite (già presenti come caselle "presto
+disponibile" nella home, non ancora implementati):
+
+- **Memory dei Mostri** — il classico gioco delle coppie, con carte a tema
+  mostro: alleno la memoria, meccanica semplice (griglia di carte che si
+  girano) e già coerente con lo stile grafico esistente.
+- **Vesti il Mostro** — si veste un mostro (cappello, occhi, bocca,
+  accessori) per accontentare una richiesta del cliente, stessa meccanica di
+  "richiesta + scelta che matcha" già usata in Monster Restaurant ma con un
+  risultato visivo invece che un punteggio.
+- **Ritmo Mostruoso** — un "Simon Says" con pulsanti colorati a tema mostro:
+  si ripete una sequenza sempre più lunga, buon esercizio di memoria a breve
+  termine.
+- **Conta i Mostri** — mini-gioco di conteggio/matematica per bambini
+  piccoli: quanti mostri di un certo tipo compaiono a schermo, si tocca il
+  numero giusto.
+
+Altre idee per Monster Restaurant e per la suite in generale:
+
 - Salvare la partita in corso (livello e punteggio) per poterla riprendere
-  riaprendo l'app, con una schermata iniziale che offra "Continua" e
-  "Nuova partita".
+  riaprendo l'app, con la home "Free Games" che offra "Continua" oltre a
+  scegliere un gioco nuovo.
 - Suoni ed effetti sonori quando il commensale mangia.
 - Più richieste e più piatti per portata, per aumentare la varietà.
 - Animazioni di masticazione/coriandoli quando si ottengono 100 punti.

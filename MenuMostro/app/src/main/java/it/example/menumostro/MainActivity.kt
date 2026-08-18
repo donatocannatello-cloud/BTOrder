@@ -62,17 +62,112 @@ class MainActivity : ComponentActivity() {
         setContent {
             MenuMostroTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    AppMenuMostro()
+                    AppSuite()
                 }
             }
         }
     }
 }
 
+/** I giochi della suite: per ora solo Monster Restaurant è giocabile, gli altri sono "presto disponibili". */
+private enum class Gioco { MOSTRO }
+
+private data class VoceGioco(val nome: String, val emoji: String, val gioco: Gioco?)
+
+private val elencoGiochi = listOf(
+    VoceGioco("Monster Restaurant", "🍽️👹", Gioco.MOSTRO),
+    VoceGioco("Memory dei Mostri", "🧠👻", null),
+    VoceGioco("Vesti il Mostro", "🎨🧌", null),
+    VoceGioco("Ritmo Mostruoso", "🎵🐙", null)
+)
+
+/** Schermata iniziale della suite: da qui si sceglie a quale gioco giocare. */
+@Composable
+fun AppSuite() {
+    var giocoAttivo by remember { mutableStateOf<Gioco?>(null) }
+
+    when (giocoAttivo) {
+        null -> SchermataHub(onSeleziona = { gioco -> giocoAttivo = gioco })
+        Gioco.MOSTRO -> AppMenuMostro(onTornaAiGiochi = { giocoAttivo = null })
+    }
+}
+
+@Composable
+fun SchermataHub(onSeleziona: (Gioco) -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SfondoChiaro)
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = "🎮🎲🎨", fontSize = 56.sp)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "Free Games".maiuscolo(), style = MaterialTheme.typography.headlineLarge)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(text = "Scegli un gioco!".maiuscolo(), style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.height(20.dp))
+
+        elencoGiochi.forEachIndexed { indice, voce ->
+            val disponibile = voce.gioco != null
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp)
+                    .then(
+                        if (disponibile) {
+                            Modifier.clickable { onSeleziona(voce.gioco!!) }
+                        } else {
+                            Modifier
+                        }
+                    ),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (disponibile) {
+                        palettePiatti[indice % palettePiatti.size]
+                    } else {
+                        Color(0xFFBDBDBD)
+                    }
+                ),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = voce.emoji, fontSize = 32.sp)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = voce.nome.maiuscolo(),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (!disponibile) {
+                            Text(
+                                text = "Presto disponibile".maiuscolo(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White
+                            )
+                        }
+                    }
+                    if (!disponibile) {
+                        Text(text = "🔒", fontSize = 22.sp)
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
 private enum class Schermata { HOME, GIOCO, FINE }
 
 @Composable
-fun AppMenuMostro() {
+fun AppMenuMostro(onTornaAiGiochi: () -> Unit) {
     var schermata by remember { mutableStateOf(Schermata.HOME) }
     var livelloCorrente by remember { mutableStateOf(elencoLivelli.first()) }
     var numeroManche by remember { mutableStateOf(1) }
@@ -96,7 +191,7 @@ fun AppMenuMostro() {
     }
 
     when (schermata) {
-        Schermata.HOME -> SchermataHome(onGioca = { nuovaPartita() })
+        Schermata.HOME -> SchermataHome(onGioca = { nuovaPartita() }, onTornaAiGiochi = onTornaAiGiochi)
 
         Schermata.GIOCO -> SchermataGioco(
             livello = livelloCorrente,
@@ -127,7 +222,7 @@ fun AppMenuMostro() {
 }
 
 @Composable
-fun SchermataHome(onGioca: () -> Unit) {
+fun SchermataHome(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize()) {
         Image(
             painter = painterResource(id = R.drawable.sfondo_taverna_mostri),
@@ -148,6 +243,18 @@ fun SchermataHome(onGioca: () -> Unit) {
                     )
                 )
         )
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp)
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(Color(0x99000000))
+                .clickable(onClick = onTornaAiGiochi),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = "⬅️", fontSize = 22.sp)
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
