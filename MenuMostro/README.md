@@ -2,11 +2,11 @@
 
 App Android (Kotlin + Jetpack Compose) pensata per bambini di 6/7 anni: è
 una **suite di giochi**. All'avvio si apre una home ("Free Games") da cui si
-sceglie a quale gioco giocare; per ora ci sono **Monster Restaurant** e
-**Monster Panino**, gli altri sono caselle "presto disponibile" (vedi [Idee
-per estensioni future](#idee-per-estensioni-future)). Tutti i testi sono in
-MAIUSCOLO e con parole semplici, pensati per essere letti da bambini che
-stanno imparando a leggere.
+sceglie a quale gioco giocare; per ora ci sono **Monster Restaurant**,
+**Monster Panino** e **Monster Parking**, gli altri sono caselle "presto
+disponibile" (vedi [Idee per estensioni future](#idee-per-estensioni-future)).
+Tutti i testi sono in MAIUSCOLO e con parole semplici, pensati per essere
+letti da bambini che stanno imparando a leggere.
 
 ## Monster Restaurant
 
@@ -97,24 +97,73 @@ loro pur essendo distinti.
 6. Dopo 4 commensali si sale automaticamente di livello (un ingrediente in
    più), fino al livello 5; poi si può ricominciare con "Nuova partita".
 
+## Monster Parking
+
+Un puzzle logico, una via di mezzo tra il gioco del 15 e Rush Hour: in un
+parcheggio selvaggio, su una griglia quadrata, alcune auto bloccano la
+strada alla **macchina rossa**. Ogni auto si muove solo avanti e indietro
+lungo il proprio orientamento (mai di lato): bisogna spostare le auto
+giuste per aprire un corridoio e far uscire la macchina rossa dal bordo
+destro della griglia.
+
+**3 livelli sequenziali**, con griglia via via più grande e più auto da
+spostare:
+
+| Livello | Griglia | Auto totali |
+| --- | --- | --- |
+| 1 | 6×6 | 6 |
+| 2 | 7×7 | 8 |
+| 3 | 8×8 | 9 |
+
+Ogni parcheggio è costruito a mano partendo dalla soluzione e "scomponendolo"
+all'indietro con mosse valide, quindi è sempre risolvibile con spostamenti
+singoli e diretti (nessuna manovra a incastro nascosta).
+
+### Come si gioca
+
+1. Dalla home "Free Games" si tocca la casella **"Monster Parking"**, poi
+   **"Gioca!"**. La freccia ⬅️ in alto a sinistra torna alla home.
+2. Si tocca un'auto per selezionarla (appare un bordo nero); compaiono due
+   pulsanti freccia per muoverla di una cella alla volta nella sua unica
+   direzione possibile (◀️▶️ se orizzontale, 🔼🔽 se verticale). Una mossa
+   verso una cella occupata o fuori dalla griglia non fa nulla.
+3. La bandiera 🏁 sul bordo destro segna dove deve arrivare la macchina
+   rossa 🚗 (le altre auto sono 🚙).
+4. Appena la macchina rossa raggiunge il bordo, il livello è risolto: si
+   passa automaticamente al livello successivo (griglia più grande). Dopo il
+   livello 3 si può ricominciare con "Nuova partita".
+
+A differenza di Monster Restaurant e Monster Panino non c'è un punteggio:
+si mostra solo il numero di mosse usate, come sfida personale a risolverlo
+nel minor numero di tocchi possibile.
+
 ## File principali
 
-- **`MainActivity.kt`** — contiene la suite (`AppSuite`, `SchermataHub` e
-  l'elenco `elencoGiochi` dei giochi disponibili/in arrivo), tutte le
-  schermate Compose di Monster Restaurant (Home, Gioco, Fine) e, in fondo al
-  file, quelle di Monster Panino (`AppMonsterPanino` e schermate correlate).
-  Monster Panino riusa direttamente `Piatto`, `Commensale`, `RichiestaMostro`,
-  `CartaRichiesta`, `CartaPiattoMenu` e `RisultatoOverlay` già definiti per
-  Monster Restaurant. Un gioco futuro andrà aggiunto qui come un nuovo ramo
-  del `when` in `AppSuite`, idealmente spostando ogni gioco nel proprio file
-  dedicato quando la suite cresce ancora.
-- **`FoodData.kt`** — dati di entrambi i giochi: per Monster Restaurant le 6
-  portate e i loro menù, i 6 livelli di difficoltà; per Monster Panino il
-  banco ingredienti (`elencoIngredientiPanino`) e i suoi 5 livelli
-  (`elencoLivelliPanino`); condivisi da entrambi l'elenco dei 4 commensali e
-  le 10 richieste possibili (ognuna con la propria funzione di valutazione).
+- **`MainActivity.kt`** — contiene la suite (`AppSuite`, `SchermataHub`,
+  l'enum `Gioco` e l'elenco `elencoGiochi` dei giochi disponibili/in
+  arrivo), l'estensione `String.maiuscolo()` condivisa da tutta la suite, e
+  tutte le schermate Compose di Monster Restaurant e Monster Panino (questi
+  due giochi condividono `Piatto`, `Commensale`, `RichiestaMostro`,
+  `CartaRichiesta`, `CartaPiattoMenu`, `RisultatoOverlay`, quindi per ora
+  restano nello stesso file). Un gioco futuro andrà aggiunto come un nuovo
+  ramo del `when` in `AppSuite`; se non condivide meccaniche con i giochi
+  esistenti conviene dargli subito un file proprio, come fatto per Monster
+  Parking.
+- **`FoodData.kt`** — dati di Monster Restaurant e Monster Panino: per il
+  primo le 6 portate e i loro menù, i 6 livelli di difficoltà; per il
+  secondo il banco ingredienti (`elencoIngredientiPanino`) e i suoi 5
+  livelli (`elencoLivelliPanino`); condivisi da entrambi l'elenco dei 4
+  commensali e le 10 richieste possibili (ognuna con la propria funzione di
+  valutazione).
 - **`GameLogic.kt`** — calcolo del punteggio (0-100) ed estrazione casuale di
-  richieste e commensali, usato da entrambi i giochi.
+  richieste e commensali, usato da Monster Restaurant e Monster Panino.
+- **`ParkingData.kt`** — modello dati e logica pura di Monster Parking:
+  `Auto`, `Orientamento`, la funzione `provaSpostamento` (unica fonte di
+  verità su quali mosse sono valide) e i 3 `LivelloParcheggio` con le auto
+  già posizionate.
+- **`ParkingGame.kt`** — le schermate Compose di Monster Parking
+  (`AppMonsterParking`, Home, Gioco con la griglia disegnata cella per
+  cella, Fine), completamente separato dagli altri due giochi.
 - **`ui/theme/`** — tema con palette allegra e colorata fissa, pensata per
   bambini (non segue il tema scuro di sistema), condiviso da tutta la suite.
 - **`res/drawable-nodpi/sfondo_taverna_mostri.png`** — illustrazione usata

@@ -54,7 +54,7 @@ private const val NUMERO_MANCHE = 4
 private const val PUNTEGGIO_MASSIMO_MANCHA = 100
 
 /** Tutto il testo del gioco va in MAIUSCOLO: più facile da leggere per i bambini che iniziano a leggere. */
-private fun String.maiuscolo(): String = uppercase(Locale.ITALIAN)
+fun String.maiuscolo(): String = uppercase(Locale.ITALIAN)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,14 +69,15 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** I giochi della suite: Monster Restaurant e Monster Panino sono giocabili, gli altri sono "presto disponibili". */
-enum class Gioco { MOSTRO, PANINO }
+/** I giochi della suite: Monster Restaurant, Monster Panino e Monster Parking sono giocabili, gli altri sono "presto disponibili". */
+enum class Gioco { MOSTRO, PANINO, PARCHEGGIO }
 
 private data class VoceGioco(val nome: String, val emoji: String, val gioco: Gioco?)
 
 private val elencoGiochi = listOf(
     VoceGioco("Monster Restaurant", "🍽️👹", Gioco.MOSTRO),
     VoceGioco("Monster Panino", "🥪👹", Gioco.PANINO),
+    VoceGioco("Monster Parking", "🅿️🚗", Gioco.PARCHEGGIO),
     VoceGioco("Memory dei Mostri", "🧠👻", null),
     VoceGioco("Vesti il Mostro", "🎨🧌", null),
     VoceGioco("Ritmo Mostruoso", "🎵🐙", null)
@@ -91,6 +92,7 @@ fun AppSuite() {
         null -> SchermataHub(onSeleziona = { gioco -> giocoAttivo = gioco })
         Gioco.MOSTRO -> AppMenuMostro(onTornaAiGiochi = { giocoAttivo = null })
         Gioco.PANINO -> AppMonsterPanino(onTornaAiGiochi = { giocoAttivo = null })
+        Gioco.PARCHEGGIO -> AppMonsterParking(onTornaAiGiochi = { giocoAttivo = null })
     }
 }
 
