@@ -495,7 +495,7 @@ fun CartaPiattoMenu(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text(text = piatto.emoji, fontSize = 26.sp)
+                Text(text = piatto.emoji, fontSize = 34.sp)
                 Text(
                     text = piatto.nome.maiuscolo(),
                     fontSize = 10.sp,
@@ -504,15 +504,6 @@ fun CartaPiattoMenu(
                     maxLines = 2,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
-                )
-            }
-            if (piatto.schifezza) {
-                Text(
-                    text = "🤪",
-                    fontSize = 14.sp,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(3.dp)
                 )
             }
             if (selezionato) {

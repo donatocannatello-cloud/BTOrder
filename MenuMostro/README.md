@@ -52,10 +52,10 @@ separatamente.
    Mostretta) con una richiesta (es. "NIENTE CARNE E NIENTE PESCE!" oppure
    "VOGLIO SOLO CIBI ROSSI!").
 4. Si scorre la schermata e si sceglie **un piatto per ciascuna portata del
-   livello** (da 1 a 6 a seconda del livello raggiunto): ogni portata ha il
-   proprio menù di 8 piatti, mescolando piatti normali e schifezze
-   (contrassegnate con 🤪). Toccando di nuovo il piatto già scelto lo si
-   deseleziona per cambiare idea.
+   livello** (da 1 a 6 a seconda del livello raggiunto): ogni portata mescola
+   piatti normali e schifezze, senza un'icona a distinguerle (bisogna
+   guardare nome ed emoji per capire di cosa si tratta). Toccando di nuovo
+   il piatto già scelto lo si deseleziona per cambiare idea.
 5. Con **"Dai da mangiare!"** si scopre il punteggio della manche, da 0 a
    100: è la percentuale dei piatti scelti che soddisfa la richiesta del
    commensale. Una schifezza non è automaticamente "sbagliata": a volte è

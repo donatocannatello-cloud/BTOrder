@@ -31,7 +31,9 @@ val menuPrimi: List<Piatto> = listOf(
     Piatto("Spaghetti di Vermi", "🪱", schifezza = true, colore = "marrone"),
     Piatto("Zuppa di Fango", "🍲", schifezza = true, colore = "marrone"),
     Piatto("Purè di Melma", "🥣", schifezza = true, colore = "verde", categorie = setOf("viscido")),
-    Piatto("Riso Velenoso", "🍚", schifezza = true, colore = "giallo", categorie = setOf("piccante"))
+    Piatto("Riso Velenoso", "🍚", schifezza = true, colore = "giallo", categorie = setOf("piccante")),
+    Piatto("Pasta al Formaggio", "🧀", schifezza = false, colore = "giallo", categorie = setOf("formaggio")),
+    Piatto("Insalata di Frutta Marcia", "🍇", schifezza = true, colore = "viola", categorie = setOf("frutta"))
 )
 
 /** Menù del secondo: mix di piatti normali e piatti folli. */
@@ -43,7 +45,9 @@ val menuSecondi: List<Piatto> = listOf(
     Piatto("Insalata di Verdure", "🥗", schifezza = false, colore = "verde", categorie = setOf("insalata")),
     Piatto("Zampa di Drago", "🐉", schifezza = true, colore = "rosso", categorie = setOf("carne", "piccante")),
     Piatto("Tentacolo di Piovra", "🐙", schifezza = true, colore = "viola", categorie = setOf("pesce")),
-    Piatto("Bistecca di Alieno", "👽", schifezza = true, colore = "verde", categorie = setOf("carne"))
+    Piatto("Bistecca di Alieno", "👽", schifezza = true, colore = "verde", categorie = setOf("carne")),
+    Piatto("Ananas alla Griglia", "🍍", schifezza = false, colore = "giallo", categorie = setOf("frutta")),
+    Piatto("Lumaca in Salsa Verde", "🐌", schifezza = true, colore = "verde", categorie = setOf("viscido"))
 )
 
 /**
@@ -58,7 +62,10 @@ val menuBibite: List<Piatto> = listOf(
     Piatto("Melma da Bere", "🥤", schifezza = true, colore = "verde", categorie = setOf("viscido")),
     Piatto("Pozione Fumante", "🧪", schifezza = true, colore = "viola"),
     Piatto("Succo di Vermi", "🪱", schifezza = true, colore = "rosso"),
-    Piatto("Bava di Lumaca Frizzante", "🐌", schifezza = true, colore = "verde", categorie = setOf("viscido"))
+    Piatto("Bava di Lumaca Frizzante", "🐌", schifezza = true, colore = "verde", categorie = setOf("viscido")),
+    Piatto("Limonata Piccante", "🍋", schifezza = true, colore = "giallo", categorie = setOf("piccante")),
+    Piatto("Frullato di Insalata e Formaggio", "🥤", schifezza = true, colore = "verde", categorie = setOf("insalata", "formaggio")),
+    Piatto("Brodo di Carne Ribollente", "🍖", schifezza = true, colore = "marrone", categorie = setOf("carne"))
 )
 
 /**
@@ -73,7 +80,11 @@ val menuPozioni: List<Piatto> = listOf(
     Piatto("Pozione Puzzolente", "🤢", schifezza = true, colore = "verde", categorie = setOf("viscido")),
     Piatto("Bava di Mostro in Bottiglia", "🧟", schifezza = true, colore = "verde", categorie = setOf("viscido")),
     Piatto("Pozione di Fango", "🟤", schifezza = true, colore = "marrone"),
-    Piatto("Succo di Ragnatela", "🕸️", schifezza = true, colore = "grigio")
+    Piatto("Succo di Ragnatela", "🕸️", schifezza = true, colore = "grigio"),
+    Piatto("Pozione di Carne e Insalata", "🍖", schifezza = true, colore = "marrone", categorie = setOf("carne", "insalata")),
+    Piatto("Pozione al Peperoncino", "🌶️", schifezza = true, colore = "rosso", categorie = setOf("piccante")),
+    Piatto("Pozione al Formaggio Fuso", "🧀", schifezza = true, colore = "giallo", categorie = setOf("formaggio")),
+    Piatto("Pozione ai Frutti Magici", "🍇", schifezza = false, colore = "viola", categorie = setOf("frutta"))
 )
 
 /** Menù del dolce: mix di piatti normali e piatti folli. */
@@ -85,7 +96,8 @@ val menuDolci: List<Piatto> = listOf(
     Piatto("Budino di Melma", "🍮", schifezza = true, colore = "verde", categorie = setOf("viscido")),
     Piatto("Gelato di Vermi", "🍦", schifezza = true, colore = "viola"),
     Piatto("Occhi Gialli", "👁️", schifezza = true, colore = "giallo"),
-    Piatto("Gelato e Prosciutto", "🍦", schifezza = true, colore = "rosa", categorie = setOf("carne", "piccante"))
+    Piatto("Gelato e Prosciutto", "🍦", schifezza = true, colore = "rosa", categorie = setOf("carne", "piccante")),
+    Piatto("Dolce di Lattuga Marcia", "🥬", schifezza = true, colore = "verde", categorie = setOf("insalata"))
 )
 
 /** Menù del caffè: solo caffè in tutte le sue varianti, nessun alcolico. */
@@ -97,7 +109,11 @@ val menuCaffe: List<Piatto> = listOf(
     Piatto("Caffè di Vermi", "☕", schifezza = true, colore = "marrone"),
     Piatto("Caffè al Fango", "☕", schifezza = true, colore = "marrone"),
     Piatto("Caffè Puzzolente", "☕", schifezza = true, colore = "verde"),
-    Piatto("Caffè Occhio Ghiacciato", "☕", schifezza = true, colore = "giallo")
+    Piatto("Caffè Occhio Ghiacciato", "☕", schifezza = true, colore = "giallo"),
+    Piatto("Caffè Piccante", "☕", schifezza = true, colore = "rosso", categorie = setOf("piccante")),
+    Piatto("Caffè con Carne Secca", "☕", schifezza = true, colore = "marrone", categorie = setOf("carne")),
+    Piatto("Caffè all'Insalata e Formaggio", "☕", schifezza = true, colore = "verde", categorie = setOf("insalata", "formaggio")),
+    Piatto("Caffè alla Frutta Viscida", "☕", schifezza = true, colore = "viola", categorie = setOf("frutta", "viscido"))
 )
 
 fun menuPer(portata: Portata): List<Piatto> = when (portata) {
