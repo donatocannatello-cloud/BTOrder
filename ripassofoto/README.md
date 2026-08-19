@@ -129,6 +129,29 @@ sandboxed, hanno accesso senza restrizioni a `dl.google.com` /
    modifica:
    `https://github.com/donatocannatello-cloud/BTOrder/releases/tag/ripassofoto-latest`
 
+### Firma dell'APK di debug (`debug.keystore`)
+
+Il modulo contiene un **keystore di debug versionato** (`debug.keystore`,
+alias `androiddebugkey`, password `android` — le credenziali di default di
+Android per il debug, non un segreto: qualunque APK di debug le usa) e
+`build.gradle.kts` lo imposta esplicitamente come `signingConfigs.debug`.
+
+Senza questo, ogni ambiente che compila l'APK (in particolare i runner
+GitHub Actions, che non hanno un `~/.android/debug.keystore` persistente
+tra un'esecuzione e l'altra) genera una propria chiave di debug casuale:
+il risultato sarebbe un APK con una firma diversa a ogni build della CI,
+che Android rifiuta di installare sopra la versione precedente con
+l'errore *"il pacchetto è in conflitto con un pacchetto esistente"*. Con
+un keystore condiviso, tutte le build — locali e su CI — firmano allo
+stesso modo e si aggiornano correttamente l'una sull'altra.
+
+Se avevi già installato una versione di RipassoFoto compilata **prima**
+di questa modifica (firmata con una chiave di debug diversa e casuale),
+Android rifiuterà l'installazione della nuova build con lo stesso errore:
+in quel caso è sufficiente **disinstallare la app esistente una volta
+sola** — da quel momento in poi tutti gli aggiornamenti dal link stabile
+si installeranno senza problemi.
+
 ### Nota sulla verifica automatica della build in questo ambiente
 
 Nell'ambiente sandboxed usato per scrivere questo codice, `./gradlew

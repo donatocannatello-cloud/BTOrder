@@ -12,8 +12,24 @@ android {
         applicationId = "it.example.ripassofoto"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
+        versionCode = 3
         versionName = "1.0"
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            // Keystore fisso e versionato: senza questo, ogni ambiente (in particolare i
+            // runner GitHub Actions, che non hanno un ~/.android/debug.keystore persistente)
+            // genera una propria chiave di debug casuale a ogni build. Il risultato è un
+            // APK con una firma diversa a ogni esecuzione della CI, che Android rifiuta di
+            // installare sopra la versione precedente ("il pacchetto è in conflitto con un
+            // pacchetto esistente"). Con un keystore di debug condiviso, tutte le build
+            // (locali e su CI) firmano allo stesso modo e si aggiornano l'una sull'altra.
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
