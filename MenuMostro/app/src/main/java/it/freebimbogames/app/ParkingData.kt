@@ -64,10 +64,12 @@ fun LivelloParcheggio.risolto(auto: List<Auto>): Boolean {
 }
 
 /**
- * I livelli di Monster Parking, con griglia via via più grande (6x6, 7x7, 8x8) e più auto da
- * spostare. Ogni parcheggio è costruito a mano assicurandosi che ogni auto che blocca la strada
- * abbia sempre una via di fuga libera (verso l'alto o verso il basso): sono quindi tutti
- * risolvibili con semplici spostamenti, uno alla volta.
+ * I 20 livelli di Monster Parking, con griglia via via più grande (da 6x6 a 10x10) e sempre più
+ * auto da spostare. I livelli 1-3 sono i primi tre, pensati e verificati a mano. Dal livello 4 in
+ * poi sono generati partendo dall'auto rossa già "risolta" (attaccata al bordo destro) e
+ * mescolando la griglia con una sequenza di mosse singole valide: risolvere il livello equivale
+ * quindi a ripercorrere quella sequenza al contrario, il che garantisce per costruzione che ogni
+ * livello sia risolvibile (nessun parcheggio impossibile), senza bisogno di un solver a runtime.
  */
 val elencoLivelliParcheggio: List<LivelloParcheggio> = listOf(
     LivelloParcheggio(
@@ -109,6 +111,382 @@ val elencoLivelliParcheggio: List<LivelloParcheggio> = listOf(
             Auto(id = 6, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 0),
             Auto(id = 7, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 7),
             Auto(id = 8, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 4, colonna = 0)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 4,
+        dimensione = 8,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 6, colonna = 0, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 3, colonna = 0),
+            Auto(id = 2, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 3),
+            Auto(id = 3, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 2, colonna = 6),
+            Auto(id = 4, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 2, colonna = 0),
+            Auto(id = 5, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 1, colonna = 4),
+            Auto(id = 6, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 0, colonna = 0),
+            Auto(id = 7, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 4, colonna = 3),
+            Auto(id = 8, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 5),
+            Auto(id = 9, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 3, colonna = 6),
+            Auto(id = 10, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 2)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 5,
+        dimensione = 8,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 4, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 2, colonna = 1),
+            Auto(id = 2, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 6, colonna = 2),
+            Auto(id = 3, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 4, colonna = 2),
+            Auto(id = 4, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 3, colonna = 3),
+            Auto(id = 5, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 3, colonna = 6),
+            Auto(id = 6, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 4, colonna = 3),
+            Auto(id = 7, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 6, colonna = 4),
+            Auto(id = 8, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 3, colonna = 1),
+            Auto(id = 9, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 1, colonna = 2),
+            Auto(id = 10, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 5),
+            Auto(id = 11, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 1, colonna = 5)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 6,
+        dimensione = 9,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 1, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 0),
+            Auto(id = 2, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 0, colonna = 5),
+            Auto(id = 3, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 0, colonna = 0),
+            Auto(id = 4, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 1, colonna = 1),
+            Auto(id = 5, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 6, colonna = 7),
+            Auto(id = 6, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 5, colonna = 5),
+            Auto(id = 7, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 2, colonna = 5),
+            Auto(id = 8, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 4, colonna = 8),
+            Auto(id = 9, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 1, colonna = 6),
+            Auto(id = 10, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 6, colonna = 1),
+            Auto(id = 11, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 2, colonna = 0)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 7,
+        dimensione = 9,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 0, colonna = 4, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 2, colonna = 5),
+            Auto(id = 2, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 8, colonna = 1),
+            Auto(id = 3, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 3, colonna = 0),
+            Auto(id = 4, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 4, colonna = 6),
+            Auto(id = 5, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 3),
+            Auto(id = 6, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 5, colonna = 1),
+            Auto(id = 7, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 1),
+            Auto(id = 8, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 6, colonna = 4),
+            Auto(id = 9, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 7, colonna = 0),
+            Auto(id = 10, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 0, colonna = 2),
+            Auto(id = 11, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 2),
+            Auto(id = 12, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 6, colonna = 3)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 8,
+        dimensione = 9,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 8, colonna = 3, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 1),
+            Auto(id = 2, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 1, colonna = 5),
+            Auto(id = 3, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 4, colonna = 4),
+            Auto(id = 4, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 2, colonna = 8),
+            Auto(id = 5, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 1, colonna = 2),
+            Auto(id = 6, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 1),
+            Auto(id = 7, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 6),
+            Auto(id = 8, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 7, colonna = 2),
+            Auto(id = 9, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 5, colonna = 5),
+            Auto(id = 10, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 4, colonna = 8),
+            Auto(id = 11, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 2, colonna = 7),
+            Auto(id = 12, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 0),
+            Auto(id = 13, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 3, colonna = 2)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 9,
+        dimensione = 9,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 2, colonna = 2, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 1, colonna = 3),
+            Auto(id = 2, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 2, colonna = 8),
+            Auto(id = 3, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 1, colonna = 0),
+            Auto(id = 4, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 7),
+            Auto(id = 5, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 3),
+            Auto(id = 6, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 3, colonna = 5),
+            Auto(id = 7, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 7),
+            Auto(id = 8, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 6, colonna = 5),
+            Auto(id = 9, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 8, colonna = 0),
+            Auto(id = 10, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 2),
+            Auto(id = 11, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 6, colonna = 6),
+            Auto(id = 12, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 4, colonna = 0),
+            Auto(id = 13, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 4, colonna = 6),
+            Auto(id = 14, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 2, colonna = 1)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 10,
+        dimensione = 9,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 3, colonna = 4, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 6, colonna = 4),
+            Auto(id = 2, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 4, colonna = 1),
+            Auto(id = 3, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 8, colonna = 3),
+            Auto(id = 4, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 8, colonna = 0),
+            Auto(id = 5, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 6, colonna = 2),
+            Auto(id = 6, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 1, colonna = 0),
+            Auto(id = 7, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 3, colonna = 2),
+            Auto(id = 8, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 4, colonna = 3),
+            Auto(id = 9, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 4),
+            Auto(id = 10, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 6, colonna = 7),
+            Auto(id = 11, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 1, colonna = 5),
+            Auto(id = 12, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 2),
+            Auto(id = 13, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 0, colonna = 6),
+            Auto(id = 14, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 1, colonna = 4),
+            Auto(id = 15, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 4, colonna = 5)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 11,
+        dimensione = 10,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 3, colonna = 3, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 5),
+            Auto(id = 2, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 9, colonna = 7),
+            Auto(id = 3, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 3),
+            Auto(id = 4, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 1, colonna = 0),
+            Auto(id = 5, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 6),
+            Auto(id = 6, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 3),
+            Auto(id = 7, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 5),
+            Auto(id = 8, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 5, colonna = 0),
+            Auto(id = 9, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 4, colonna = 2),
+            Auto(id = 10, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 2, colonna = 3),
+            Auto(id = 11, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 8),
+            Auto(id = 12, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 3, colonna = 1),
+            Auto(id = 13, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 5, colonna = 3)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 12,
+        dimensione = 10,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 3, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 6, colonna = 2),
+            Auto(id = 2, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 4, colonna = 6),
+            Auto(id = 3, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 6),
+            Auto(id = 4, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 7, colonna = 0),
+            Auto(id = 5, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 8, colonna = 4),
+            Auto(id = 6, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 2, colonna = 1),
+            Auto(id = 7, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 8),
+            Auto(id = 8, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 1),
+            Auto(id = 9, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 2, colonna = 8),
+            Auto(id = 10, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 8, colonna = 7),
+            Auto(id = 11, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 0, colonna = 1),
+            Auto(id = 12, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 3, colonna = 1),
+            Auto(id = 13, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 1, colonna = 0),
+            Auto(id = 14, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 5, colonna = 8)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 13,
+        dimensione = 10,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 5, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 9),
+            Auto(id = 2, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 5, colonna = 6),
+            Auto(id = 3, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 3, colonna = 5),
+            Auto(id = 4, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 1, colonna = 1),
+            Auto(id = 5, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 6, colonna = 2),
+            Auto(id = 6, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 2, colonna = 3),
+            Auto(id = 7, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 1, colonna = 6),
+            Auto(id = 8, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 2),
+            Auto(id = 9, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 4, colonna = 7),
+            Auto(id = 10, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 6, colonna = 4),
+            Auto(id = 11, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 2, colonna = 7),
+            Auto(id = 12, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 9, colonna = 6),
+            Auto(id = 13, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 0, colonna = 2),
+            Auto(id = 14, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 9, colonna = 3),
+            Auto(id = 15, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 4, colonna = 0)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 14,
+        dimensione = 10,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 8, colonna = 6, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 4, colonna = 1),
+            Auto(id = 2, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 0, colonna = 9),
+            Auto(id = 3, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 4, colonna = 4),
+            Auto(id = 4, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 8, colonna = 2),
+            Auto(id = 5, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 3, colonna = 2),
+            Auto(id = 6, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 4, colonna = 7),
+            Auto(id = 7, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 7, colonna = 0),
+            Auto(id = 8, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 1),
+            Auto(id = 9, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 1, colonna = 1),
+            Auto(id = 10, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 9, colonna = 8),
+            Auto(id = 11, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 5),
+            Auto(id = 12, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 6, colonna = 5),
+            Auto(id = 13, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 2, colonna = 6),
+            Auto(id = 14, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 3, colonna = 8),
+            Auto(id = 15, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 6, colonna = 8),
+            Auto(id = 16, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 3, colonna = 5)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 15,
+        dimensione = 10,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 1, colonna = 5, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 5, colonna = 8),
+            Auto(id = 2, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 5, colonna = 9),
+            Auto(id = 3, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 4, colonna = 6),
+            Auto(id = 4, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 4, colonna = 4),
+            Auto(id = 5, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 9, colonna = 2),
+            Auto(id = 6, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 6, colonna = 4),
+            Auto(id = 7, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 2, colonna = 5),
+            Auto(id = 8, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 1),
+            Auto(id = 9, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 3, colonna = 3),
+            Auto(id = 10, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 4),
+            Auto(id = 11, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 3, colonna = 6),
+            Auto(id = 12, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 8, colonna = 0),
+            Auto(id = 13, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 2, colonna = 0),
+            Auto(id = 14, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 3, colonna = 2),
+            Auto(id = 15, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 9, colonna = 6),
+            Auto(id = 16, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 1, colonna = 4),
+            Auto(id = 17, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 8, colonna = 5)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 16,
+        dimensione = 10,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 6, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 3, colonna = 8),
+            Auto(id = 2, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 1),
+            Auto(id = 3, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 3, colonna = 9),
+            Auto(id = 4, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 2, colonna = 2),
+            Auto(id = 5, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 4, colonna = 5),
+            Auto(id = 6, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 4, colonna = 0),
+            Auto(id = 7, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 4, colonna = 3),
+            Auto(id = 8, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 6, colonna = 3),
+            Auto(id = 9, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 3, colonna = 2),
+            Auto(id = 10, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 7, colonna = 5),
+            Auto(id = 11, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 6),
+            Auto(id = 12, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 7),
+            Auto(id = 13, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 2, colonna = 6),
+            Auto(id = 14, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 3, colonna = 4),
+            Auto(id = 15, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 9, colonna = 7),
+            Auto(id = 16, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 1, colonna = 8),
+            Auto(id = 17, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 6, colonna = 5),
+            Auto(id = 18, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 1, colonna = 7)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 17,
+        dimensione = 10,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 3, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 5, colonna = 1),
+            Auto(id = 2, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 4, colonna = 4),
+            Auto(id = 3, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 7, colonna = 1),
+            Auto(id = 4, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 4, colonna = 7),
+            Auto(id = 5, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 2, colonna = 8),
+            Auto(id = 6, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 2, colonna = 4),
+            Auto(id = 7, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 6, colonna = 6),
+            Auto(id = 8, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 8),
+            Auto(id = 9, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 1, colonna = 6),
+            Auto(id = 10, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 6, colonna = 2),
+            Auto(id = 11, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 8, colonna = 6),
+            Auto(id = 12, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 1),
+            Auto(id = 13, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 8, colonna = 5),
+            Auto(id = 14, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 7, colonna = 7),
+            Auto(id = 15, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 0, colonna = 2),
+            Auto(id = 16, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 8, colonna = 3),
+            Auto(id = 17, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 7, colonna = 0),
+            Auto(id = 18, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 3, colonna = 5),
+            Auto(id = 19, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 5, colonna = 0)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 18,
+        dimensione = 10,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 6, colonna = 2, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 3, colonna = 3),
+            Auto(id = 2, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 8, colonna = 4),
+            Auto(id = 3, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 9, colonna = 7),
+            Auto(id = 4, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 2, colonna = 6),
+            Auto(id = 5, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 3),
+            Auto(id = 6, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 2, colonna = 5),
+            Auto(id = 7, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 3, colonna = 0),
+            Auto(id = 8, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 3),
+            Auto(id = 9, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 8, colonna = 0),
+            Auto(id = 10, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 1),
+            Auto(id = 11, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 5, colonna = 7),
+            Auto(id = 12, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 5, colonna = 1),
+            Auto(id = 13, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 8),
+            Auto(id = 14, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 8, colonna = 2),
+            Auto(id = 15, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 5),
+            Auto(id = 16, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 2, colonna = 3),
+            Auto(id = 17, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 1, colonna = 9),
+            Auto(id = 18, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 7, colonna = 6),
+            Auto(id = 19, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 4, colonna = 4)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 19,
+        dimensione = 10,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 0, colonna = 6, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 3, colonna = 1),
+            Auto(id = 2, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 7, colonna = 4),
+            Auto(id = 3, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 3, colonna = 4),
+            Auto(id = 4, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 5, colonna = 5),
+            Auto(id = 5, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 0, colonna = 0),
+            Auto(id = 6, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 3, colonna = 9),
+            Auto(id = 7, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 1, colonna = 7),
+            Auto(id = 8, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 6, colonna = 1),
+            Auto(id = 9, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 3, colonna = 6),
+            Auto(id = 10, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 7, colonna = 3),
+            Auto(id = 11, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 0, colonna = 1),
+            Auto(id = 12, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 9, colonna = 0),
+            Auto(id = 13, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 6, colonna = 7),
+            Auto(id = 14, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 8),
+            Auto(id = 15, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 1, colonna = 5),
+            Auto(id = 16, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 0, colonna = 3),
+            Auto(id = 17, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 3),
+            Auto(id = 18, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 2, colonna = 1),
+            Auto(id = 19, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 9, colonna = 5),
+            Auto(id = 20, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 5, colonna = 0)
+        )
+    ),
+    LivelloParcheggio(
+        numero = 20,
+        dimensione = 10,
+        autoIniziali = listOf(
+            Auto(id = 0, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 1, colonna = 1, rossa = true),
+            Auto(id = 1, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 6, colonna = 3),
+            Auto(id = 2, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 4, colonna = 9),
+            Auto(id = 3, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 1, colonna = 8),
+            Auto(id = 4, orientamento = Orientamento.VERTICALE, lunghezza = 3, riga = 6, colonna = 0),
+            Auto(id = 5, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 9, colonna = 6),
+            Auto(id = 6, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 9, colonna = 2),
+            Auto(id = 7, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 6, colonna = 7),
+            Auto(id = 8, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 0, colonna = 6),
+            Auto(id = 9, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 5, colonna = 2),
+            Auto(id = 10, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 2, colonna = 5),
+            Auto(id = 11, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 0),
+            Auto(id = 12, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 2, colonna = 2),
+            Auto(id = 13, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 4, colonna = 4),
+            Auto(id = 14, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 5, colonna = 3),
+            Auto(id = 15, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 8, colonna = 1),
+            Auto(id = 16, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 9),
+            Auto(id = 17, orientamento = Orientamento.ORIZZONTALE, lunghezza = 3, riga = 3, colonna = 0),
+            Auto(id = 18, orientamento = Orientamento.ORIZZONTALE, lunghezza = 2, riga = 0, colonna = 4),
+            Auto(id = 19, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 6, colonna = 9),
+            Auto(id = 20, orientamento = Orientamento.VERTICALE, lunghezza = 2, riga = 0, colonna = 0)
         )
     )
 )
