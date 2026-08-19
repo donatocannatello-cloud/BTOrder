@@ -4,6 +4,7 @@ object Rotte {
     const val HOME = "home"
     const val FOTOCAMERA = "fotocamera"
     const val REVISIONE = "revisione"
+    const val IMPOSTAZIONI = "impostazioni"
 
     const val QUIZ = "quiz/{paginaId}"
     fun quiz(paginaId: Long) = "quiz/$paginaId"

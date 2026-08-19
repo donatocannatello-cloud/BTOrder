@@ -77,6 +77,14 @@ fun SchermataQuiz(
             )
         }
 
+        if (hasRisposto && domanda.spiegazione != null) {
+            Text(
+                domanda.spiegazione.orEmpty(),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 16.dp)
+            )
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
             horizontalArrangement = Arrangement.End

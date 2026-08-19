@@ -1,9 +1,16 @@
 package it.example.ripassofoto.quiz
 
-/** Una domanda di verifica generata a partire da una frase del testo studiato. */
+/** Una domanda di verifica generata a partire dal testo studiato. */
 sealed interface Domanda {
     val id: Int
     val fraseOrigine: String
+
+    /**
+     * Breve spiegazione della risposta corretta, mostrata allo studente dopo che ha
+     * risposto. Presente solo per le domande generate con l'IA; `null` per quelle
+     * generate localmente con le euristiche testuali.
+     */
+    val spiegazione: String?
 }
 
 /**
@@ -15,7 +22,8 @@ data class DomandaScelta(
     val testo: String,
     val opzioni: List<String>,
     val indiceCorretto: Int,
-    override val fraseOrigine: String
+    override val fraseOrigine: String,
+    override val spiegazione: String? = null
 ) : Domanda
 
 /** Domanda vero/falso su un'affermazione tratta (o leggermente alterata) dal testo. */
@@ -23,5 +31,6 @@ data class DomandaVeroFalso(
     override val id: Int,
     val affermazione: String,
     val corretta: Boolean,
-    override val fraseOrigine: String
+    override val fraseOrigine: String,
+    override val spiegazione: String? = null
 ) : Domanda

@@ -13,12 +13,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,13 +31,25 @@ import it.example.ripassofoto.data.PaginaStudio
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SchermataHome(
     pagine: List<PaginaStudio>,
     onNuovaFoto: () -> Unit,
-    onAperturaPagina: (PaginaStudio) -> Unit
+    onAperturaPagina: (PaginaStudio) -> Unit,
+    onImpostazioni: () -> Unit
 ) {
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("RipassoFoto") },
+                actions = {
+                    IconButton(onClick = onImpostazioni) {
+                        Icon(Icons.Default.Settings, contentDescription = "Impostazioni")
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = onNuovaFoto) {
                 Icon(Icons.Default.Add, contentDescription = "Fotografa una nuova pagina")
@@ -48,11 +64,6 @@ fun SchermataHome(
                 contentPadding = PaddingValues(16.dp, padding.calculateTopPadding(), 16.dp, 96.dp)
             ) {
                 item {
-                    Text(
-                        "RipassoFoto",
-                        style = MaterialTheme.typography.headlineMedium,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
                     Text(
                         "Le pagine che hai fotografato e studiato finora.",
                         style = MaterialTheme.typography.bodyMedium,

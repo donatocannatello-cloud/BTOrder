@@ -81,5 +81,10 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
 
+    // Chiamata alla Claude API per generare domande di verifica più approfondite
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Storage cifrato della chiave API dell'utente (Android Keystore + EncryptedSharedPreferences)
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

@@ -3,6 +3,8 @@
 
     <!-- Necessario per fotografare la pagina da studiare -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Necessario per chiamare la Claude API quando l'utente configura una propria chiave -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <uses-feature
         android:name="android.hardware.camera.any"

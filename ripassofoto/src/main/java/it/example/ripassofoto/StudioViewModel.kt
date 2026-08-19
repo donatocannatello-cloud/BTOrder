@@ -8,6 +8,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import it.example.ripassofoto.ai.ChiaveApiStore
+import it.example.ripassofoto.ai.ClienteClaude
+import it.example.ripassofoto.ai.ErroreClaude
 import it.example.ripassofoto.data.AppDatabase
 import it.example.ripassofoto.data.PaginaStudio
 import it.example.ripassofoto.data.StudioRepository
@@ -34,11 +37,57 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     private val _domandeCorrenti = MutableStateFlow<List<Domanda>>(emptyList())
     val domandeCorrenti: StateFlow<List<Domanda>> = _domandeCorrenti
 
+    /** True mentre è in corso una generazione delle domande (può richiedere qualche secondo con l'IA). */
+    private val _generandoDomande = MutableStateFlow(false)
+    val generandoDomande: StateFlow<Boolean> = _generandoDomande
+
+    /** Messaggio non bloccante da mostrare una volta sola (es. fallback dall'IA al generatore locale). */
+    private val _avviso = MutableStateFlow<String?>(null)
+    val avviso: StateFlow<String?> = _avviso
+
+    fun leggiChiaveApi(): String = ChiaveApiStore.leggi(getApplication()).orEmpty()
+
+    fun salvaChiaveApi(chiave: String) = ChiaveApiStore.salva(getApplication(), chiave)
+
+    fun eliminaChiaveApi() = ChiaveApiStore.elimina(getApplication())
+
+    fun consumaAvviso() {
+        _avviso.value = null
+    }
+
     suspend fun riconosciTesto(file: File): String =
         RiconoscimentoTesto.riconosciDaFile(getApplication(), file)
 
-    fun generaNuoveDomande(testo: String) {
-        _domandeCorrenti.value = GeneratoreDomande.genera(testo)
+    /**
+     * Genera le domande di verifica. Se è configurata una chiave API di Claude la usa per
+     * un'analisi più approfondita (domande di comprensione/applicazione/analisi, non solo
+     * completamento di parole); altrimenti — o se la chiamata fallisce per qualunque motivo
+     * (rete assente, chiave non valida, ecc.) — ricade sul generatore euristico locale, che
+     * funziona sempre offline.
+     */
+    suspend fun generaNuoveDomande(testo: String) {
+        _generandoDomande.value = true
+        try {
+            val chiave = ChiaveApiStore.leggi(getApplication())
+            if (chiave != null) {
+                try {
+                    val domande = ClienteClaude.generaDomande(chiave, testo)
+                    if (domande.isNotEmpty()) {
+                        _domandeCorrenti.value = domande
+                        _avviso.value = null
+                        return
+                    }
+                    _avviso.value = "Claude non ha restituito domande valide: uso il generatore locale."
+                } catch (e: ErroreClaude) {
+                    _avviso.value = "${e.message} Uso il generatore locale."
+                } catch (e: Exception) {
+                    _avviso.value = "Errore imprevisto nella generazione con l'IA: uso il generatore locale."
+                }
+            }
+            _domandeCorrenti.value = GeneratoreDomande.genera(testo)
+        } finally {
+            _generandoDomande.value = false
+        }
     }
 
     suspend fun salvaPagina(titolo: String, testo: String, percorsoImmagine: String?): Long =
