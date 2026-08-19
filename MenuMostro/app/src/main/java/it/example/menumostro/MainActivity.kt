@@ -822,37 +822,45 @@ fun SchermataGiocoPanino(
             CartaRichiesta(commensale = commensale, richiesta = richiesta)
             Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = "Il tuo panino: ${selezione.size} su ${livello.numeroIngredienti}".maiuscolo(),
-                style = MaterialTheme.typography.titleLarge
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (selezione.isEmpty()) {
-                    Text(text = "🍞", fontSize = 32.sp)
-                } else {
-                    selezione.forEach { ingrediente -> Text(text = ingrediente.emoji, fontSize = 32.sp) }
+            // Schermata divisa in due colonne: a sinistra il banco ingredienti da
+            // toccare, a destra il panino che si costruisce dal basso verso l'alto
+            // (le due fette di pane sono sempre presenti e non contano come scelte).
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.weight(1f)) {
+                    GrigliaIngredientiPanino(
+                        ingredienti = elencoIngredientiPanino,
+                        selezionati = selezione,
+                        massimo = livello.numeroIngredienti,
+                        colonne = 2,
+                        onToggle = { ingrediente -> toggleIngrediente(ingrediente) }
+                    )
                 }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-
-            GrigliaIngredientiPanino(
-                ingredienti = elencoIngredientiPanino,
-                selezionati = selezione,
-                massimo = livello.numeroIngredienti,
-                onToggle = { ingrediente -> toggleIngrediente(ingrediente) }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick = { risultato = richiesta.valuta(selezione) },
-                enabled = pronto,
-                shape = RoundedCornerShape(50),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-            ) {
-                Text(text = "🥪 Fai il panino!".maiuscolo(), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Il tuo panino: ${selezione.size} su ${livello.numeroIngredienti}".maiuscolo(),
+                        style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = "🍞", fontSize = 40.sp)
+                    selezione.asReversed().forEach { ingrediente ->
+                        Text(text = ingrediente.emoji, fontSize = 32.sp)
+                    }
+                    Text(text = "🍞", fontSize = 40.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { risultato = richiesta.valuta(selezione) },
+                        enabled = pronto,
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier.height(56.dp)
+                    ) {
+                        Text(text = "🥪 Fai il panino!".maiuscolo(), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -872,13 +880,14 @@ fun GrigliaIngredientiPanino(
     ingredienti: List<Piatto>,
     selezionati: List<Piatto>,
     massimo: Int,
+    colonne: Int = COLONNE_MENU,
     onToggle: (Piatto) -> Unit
 ) {
     Column {
         Text(text = "Ingredienti".maiuscolo(), style = MaterialTheme.typography.titleLarge)
         Spacer(modifier = Modifier.height(6.dp))
 
-        ingredienti.withIndex().chunked(COLONNE_MENU).forEach { riga ->
+        ingredienti.withIndex().chunked(colonne).forEach { riga ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -894,7 +903,7 @@ fun GrigliaIngredientiPanino(
                         onClick = { if (!bloccato) onToggle(ingrediente) }
                     )
                 }
-                repeat(COLONNE_MENU - riga.size) {
+                repeat(colonne - riga.size) {
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }

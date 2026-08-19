@@ -76,6 +76,15 @@ portate separate, per accontentare la richiesta del commensale di turno
 livelli di difficoltà sequenziali**: si parte da un panino di 2 ingredienti
 e via via se ne aggiunge uno in più, fino a 6.
 
+Le due fette di pane ci sono sempre (sopra e sotto) ma **non sono un
+ingrediente scelto**: non compaiono nel banco e non contano nel
+quantitativo del livello, sono solo la "confezione" del panino.
+
+La schermata di gioco è divisa in due colonne: a sinistra il banco
+ingredienti da toccare, a destra il panino che si costruisce **in
+verticale** (pane, ingredienti impilati uno sull'altro nell'ordine in cui
+sono stati scelti, pane), così si vede subito come viene il panino finale.
+
 Riusa quasi tutto da Monster Restaurant (stessi 4 commensali, stesse 10
 richieste, stesso calcolo del punteggio 0-100): solo il banco ingredienti e
 il modo di comporli sono diversi, così i due giochi restano coerenti tra
@@ -88,10 +97,11 @@ loro pur essendo distinti.
    ingredienti). La freccia ⬅️ in alto a sinistra torna alla home.
 3. Arriva un commensale con una richiesta, esattamente come in Monster
    Restaurant.
-4. Si toccano gli ingredienti dal banco (unico, non diviso in portate) fino
-   a riempire tutti gli "slot" del panino per il livello corrente; toccando
-   di nuovo un ingrediente già scelto lo si toglie. Gli ingredienti non
-   selezionabili (perché il panino è già pieno) appaiono in grigio.
+4. Si toccano gli ingredienti dal banco a sinistra fino a riempire tutti
+   gli "slot" del panino per il livello corrente; toccando di nuovo un
+   ingrediente già scelto lo si toglie. Gli ingredienti non selezionabili
+   (perché il panino è già pieno) appaiono in grigio. A destra si vede il
+   panino crescere ingrediente dopo ingrediente, tra le due fette di pane.
 5. Con **"Fai il panino!"** si scopre il punteggio della manche (0-100), poi
    si passa al prossimo commensale.
 6. Dopo 4 commensali si sale automaticamente di livello (un ingrediente in

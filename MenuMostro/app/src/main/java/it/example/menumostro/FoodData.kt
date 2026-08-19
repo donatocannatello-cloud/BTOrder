@@ -159,10 +159,10 @@ val elencoRichieste: List<RichiestaMostro> = listOf(
  * Ingredienti di Monster Panino: un unico pool (niente portate separate) da cui si
  * scelgono via via più ingredienti salendo di livello, mescolando ingredienti normali
  * e ingredienti folli del Mostro. Riusa [Piatto] e le stesse [elencoRichieste] di
- * Monster Restaurant.
+ * Monster Restaurant. Le due fette di pane non sono qui: sono sempre presenti nel
+ * panino (sopra e sotto) e non contano come ingredienti scelti.
  */
 val elencoIngredientiPanino: List<Piatto> = listOf(
-    Piatto("Pane Morbido", "🍞", schifezza = false, colore = "giallo"),
     Piatto("Pomodoro", "🍅", schifezza = false, colore = "rosso"),
     Piatto("Formaggio", "🧀", schifezza = false, colore = "giallo", categorie = setOf("formaggio")),
     Piatto("Prosciutto", "🍖", schifezza = false, colore = "rosa", categorie = setOf("carne")),
