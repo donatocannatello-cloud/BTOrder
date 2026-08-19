@@ -1,4 +1,4 @@
-package it.example.menumostro
+package it.freebimbogames.app
 
 /** Le portate del gioco, nell'ordine in cui vengono sbloccate salendo di livello. */
 enum class Portata(val etichetta: String, val emoji: String) {

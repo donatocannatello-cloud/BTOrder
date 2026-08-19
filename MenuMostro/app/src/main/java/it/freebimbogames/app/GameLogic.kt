@@ -1,4 +1,4 @@
-package it.example.menumostro
+package it.freebimbogames.app
 
 import kotlin.math.roundToInt
 

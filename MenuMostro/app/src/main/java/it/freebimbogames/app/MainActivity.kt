@@ -1,4 +1,4 @@
-package it.example.menumostro
+package it.freebimbogames.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -45,9 +45,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import it.example.menumostro.ui.theme.MenuMostroTheme
-import it.example.menumostro.ui.theme.SfondoChiaro
-import it.example.menumostro.ui.theme.palettePiatti
+import it.freebimbogames.app.ui.theme.MenuMostroTheme
+import it.freebimbogames.app.ui.theme.SfondoChiaro
+import it.freebimbogames.app.ui.theme.palettePiatti
 import java.util.Locale
 
 private const val NUMERO_MANCHE = 4
@@ -108,7 +108,7 @@ fun SchermataHub(onSeleziona: (Gioco) -> Unit) {
     ) {
         Text(text = "🎮🎲🎨", fontSize = 56.sp)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "Free Games".maiuscolo(), style = MaterialTheme.typography.headlineLarge)
+        Text(text = "Free Bimbo Games".maiuscolo(), style = MaterialTheme.typography.headlineLarge)
         Spacer(modifier = Modifier.height(4.dp))
         Text(text = "Scegli un gioco!".maiuscolo(), style = MaterialTheme.typography.bodyLarge)
         Spacer(modifier = Modifier.height(20.dp))

@@ -4,15 +4,15 @@ plugins {
 }
 
 android {
-    namespace = "it.example.menumostro"
+    namespace = "it.freebimbogames.app"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "it.example.menumostro"
+        applicationId = "it.freebimbogames.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 9
-        versionName = "3.1"
+        versionCode = 10
+        versionName = "3.2"
     }
 
     // Keystore di debug fisso e versionato (debug.keystore, credenziali di default
@@ -21,12 +21,28 @@ android {
     // Android rifiuta l'aggiornamento di un APK già installato ("pacchetto in
     // conflitto"). Firmando sempre con lo stesso keystore, gli APK di debug si
     // aggiornano l'uno sull'altro senza doverli disinstallare prima.
+    // Chiave di firma per la pubblicazione su Google Play: a differenza del keystore
+    // di debug, NON è mai committata (il repo è pubblico). Le credenziali arrivano
+    // solo da variabili d'ambiente, valorizzate dal workflow di release a partire
+    // dai secret del repository GitHub. Se RELEASE_KEYSTORE_PATH non è impostata
+    // (es. in locale o nella build di debug normale) il buildType "release" resta
+    // semplicemente non firmato: serve solo a generare l'AAB da caricare su Play.
+    val releaseKeystorePath = System.getenv("RELEASE_KEYSTORE_PATH")
+
     signingConfigs {
         getByName("debug") {
             storeFile = file("../debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
+        }
+        if (releaseKeystorePath != null) {
+            create("release") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = System.getenv("RELEASE_STORE_PASSWORD")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+            }
         }
     }
 
@@ -40,6 +56,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (releaseKeystorePath != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

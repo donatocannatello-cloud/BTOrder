@@ -9,3 +9,9 @@
 .cxx
 local.properties
 /app/build
+
+# Chiave di firma per la pubblicazione su Google Play: NON va mai committata
+# (a differenza di debug.keystore, che è pubblico apposta). Va tenuta al
+# sicuro fuori dal repo; le build di release la ricevono via secret di CI.
+release.keystore
+*.jks

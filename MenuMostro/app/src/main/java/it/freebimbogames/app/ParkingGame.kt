@@ -1,4 +1,4 @@
-package it.example.menumostro
+package it.freebimbogames.app
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,8 +34,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import it.example.menumostro.ui.theme.SfondoChiaro
-import it.example.menumostro.ui.theme.palettePiatti
+import it.freebimbogames.app.ui.theme.SfondoChiaro
+import it.freebimbogames.app.ui.theme.palettePiatti
 
 private const val LARGHEZZA_GRIGLIA = 320
 

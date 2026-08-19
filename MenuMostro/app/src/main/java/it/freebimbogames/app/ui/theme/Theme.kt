@@ -1,4 +1,4 @@
-package it.example.menumostro.ui.theme
+package it.freebimbogames.app.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme

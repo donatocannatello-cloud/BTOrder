@@ -1,4 +1,4 @@
-package it.example.menumostro
+package it.freebimbogames.app
 
 /** Le due direzioni in cui un'auto può muoversi: orizzontale (sinistra/destra) o verticale (su/giù). */
 enum class Orientamento { ORIZZONTALE, VERTICALE }

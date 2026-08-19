@@ -1,8 +1,8 @@
-# Free Games
+# Free Bimbo Games
 
 App Android (Kotlin + Jetpack Compose) pensata per bambini di 6/7 anni: è
-una **suite di giochi**. All'avvio si apre una home ("Free Games") da cui si
-sceglie a quale gioco giocare; per ora ci sono **Monster Restaurant**,
+una **suite di giochi**. All'avvio si apre una home ("Free Bimbo Games") da
+cui si sceglie a quale gioco giocare; per ora ci sono **Monster Restaurant**,
 **Monster Panino** e **Monster Parking**, gli altri sono caselle "presto
 disponibile" (vedi [Idee per estensioni future](#idee-per-estensioni-future)).
 Tutti i testi sono in MAIUSCOLO e con parole semplici, pensati per essere
@@ -35,20 +35,20 @@ bambini) ci sono **pozioni magiche** dei mostri e bibite analcoliche
 
 Questo è un progetto Gradle **completamente indipendente** da ChiamateBT
 (nella cartella `../app`): ha proprio `settings.gradle.kts`, proprio wrapper
-Gradle e proprio `applicationId` (`it.example.menumostro`), così i due
+Gradle e proprio `applicationId` (`it.freebimbogames.app`), così i due
 progetti non condividono nulla e possono essere aperti/compilati
 separatamente.
 
-- **Package**: `it.example.menumostro`
+- **Package**: `it.freebimbogames.app`
 - **minSdk**: 26 — **targetSdk / compileSdk**: 34
 - Nessun permesso richiesto: il gioco non usa rete, Bluetooth né telefono.
 
 ### Come si gioca
 
-1. Dalla home "Free Games" si tocca la casella **"Monster Restaurant"**.
+1. Dalla home "Free Bimbo Games" si tocca la casella **"Monster Restaurant"**.
 2. Nella schermata iniziale del gioco (con l'illustrazione della taverna dei
    mostri come sfondo) si preme **"Gioca!"**: si parte sempre dal **livello
-   1**. La freccia ⬅️ in alto a sinistra torna alla home "Free Games".
+   1**. La freccia ⬅️ in alto a sinistra torna alla home "Free Bimbo Games".
 3. Ad ogni manche arriva un commensale diverso (Mostro, Mostra, Mostrina o
    Mostretta) con una richiesta (es. "NIENTE CARNE E NIENTE PESCE!" oppure
    "VOGLIO SOLO CIBI ROSSI!").
@@ -92,7 +92,7 @@ loro pur essendo distinti.
 
 ### Come si gioca
 
-1. Dalla home "Free Games" si tocca la casella **"Monster Panino"**.
+1. Dalla home "Free Bimbo Games" si tocca la casella **"Monster Panino"**.
 2. Si preme **"Gioca!"**: si parte sempre dal **livello 1** (2
    ingredienti). La freccia ⬅️ in alto a sinistra torna alla home.
 3. Arriva un commensale con una richiesta, esattamente come in Monster
@@ -131,7 +131,7 @@ singoli e diretti (nessuna manovra a incastro nascosta).
 
 ### Come si gioca
 
-1. Dalla home "Free Games" si tocca la casella **"Monster Parking"**, poi
+1. Dalla home "Free Bimbo Games" si tocca la casella **"Monster Parking"**, poi
    **"Gioca!"**. La freccia ⬅️ in alto a sinistra torna alla home.
 2. Si tocca un'auto per selezionarla (appare un bordo nero); compaiono due
    pulsanti freccia per muoverla di una cella alla volta nella sua unica
@@ -199,6 +199,50 @@ l'Android Gradle Plugin né le librerie AndroidX/Compose. La build non è
 stata quindi verificata end-to-end qui: va compilata con Android Studio o
 una CI con accesso al repository Maven di Google.
 
+## Pubblicazione su Google Play
+
+Package: **`it.freebimbogames.app`** — una volta pubblicato per la prima
+volta su Play Console questo identificativo non si può più cambiare, quindi
+è stato scelto prima di procedere (invece del precedente `it.example.*`,
+chiaramente segnaposto).
+
+### Build firmata (.aab)
+
+Il workflow **"Build MenuMostro Release AAB"** (`.github/workflows/release-menumostro.yml`)
+genera l'Android App Bundle firmato da caricare su Play Console. Va avviato
+a mano dalla tab *Actions* di GitHub ("Run workflow"), non ad ogni push come
+la build di debug, e richiede 4 secret del repository (**Settings > Secrets
+and variables > Actions**):
+
+| Secret | Contenuto |
+| --- | --- |
+| `RELEASE_KEYSTORE_BASE64` | il keystore di release codificato in base64 |
+| `RELEASE_STORE_PASSWORD` | password del keystore |
+| `RELEASE_KEY_ALIAS` | alias della chiave |
+| `RELEASE_KEY_PASSWORD` | password della chiave (per un keystore PKCS12 è la stessa di store) |
+
+Il keystore di release **non è nel repository** (a differenza di
+`debug.keystore`, che è pubblico apposta solo per firmare in modo coerente
+le build di test): va conservato al sicuro fuori da GitHub, perché se si
+perde non è più possibile pubblicare aggiornamenti della stessa scheda app.
+Ad ogni run il workflow pubblica l'`.aab` come artifact scaricabile da
+GitHub Actions, pronto per l'upload manuale su Play Console.
+
+### Cosa serve ancora prima della prima pubblicazione
+
+- **Icona dell'app**: quella attuale (`ic_launcher_foreground.xml`) è
+  esplicitamente un placeholder ("un mostriciattolo buffo, da sostituire
+  con un'icona definitiva"); Play Console richiede anche un'icona 512×512
+  a parte per la scheda store.
+- **Materiali della scheda store**: screenshot, feature graphic, titolo,
+  descrizione breve/estesa.
+- **Privacy policy**: obbligatoria su Play Console anche per un'app senza
+  permessi/rete/raccolta dati (specialmente per un'app rivolta a bambini).
+- **Questionario contenuti e pubblico di destinazione**: essendo un'app per
+  bambini di 6/7 anni, in Play Console vanno compilate le sezioni sul
+  pubblico di destinazione e le *Families Policies* (dichiarazione dati,
+  niente pubblicità comportamentale verso minori).
+
 ## Idee per estensioni future
 
 Prossimi giochi da aggiungere alla suite (già presenti come caselle "presto
@@ -221,7 +265,7 @@ disponibile" nella home, non ancora implementati):
 Altre idee per Monster Restaurant e per la suite in generale:
 
 - Salvare la partita in corso (livello e punteggio) per poterla riprendere
-  riaprendo l'app, con la home "Free Games" che offra "Continua" oltre a
+  riaprendo l'app, con la home "Free Bimbo Games" che offra "Continua" oltre a
   scegliere un gioco nuovo.
 - Suoni ed effetti sonori quando il commensale mangia.
 - Più richieste e più piatti per portata, per aumentare la varietà.
