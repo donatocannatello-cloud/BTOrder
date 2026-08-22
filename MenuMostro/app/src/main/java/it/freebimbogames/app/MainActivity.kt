@@ -171,6 +171,26 @@ fun SchermataHub(onSeleziona: (Gioco) -> Unit) {
     }
 }
 
+/**
+ * Il tasto "torna ai giochi" (freccia in alto a sinistra) condiviso da tutte le schermate
+ * di tutti i giochi: non solo la home di ogni gioco, ma anche le schermate di partita in
+ * corso e di fine partita, così si può sempre uscire senza dover prima finire la manche o
+ * il livello. Su sfondo scuro/illustrato serve un cerchio più opaco per restare leggibile.
+ */
+@Composable
+fun BottoneTornaAiGiochi(onClick: () -> Unit, modifier: Modifier = Modifier, sfondo: Color = Color(0x33000000)) {
+    Box(
+        modifier = modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(sfondo)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = "⬅️", fontSize = 22.sp)
+    }
+}
+
 private enum class Schermata { HOME, GIOCO, FINE }
 
 @Composable
@@ -213,7 +233,8 @@ fun AppMenuMostro(onTornaAiGiochi: () -> Unit) {
                 } else {
                     numeroManche += 1
                 }
-            }
+            },
+            onTornaAiGiochi = onTornaAiGiochi
         )
 
         Schermata.FINE -> SchermataFine(
@@ -223,7 +244,8 @@ fun AppMenuMostro(onTornaAiGiochi: () -> Unit) {
                 livelloCorrente = elencoLivelli[livelloCorrente.numero]
                 iniziaManche()
             },
-            onNuovaPartita = { nuovaPartita() }
+            onNuovaPartita = { nuovaPartita() },
+            onTornaAiGiochi = onTornaAiGiochi
         )
     }
 }
@@ -250,18 +272,13 @@ fun SchermataHome(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
                     )
                 )
         )
-        Box(
+        BottoneTornaAiGiochi(
+            onClick = onTornaAiGiochi,
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(16.dp)
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(Color(0x99000000))
-                .clickable(onClick = onTornaAiGiochi),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = "⬅️", fontSize = 22.sp)
-        }
+                .padding(16.dp),
+            sfondo = Color(0x99000000)
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -302,7 +319,8 @@ fun SchermataGioco(
     punteggioTotale: Int,
     commensale: Commensale,
     richiesta: RichiestaMostro,
-    onManchaServita: (Int) -> Unit
+    onManchaServita: (Int) -> Unit,
+    onTornaAiGiochi: () -> Unit
 ) {
     // Chiave sul numero di manche: ad ogni nuovo commensale le scelte e il
     // risultato precedente vengono azzerati automaticamente.
@@ -330,6 +348,8 @@ fun SchermataGioco(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
+            BottoneTornaAiGiochi(onClick = onTornaAiGiochi)
+            Spacer(modifier = Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -572,7 +592,8 @@ fun SchermataFine(
     livelloCompletato: Livello,
     punteggioTotale: Int,
     onProssimoLivello: () -> Unit,
-    onNuovaPartita: () -> Unit
+    onNuovaPartita: () -> Unit,
+    onTornaAiGiochi: () -> Unit
 ) {
     val ultimoLivello = livelloCompletato.numero >= elencoLivelli.size
     val puntiMassimiFinora = NUMERO_MANCHE * PUNTEGGIO_MASSIMO_MANCHA * livelloCompletato.numero
@@ -589,44 +610,52 @@ fun SchermataFine(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SfondoChiaro)
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(text = emoji, fontSize = 96.sp)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = messaggio.maiuscolo(),
-            style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Punti totali: $punteggioTotale su $puntiMassimiFinora".maiuscolo(),
-            style = MaterialTheme.typography.titleLarge
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        if (ultimoLivello) {
-            Button(
-                onClick = onNuovaPartita,
-                shape = RoundedCornerShape(50),
-                modifier = Modifier.size(width = 240.dp, height = 64.dp)
-            ) {
-                Text(text = "🔁 Nuova partita".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            }
-        } else {
-            Button(
-                onClick = onProssimoLivello,
-                shape = RoundedCornerShape(50),
-                modifier = Modifier.size(width = 240.dp, height = 64.dp)
-            ) {
-                Text(text = "➡️ Prossimo livello".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(SfondoChiaro)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(text = emoji, fontSize = 96.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = messaggio.maiuscolo(),
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Punti totali: $punteggioTotale su $puntiMassimiFinora".maiuscolo(),
+                style = MaterialTheme.typography.titleLarge
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            if (ultimoLivello) {
+                Button(
+                    onClick = onNuovaPartita,
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.size(width = 240.dp, height = 64.dp)
+                ) {
+                    Text(text = "🔁 Nuova partita".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Button(
+                    onClick = onProssimoLivello,
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.size(width = 240.dp, height = 64.dp)
+                ) {
+                    Text(text = "➡️ Prossimo livello".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
+        BottoneTornaAiGiochi(
+            onClick = onTornaAiGiochi,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp)
+        )
     }
 }
 
@@ -677,7 +706,8 @@ fun AppMonsterPanino(onTornaAiGiochi: () -> Unit) {
                 } else {
                     numeroManche += 1
                 }
-            }
+            },
+            onTornaAiGiochi = onTornaAiGiochi
         )
 
         SchermataPanino.FINE -> SchermataFinePanino(
@@ -687,7 +717,8 @@ fun AppMonsterPanino(onTornaAiGiochi: () -> Unit) {
                 livelloCorrente = elencoLivelliPanino[livelloCorrente.numero]
                 iniziaManche()
             },
-            onNuovaPartita = { nuovaPartita() }
+            onNuovaPartita = { nuovaPartita() },
+            onTornaAiGiochi = onTornaAiGiochi
         )
     }
 }
@@ -714,18 +745,13 @@ fun SchermataHomePanino(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
                     )
                 )
         )
-        Box(
+        BottoneTornaAiGiochi(
+            onClick = onTornaAiGiochi,
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(16.dp)
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(Color(0x99000000))
-                .clickable(onClick = onTornaAiGiochi),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = "⬅️", fontSize = 22.sp)
-        }
+                .padding(16.dp),
+            sfondo = Color(0x99000000)
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -766,7 +792,8 @@ fun SchermataGiocoPanino(
     punteggioTotale: Int,
     commensale: Commensale,
     richiesta: RichiestaMostro,
-    onManchaServita: (Int) -> Unit
+    onManchaServita: (Int) -> Unit,
+    onTornaAiGiochi: () -> Unit
 ) {
     // Chiave sul numero di manche: ad ogni nuovo commensale il panino e il
     // risultato precedente vengono azzerati automaticamente.
@@ -796,6 +823,8 @@ fun SchermataGiocoPanino(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
+            BottoneTornaAiGiochi(onClick = onTornaAiGiochi)
+            Spacer(modifier = Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -911,7 +940,8 @@ fun SchermataFinePanino(
     livelloCompletato: LivelloPanino,
     punteggioTotale: Int,
     onProssimoLivello: () -> Unit,
-    onNuovaPartita: () -> Unit
+    onNuovaPartita: () -> Unit,
+    onTornaAiGiochi: () -> Unit
 ) {
     val ultimoLivello = livelloCompletato.numero >= elencoLivelliPanino.size
     val puntiMassimiFinora = NUMERO_MANCHE * PUNTEGGIO_MASSIMO_MANCHA * livelloCompletato.numero
@@ -928,43 +958,51 @@ fun SchermataFinePanino(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SfondoChiaro)
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(text = emoji, fontSize = 96.sp)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = messaggio.maiuscolo(),
-            style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Punti totali: $punteggioTotale su $puntiMassimiFinora".maiuscolo(),
-            style = MaterialTheme.typography.titleLarge
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        if (ultimoLivello) {
-            Button(
-                onClick = onNuovaPartita,
-                shape = RoundedCornerShape(50),
-                modifier = Modifier.size(width = 240.dp, height = 64.dp)
-            ) {
-                Text(text = "🔁 Nuova partita".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            }
-        } else {
-            Button(
-                onClick = onProssimoLivello,
-                shape = RoundedCornerShape(50),
-                modifier = Modifier.size(width = 240.dp, height = 64.dp)
-            ) {
-                Text(text = "➡️ Prossimo livello".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(SfondoChiaro)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(text = emoji, fontSize = 96.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = messaggio.maiuscolo(),
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Punti totali: $punteggioTotale su $puntiMassimiFinora".maiuscolo(),
+                style = MaterialTheme.typography.titleLarge
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            if (ultimoLivello) {
+                Button(
+                    onClick = onNuovaPartita,
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.size(width = 240.dp, height = 64.dp)
+                ) {
+                    Text(text = "🔁 Nuova partita".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Button(
+                    onClick = onProssimoLivello,
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.size(width = 240.dp, height = 64.dp)
+                ) {
+                    Text(text = "➡️ Prossimo livello".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
+        BottoneTornaAiGiochi(
+            onClick = onTornaAiGiochi,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp)
+        )
     }
 }

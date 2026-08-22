@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -31,7 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -65,7 +63,8 @@ fun AppMemory(onTornaAiGiochi: () -> Unit) {
             onCompletato = { tentativi ->
                 tentativiUltimoLivello = tentativi
                 schermata = SchermataMemory.FINE
-            }
+            },
+            onTornaAiGiochi = onTornaAiGiochi
         )
 
         SchermataMemory.FINE -> SchermataFineMemory(
@@ -76,7 +75,8 @@ fun AppMemory(onTornaAiGiochi: () -> Unit) {
                 numeroLivello += 1
                 schermata = SchermataMemory.GIOCO
             },
-            onNuovaPartita = { nuovaPartita() }
+            onNuovaPartita = { nuovaPartita() },
+            onTornaAiGiochi = onTornaAiGiochi
         )
     }
 }
@@ -88,18 +88,12 @@ fun SchermataHomeMemory(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
             .fillMaxSize()
             .background(SfondoChiaro)
     ) {
-        Box(
+        BottoneTornaAiGiochi(
+            onClick = onTornaAiGiochi,
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(16.dp)
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(Color(0x33000000))
-                .clickable(onClick = onTornaAiGiochi),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = "⬅️", fontSize = 22.sp)
-        }
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -133,7 +127,7 @@ fun SchermataHomeMemory(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
 }
 
 @Composable
-fun SchermataGiocoMemory(livello: LivelloMemory, onCompletato: (Int) -> Unit) {
+fun SchermataGiocoMemory(livello: LivelloMemory, onCompletato: (Int) -> Unit, onTornaAiGiochi: () -> Unit) {
     var mazzo by remember(livello) { mutableStateOf(mazzoMemory(livello.coppie)) }
     var girate by remember(livello) { mutableStateOf<List<Int>>(emptyList()) }
     var tentativi by remember(livello) { mutableStateOf(0) }
@@ -179,6 +173,10 @@ fun SchermataGiocoMemory(livello: LivelloMemory, onCompletato: (Int) -> Unit) {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            BottoneTornaAiGiochi(onClick = onTornaAiGiochi)
+        }
+        Spacer(modifier = Modifier.height(4.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -241,51 +239,60 @@ fun SchermataFineMemory(
     tentativi: Int,
     ultimoLivello: Boolean,
     onProssimoLivello: () -> Unit,
-    onNuovaPartita: () -> Unit
+    onNuovaPartita: () -> Unit,
+    onTornaAiGiochi: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SfondoChiaro)
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(text = if (ultimoLivello) "🏆" else "🎉", fontSize = 96.sp)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = (
-                if (ultimoLivello) {
-                    "Hai trovato tutte le coppie di ogni livello! Che memoria!"
-                } else {
-                    "Livello $numeroLivello superato!"
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(SfondoChiaro)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(text = if (ultimoLivello) "🏆" else "🎉", fontSize = 96.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = (
+                    if (ultimoLivello) {
+                        "Hai trovato tutte le coppie di ogni livello! Che memoria!"
+                    } else {
+                        "Livello $numeroLivello superato!"
+                    }
+                    ).maiuscolo(),
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Tentativi usati: $tentativi".maiuscolo(),
+                style = MaterialTheme.typography.titleLarge
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            if (ultimoLivello) {
+                Button(
+                    onClick = onNuovaPartita,
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.size(width = 240.dp, height = 64.dp)
+                ) {
+                    Text(text = "🔁 Nuova partita".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 }
-                ).maiuscolo(),
-            style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Tentativi usati: $tentativi".maiuscolo(),
-            style = MaterialTheme.typography.titleLarge
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        if (ultimoLivello) {
-            Button(
-                onClick = onNuovaPartita,
-                shape = RoundedCornerShape(50),
-                modifier = Modifier.size(width = 240.dp, height = 64.dp)
-            ) {
-                Text(text = "🔁 Nuova partita".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            }
-        } else {
-            Button(
-                onClick = onProssimoLivello,
-                shape = RoundedCornerShape(50),
-                modifier = Modifier.size(width = 240.dp, height = 64.dp)
-            ) {
-                Text(text = "➡️ Prossimo livello".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            } else {
+                Button(
+                    onClick = onProssimoLivello,
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.size(width = 240.dp, height = 64.dp)
+                ) {
+                    Text(text = "➡️ Prossimo livello".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
+        BottoneTornaAiGiochi(
+            onClick = onTornaAiGiochi,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp)
+        )
     }
 }

@@ -1,5 +1,6 @@
 package it.freebimbogames.app
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -27,8 +27,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -63,7 +65,8 @@ fun AppMonsterParking(onTornaAiGiochi: () -> Unit) {
             onRisolto = { mosse ->
                 mosseUltimoLivello = mosse
                 schermata = SchermataParcheggio.FINE
-            }
+            },
+            onTornaAiGiochi = onTornaAiGiochi
         )
 
         SchermataParcheggio.FINE -> SchermataFineParcheggio(
@@ -74,48 +77,59 @@ fun AppMonsterParking(onTornaAiGiochi: () -> Unit) {
                 numeroLivello += 1
                 schermata = SchermataParcheggio.GIOCO
             },
-            onNuovaPartita = { nuovaPartita() }
+            onNuovaPartita = { nuovaPartita() },
+            onTornaAiGiochi = onTornaAiGiochi
         )
     }
 }
 
 @Composable
 fun SchermataHomeParcheggio(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SfondoChiaro)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.sfondo_parcheggio_mostri),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        // Sfumatura scura solo nella metà inferiore: l'illustrazione resta ben
+        // visibile in alto, il testo resta leggibile in basso.
         Box(
             modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to Color.Transparent,
+                        0.5f to Color.Transparent,
+                        1.0f to Color(0xE6000000)
+                    )
+                )
+        )
+        BottoneTornaAiGiochi(
+            onClick = onTornaAiGiochi,
+            modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(16.dp)
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(Color(0x33000000))
-                .clickable(onClick = onTornaAiGiochi),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = "⬅️", fontSize = 22.sp)
-        }
+                .padding(16.dp),
+            sfondo = Color(0x99000000)
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Bottom
         ) {
-            Text(text = "🅿️🚗👹", fontSize = 72.sp)
-            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Monster Parking".maiuscolo(),
                 style = MaterialTheme.typography.headlineLarge,
+                color = Color.White,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Un mostro ha parcheggiato tutto male! Libera la macchina rossa e falla uscire!".maiuscolo(),
                 style = MaterialTheme.typography.bodyLarge,
+                color = Color.White,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(32.dp))
@@ -126,12 +140,13 @@ fun SchermataHomeParcheggio(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
             ) {
                 Text(text = "🎮 Gioca!".maiuscolo(), fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
 
 @Composable
-fun SchermataGiocoParcheggio(livello: LivelloParcheggio, onRisolto: (Int) -> Unit) {
+fun SchermataGiocoParcheggio(livello: LivelloParcheggio, onRisolto: (Int) -> Unit, onTornaAiGiochi: () -> Unit) {
     var auto by remember(livello) { mutableStateOf(livello.autoIniziali) }
     var selezionataId by remember(livello) { mutableStateOf<Int?>(null) }
     var mosse by remember(livello) { mutableStateOf(0) }
@@ -158,6 +173,10 @@ fun SchermataGiocoParcheggio(livello: LivelloParcheggio, onRisolto: (Int) -> Uni
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            BottoneTornaAiGiochi(onClick = onTornaAiGiochi)
+        }
+        Spacer(modifier = Modifier.height(4.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -254,51 +273,60 @@ fun SchermataFineParcheggio(
     mosse: Int,
     ultimoLivello: Boolean,
     onProssimoLivello: () -> Unit,
-    onNuovaPartita: () -> Unit
+    onNuovaPartita: () -> Unit,
+    onTornaAiGiochi: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SfondoChiaro)
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(text = if (ultimoLivello) "🏆" else "🎉", fontSize = 96.sp)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = (
-                if (ultimoLivello) {
-                    "Hai liberato tutte le auto! Sei un campione!"
-                } else {
-                    "Livello $numeroLivello superato!"
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(SfondoChiaro)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(text = if (ultimoLivello) "🏆" else "🎉", fontSize = 96.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = (
+                    if (ultimoLivello) {
+                        "Hai liberato tutte le auto! Sei un campione!"
+                    } else {
+                        "Livello $numeroLivello superato!"
+                    }
+                    ).maiuscolo(),
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Mosse usate: $mosse".maiuscolo(),
+                style = MaterialTheme.typography.titleLarge
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            if (ultimoLivello) {
+                Button(
+                    onClick = onNuovaPartita,
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.size(width = 240.dp, height = 64.dp)
+                ) {
+                    Text(text = "🔁 Nuova partita".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 }
-                ).maiuscolo(),
-            style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Mosse usate: $mosse".maiuscolo(),
-            style = MaterialTheme.typography.titleLarge
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        if (ultimoLivello) {
-            Button(
-                onClick = onNuovaPartita,
-                shape = RoundedCornerShape(50),
-                modifier = Modifier.size(width = 240.dp, height = 64.dp)
-            ) {
-                Text(text = "🔁 Nuova partita".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            }
-        } else {
-            Button(
-                onClick = onProssimoLivello,
-                shape = RoundedCornerShape(50),
-                modifier = Modifier.size(width = 240.dp, height = 64.dp)
-            ) {
-                Text(text = "➡️ Prossimo livello".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            } else {
+                Button(
+                    onClick = onProssimoLivello,
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.size(width = 240.dp, height = 64.dp)
+                ) {
+                    Text(text = "➡️ Prossimo livello".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
+        BottoneTornaAiGiochi(
+            onClick = onTornaAiGiochi,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp)
+        )
     }
 }

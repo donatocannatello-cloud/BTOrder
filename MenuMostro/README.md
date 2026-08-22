@@ -5,7 +5,11 @@ una **suite di giochi**. All'avvio si apre una home ("Free Bimbo Games") da
 cui si sceglie a quale gioco giocare: **Monster Restaurant**, **Monster
 Panino**, **Monster Parking**, **Memory dei Mostri**, **Vesti il Mostro** e
 **Ritmo Mostruoso**. Tutti i testi sono in MAIUSCOLO e con parole semplici,
-pensati per essere letti da bambini che stanno imparando a leggere.
+pensati per essere letti da bambini che stanno imparando a leggere. Ogni
+schermata di ogni gioco — non solo la home, ma anche partita in corso e
+fine partita — ha una freccia ⬅️ in alto a sinistra che torna subito alla
+home "Free Bimbo Games": si può sempre uscire da un minigioco senza dover
+prima finire la manche o il livello.
 
 ## Monster Restaurant
 
@@ -232,14 +236,16 @@ arriva prima di sbagliare.
 
 - **`MainActivity.kt`** — contiene la suite (`AppSuite`, `SchermataHub`,
   l'enum `Gioco` e l'elenco `elencoGiochi` dei 6 giochi disponibili),
-  l'estensione `String.maiuscolo()` condivisa da tutta la suite, e tutte le
-  schermate Compose di Monster Restaurant e Monster Panino (questi due
-  giochi condividono `Piatto`, `Commensale`, `RichiestaMostro`,
-  `CartaRichiesta`, `CartaPiattoMenu`, `RisultatoOverlay`, riusati anche da
-  Vesti il Mostro, quindi restano pubblici qui). Un gioco futuro va
-  aggiunto come un nuovo ramo del `when` in `AppSuite`; se non condivide
-  meccaniche con i giochi esistenti conviene dargli subito un file proprio,
-  come fatto per Monster Parking, Memory, Vesti il Mostro e Ritmo.
+  l'estensione `String.maiuscolo()` e il composable `BottoneTornaAiGiochi`
+  (la freccia ⬅️ per uscire, riusata da ogni schermata di ogni gioco)
+  condivisi da tutta la suite, e tutte le schermate Compose di Monster
+  Restaurant e Monster Panino (questi due giochi condividono `Piatto`,
+  `Commensale`, `RichiestaMostro`, `CartaRichiesta`, `CartaPiattoMenu`,
+  `RisultatoOverlay`, riusati anche da Vesti il Mostro, quindi restano
+  pubblici qui). Un gioco futuro va aggiunto come un nuovo ramo del `when`
+  in `AppSuite`; se non condivide meccaniche con i giochi esistenti
+  conviene dargli subito un file proprio, come fatto per Monster Parking,
+  Memory, Vesti il Mostro e Ritmo.
 - **`FoodData.kt`** — dati di Monster Restaurant e Monster Panino: per il
   primo le 6 portate e i loro menù, i 6 livelli di difficoltà; per il
   secondo il banco ingredienti (`elencoIngredientiPanino`) e i suoi 5
@@ -270,6 +276,10 @@ arriva prima di sbagliare.
   come sfondo della schermata iniziale di Monster Restaurant.
 - **`res/drawable-nodpi/sfondo_panino_mostri.jpg`** — illustrazione usata
   come sfondo della schermata iniziale di Monster Panino.
+- **`res/drawable-nodpi/sfondo_vestiti_mostri.jpg`** — illustrazione usata
+  come sfondo della schermata iniziale di Vesti il Mostro.
+- **`res/drawable-nodpi/sfondo_parcheggio_mostri.jpg`** — illustrazione usata
+  come sfondo della schermata iniziale di Monster Parking.
 
 ## Come compilare
 

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -28,7 +27,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -65,13 +63,15 @@ fun AppRitmo(onTornaAiGiochi: () -> Unit) {
                 ultimaLunghezza = lunghezzaRaggiunta
                 recordSessione = maxOf(recordSessione, lunghezzaRaggiunta)
                 schermata = SchermataRitmo.FINE
-            }
+            },
+            onTornaAiGiochi = onTornaAiGiochi
         )
 
         SchermataRitmo.FINE -> SchermataFineRitmo(
             lunghezza = ultimaLunghezza,
             record = recordSessione,
-            onRiprova = { schermata = SchermataRitmo.GIOCO }
+            onRiprova = { schermata = SchermataRitmo.GIOCO },
+            onTornaAiGiochi = onTornaAiGiochi
         )
     }
 }
@@ -83,18 +83,12 @@ fun SchermataHomeRitmo(record: Int, onGioca: () -> Unit, onTornaAiGiochi: () -> 
             .fillMaxSize()
             .background(SfondoChiaro)
     ) {
-        Box(
+        BottoneTornaAiGiochi(
+            onClick = onTornaAiGiochi,
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(16.dp)
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(Color(0x33000000))
-                .clickable(onClick = onTornaAiGiochi),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = "⬅️", fontSize = 22.sp)
-        }
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -132,7 +126,7 @@ fun SchermataHomeRitmo(record: Int, onGioca: () -> Unit, onTornaAiGiochi: () -> 
 }
 
 @Composable
-fun SchermataGiocoRitmo(onErrore: (Int) -> Unit) {
+fun SchermataGiocoRitmo(onErrore: (Int) -> Unit, onTornaAiGiochi: () -> Unit) {
     var sequenza by remember { mutableStateOf(listOf(Random.nextInt(elencoTastiRitmo.size))) }
     var inMostra by remember { mutableStateOf(true) }
     var indiceEvidenziato by remember { mutableStateOf(-1) }
@@ -175,6 +169,10 @@ fun SchermataGiocoRitmo(onErrore: (Int) -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            BottoneTornaAiGiochi(onClick = onTornaAiGiochi)
+        }
+        Spacer(modifier = Modifier.height(4.dp))
         Text(text = "Sequenza: ${sequenza.size}".maiuscolo(), style = MaterialTheme.typography.titleLarge)
         Spacer(modifier = Modifier.height(4.dp))
         Text(
@@ -228,31 +226,39 @@ private fun TastoRitmoVista(
 }
 
 @Composable
-fun SchermataFineRitmo(lunghezza: Int, record: Int, onRiprova: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SfondoChiaro)
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(text = if (lunghezza >= record && lunghezza > 0) "🏆" else "😅", fontSize = 96.sp)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Sei arrivato a $lunghezza!".maiuscolo(),
-            style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "Record: $record".maiuscolo(), style = MaterialTheme.typography.titleLarge)
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(
-            onClick = onRiprova,
-            shape = RoundedCornerShape(50),
-            modifier = Modifier.size(width = 240.dp, height = 64.dp)
+fun SchermataFineRitmo(lunghezza: Int, record: Int, onRiprova: () -> Unit, onTornaAiGiochi: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(SfondoChiaro)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Text(text = "🔁 Riprova".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(text = if (lunghezza >= record && lunghezza > 0) "🏆" else "😅", fontSize = 96.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Sei arrivato a $lunghezza!".maiuscolo(),
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = "Record: $record".maiuscolo(), style = MaterialTheme.typography.titleLarge)
+            Spacer(modifier = Modifier.height(32.dp))
+            Button(
+                onClick = onRiprova,
+                shape = RoundedCornerShape(50),
+                modifier = Modifier.size(width = 240.dp, height = 64.dp)
+            ) {
+                Text(text = "🔁 Riprova".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            }
         }
+        BottoneTornaAiGiochi(
+            onClick = onTornaAiGiochi,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp)
+        )
     }
 }

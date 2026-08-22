@@ -1,7 +1,7 @@
 package it.freebimbogames.app
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -27,8 +26,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -86,7 +87,8 @@ fun AppVestiti(onTornaAiGiochi: () -> Unit) {
                 } else {
                     numeroManche += 1
                 }
-            }
+            },
+            onTornaAiGiochi = onTornaAiGiochi
         )
 
         SchermataVestiti.FINE -> SchermataFineVestiti(
@@ -96,48 +98,59 @@ fun AppVestiti(onTornaAiGiochi: () -> Unit) {
                 livelloCorrente = elencoLivelliVestiti[livelloCorrente.numero]
                 iniziaManche()
             },
-            onNuovaPartita = { nuovaPartita() }
+            onNuovaPartita = { nuovaPartita() },
+            onTornaAiGiochi = onTornaAiGiochi
         )
     }
 }
 
 @Composable
 fun SchermataHomeVestiti(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SfondoChiaro)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.sfondo_vestiti_mostri),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        // Sfumatura scura solo nella metà inferiore: l'illustrazione resta ben
+        // visibile in alto, il testo resta leggibile in basso.
         Box(
             modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to Color.Transparent,
+                        0.5f to Color.Transparent,
+                        1.0f to Color(0xE6000000)
+                    )
+                )
+        )
+        BottoneTornaAiGiochi(
+            onClick = onTornaAiGiochi,
+            modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(16.dp)
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(Color(0x33000000))
-                .clickable(onClick = onTornaAiGiochi),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = "⬅️", fontSize = 22.sp)
-        }
+                .padding(16.dp),
+            sfondo = Color(0x99000000)
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Bottom
         ) {
-            Text(text = "🎨🧌", fontSize = 72.sp)
-            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Vesti il Mostro".maiuscolo(),
                 style = MaterialTheme.typography.headlineLarge,
+                color = Color.White,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Scegli cappello, occhiali, vestito, scarpe e oggetto giusti per ogni mostro!".maiuscolo(),
                 style = MaterialTheme.typography.bodyLarge,
+                color = Color.White,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(32.dp))
@@ -148,6 +161,7 @@ fun SchermataHomeVestiti(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
             ) {
                 Text(text = "🎮 Gioca!".maiuscolo(), fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
@@ -159,7 +173,8 @@ fun SchermataGiocoVestiti(
     punteggioTotale: Int,
     commensale: Commensale,
     richiesta: RichiestaMostro,
-    onManchaServita: (Int) -> Unit
+    onManchaServita: (Int) -> Unit,
+    onTornaAiGiochi: () -> Unit
 ) {
     // Chiave sul numero di manche: ad ogni nuovo commensale le scelte e il
     // risultato precedente vengono azzerati automaticamente.
@@ -187,6 +202,8 @@ fun SchermataGiocoVestiti(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
+            BottoneTornaAiGiochi(onClick = onTornaAiGiochi)
+            Spacer(modifier = Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -302,7 +319,8 @@ fun SchermataFineVestiti(
     livelloCompletato: LivelloVestiti,
     punteggioTotale: Int,
     onProssimoLivello: () -> Unit,
-    onNuovaPartita: () -> Unit
+    onNuovaPartita: () -> Unit,
+    onTornaAiGiochi: () -> Unit
 ) {
     val ultimoLivello = livelloCompletato.numero >= elencoLivelliVestiti.size
     val puntiMassimiFinora = NUMERO_MANCHE_VESTITI * 100 * livelloCompletato.numero
@@ -313,43 +331,51 @@ fun SchermataFineVestiti(
         "🎉" to "Livello ${livelloCompletato.numero} superato!"
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SfondoChiaro)
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(text = emoji, fontSize = 96.sp)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = messaggio.maiuscolo(),
-            style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Punti: $punteggioTotale su $puntiMassimiFinora".maiuscolo(),
-            style = MaterialTheme.typography.titleLarge
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        if (ultimoLivello) {
-            Button(
-                onClick = onNuovaPartita,
-                shape = RoundedCornerShape(50),
-                modifier = Modifier.size(width = 240.dp, height = 64.dp)
-            ) {
-                Text(text = "🔁 Nuova partita".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            }
-        } else {
-            Button(
-                onClick = onProssimoLivello,
-                shape = RoundedCornerShape(50),
-                modifier = Modifier.size(width = 240.dp, height = 64.dp)
-            ) {
-                Text(text = "➡️ Prossimo livello".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(SfondoChiaro)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(text = emoji, fontSize = 96.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = messaggio.maiuscolo(),
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Punti: $punteggioTotale su $puntiMassimiFinora".maiuscolo(),
+                style = MaterialTheme.typography.titleLarge
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            if (ultimoLivello) {
+                Button(
+                    onClick = onNuovaPartita,
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.size(width = 240.dp, height = 64.dp)
+                ) {
+                    Text(text = "🔁 Nuova partita".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Button(
+                    onClick = onProssimoLivello,
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.size(width = 240.dp, height = 64.dp)
+                ) {
+                    Text(text = "➡️ Prossimo livello".maiuscolo(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
+        BottoneTornaAiGiochi(
+            onClick = onTornaAiGiochi,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp)
+        )
     }
 }
