@@ -2,8 +2,9 @@
 
 App Android singola (Kotlin + Jetpack Compose) per semplificare l'uso del
 telefono in auto via Bluetooth. Un'unica schermata mostra **una sola lista**
-di dispositivi — periferiche Bluetooth accoppiate più le due voci fisse del
-telefono (auricolare/vivavoce integrati) — che serve per due cose insieme:
+di dispositivi — periferiche Bluetooth accoppiate più le voci fisse del
+telefono (auricolare/vivavoce integrati, cuffie USB) — che serve per due
+cose insieme:
 
 - **Priorità in chiamata**: trascinando un dispositivo dalle lineette (☰) lo
   si sposta nell'ordine usato automaticamente per instradare l'audio a ogni
@@ -44,24 +45,33 @@ concrete e realizzabili con le API pubbliche di Android.
    accoppiati (non solo quelli audio) e osserva in tempo reale le
    connessioni/disconnessioni tramite i broadcast di sistema
    `BluetoothDevice.ACTION_ACL_CONNECTED` / `ACTION_ACL_DISCONNECTED`.
-2. **`VociDispositivi.kt`** unisce questi dispositivi alle due voci fisse del
+2. **`VociDispositivi.kt`** unisce questi dispositivi alle voci fisse del
    telefono (`Audio Telefono` id `PHONE_EARPIECE`, `Vivavoce Telefono` id
-   `PHONE_SPEAKER`) rispettando l'ordine di priorità già salvato: le voci con
-   un id già noto mantengono la posizione scelta dall'utente, quelle nuove
-   vengono aggiunte in coda.
+   `PHONE_SPEAKER`, `Cuffie USB` id `WIRED_USB_HEADSET`) rispettando l'ordine
+   di priorità già salvato: le voci con un id già noto mantengono la
+   posizione scelta dall'utente, quelle nuove vengono aggiunte in coda. A
+   differenza del Bluetooth, per le cuffie USB non esiste un concetto di
+   "accoppiamento" persistente: `DispositiviAudio.cuffieUsbConnesse()`
+   rileva solo se in questo momento risultano fisicamente collegate (tramite
+   `AudioManager.getDevices`, tipi `TYPE_USB_HEADSET`/`TYPE_USB_DEVICE` — es.
+   con un adattatore micro-USB), e la schermata si aggiorna in tempo reale
+   registrando un `AudioDeviceCallback` accanto al ricevitore Bluetooth.
 3. Nella schermata (**`MainActivity.kt`**, `SchermataPrincipale` +
    `RigaDispositivo`) ogni riga ha una maniglia dedicata (☰): tenerla e
    trascinarla riordina la lista con un **drag&drop nativo Compose** (nessuna
    libreria esterna) — `LazyColumn` + `Modifier.pointerInput` +
    `detectDragGestures` ricalcolano la posizione in tempo reale. Toccare il
-   resto della riga (solo per i dispositivi Bluetooth reali, non per le due
-   voci fisse) apre a tendina i suoi settaggi: interruttore "dispositivo di
-   fiducia" e, se attivo, le relative automazioni.
+   resto della riga (solo per i dispositivi Bluetooth reali, non per le voci
+   fisse) apre a tendina i suoi settaggi: interruttore "dispositivo di
+   fiducia", quando nota la data dell'ultima connessione osservata da
+   BTOrder, le relative automazioni se attivo, e un pulsante per eliminare
+   (disaccoppiare) il dispositivo.
 4. L'ordine (una lista di ID: MAC address per il Bluetooth, `PHONE_EARPIECE`
-   / `PHONE_SPEAKER` per le voci fisse) viene salvato con **DataStore
-   Preferences** (`DevicePriorityStore.kt`) e resta valido tra un riavvio e
-   l'altro. Il pulsante **"Aggiorna elenco dispositivi"** ri-scansiona i
-   dispositivi Bluetooth accoppiati senza perdere l'ordine già impostato.
+   / `PHONE_SPEAKER` / `WIRED_USB_HEADSET` per le voci fisse) viene salvato
+   con **DataStore Preferences** (`DevicePriorityStore.kt`) e resta valido
+   tra un riavvio e l'altro. Il pulsante **"Aggiorna elenco dispositivi"**
+   ri-scansiona i dispositivi Bluetooth accoppiati senza perdere l'ordine
+   già impostato.
 5. **`TrustedDeviceStore.kt`** salva con **DataStore Preferences** l'elenco
    dei dispositivi di fiducia e le relative automazioni, oltre alla
    preferenza di avvio automatico al boot.

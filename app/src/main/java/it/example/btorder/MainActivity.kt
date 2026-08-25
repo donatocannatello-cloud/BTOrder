@@ -2,6 +2,9 @@ package it.example.btorder
 
 import android.content.Context
 import android.content.Intent
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -114,6 +117,7 @@ fun SchermataPrincipale() {
 
     var dispositiviAccoppiati by remember { mutableStateOf<List<DispositivoBluetooth>>(emptyList()) }
     var indirizziConnessi by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var cuffieUsbConnesse by remember { mutableStateOf(false) }
     var indirizzoInScelta by remember { mutableStateOf<String?>(null) }
     var indirizzoDaEliminare by remember { mutableStateOf<String?>(null) }
     var idEspanso by remember { mutableStateOf<String?>(null) }
@@ -135,6 +139,7 @@ fun SchermataPrincipale() {
 
     fun ricaricaDispositivi() {
         dispositiviAccoppiati = DispositiviBluetooth.elencaDispositiviAccoppiati(context, indirizziConnessi)
+        cuffieUsbConnesse = DispositiviAudio.cuffieUsbConnesse(context)
     }
     LaunchedEffect(Unit) { ricaricaDispositivi() }
 
@@ -155,11 +160,24 @@ fun SchermataPrincipale() {
             DispositiviBluetooth.filtroEventiConnessione(),
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
-        onDispose { context.unregisterReceiver(ricevitore) }
+
+        // Le cuffie USB non hanno un broadcast dedicato come il Bluetooth: si osservano i
+        // dispositivi audio del sistema per accorgersi subito quando vengono collegate/scollegate.
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val ascoltatoreAudio = object : AudioDeviceCallback() {
+            override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) = ricaricaDispositivi()
+            override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) = ricaricaDispositivi()
+        }
+        audioManager.registerAudioDeviceCallback(ascoltatoreAudio, null)
+
+        onDispose {
+            context.unregisterReceiver(ricevitore)
+            audioManager.unregisterAudioDeviceCallback(ascoltatoreAudio)
+        }
     }
 
-    val voci = remember(dispositiviAccoppiati, dispositiviFiducia, ordineSalvato, ultimeConnessioni) {
-        VociDispositivi.costruisci(dispositiviAccoppiati, dispositiviFiducia, ordineSalvato, ultimeConnessioni)
+    val voci = remember(dispositiviAccoppiati, dispositiviFiducia, ordineSalvato, ultimeConnessioni, cuffieUsbConnesse) {
+        VociDispositivi.costruisci(dispositiviAccoppiati, dispositiviFiducia, ordineSalvato, ultimeConnessioni, cuffieUsbConnesse)
     }
     var elementi by remember(voci) { mutableStateOf(voci) }
 
@@ -595,6 +613,7 @@ private fun RigaDispositivo(
 private fun sottotitolo(elemento: VoceDispositivo): String = when (elemento.tipo) {
     TipoVoceDispositivo.AURICOLARE_TELEFONO -> "Auricolare integrato"
     TipoVoceDispositivo.VIVAVOCE_TELEFONO -> "Altoparlante integrato"
+    TipoVoceDispositivo.CUFFIE_USB -> if (elemento.connesso) "Collegate ora" else "Non collegate"
     TipoVoceDispositivo.BLUETOOTH -> {
         val stato = if (elemento.connesso) "Connesso ora" else "Non connesso"
         if (elemento.fiducia != null) "$stato · Di fiducia" else stato
