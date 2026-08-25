@@ -1,9 +1,10 @@
 name: FrattaLogic - Release
 
 # Ad ogni tag "frattalogic-vX.Y.Z" compila l'APK di release (firmato con il
-# keystore di debug di Android, sufficiente per l'installazione manuale) e
-# pubblica una GitHub Release con l'APK allegato: è così che il gioco si
-# aggiorna nel tempo, una release per ogni tag.
+# keystore persistente committato in game/keystore/, lo stesso usato dalla CI
+# ad ogni push) e pubblica una GitHub Release con l'APK allegato: è così che
+# il gioco si aggiorna nel tempo, una release per ogni tag, restando sempre
+# un aggiornamento valido della release precedente (stessa firma).
 on:
   push:
     tags:
@@ -21,6 +22,13 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      # Stessi valori usati da frattalogic-ci.yml per generare il keystore:
+      # non segrete apposta, servono solo a firmare ogni build allo stesso modo
+      # (vedi game/README.md, sezione "Firma persistente").
+      FRATTALOGIC_KEYSTORE_PASSWORD: frattalogic-ci
+      FRATTALOGIC_KEY_ALIAS: frattalogic
+      FRATTALOGIC_KEY_PASSWORD: frattalogic-ci
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,6 +59,16 @@ jobs:
           fi
           echo "nome=${NOME}" >> "$GITHUB_OUTPUT"
           echo "codice=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Verifica che il keystore persistente esista
+        run: |
+          if [ ! -f game/keystore/frattalogic-release.keystore ]; then
+            echo "::error::game/keystore/frattalogic-release.keystore non trovato." \
+              "Esegui prima il workflow 'FrattaLogic - CI' su un push (lo genera e lo committa" \
+              "automaticamente) e poi ritagga, altrimenti questa release non sarebbe firmata" \
+              "in modo coerente con le prossime."
+            exit 1
+          fi
 
       - name: Rendi eseguibile gradlew
         run: chmod +x gradlew

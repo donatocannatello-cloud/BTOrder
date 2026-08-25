@@ -52,19 +52,22 @@ che succede in partita, generato interamente via codice.
 ## Come compilare in locale
 
 ```bash
-./gradlew :game:assembleDebug
+./gradlew :game:assembleRelease
 ```
 
-L'APK viene generato in `game/build/outputs/apk/debug/`.
+Richiede il keystore persistente in `game/keystore/frattalogic-release.keystore`
+(vedi sotto): se manca, generalo con lo stesso comando `keytool` usato dalla CI
+(si trova nello step "Assicura il keystore di firma persistente" di
+`frattalogic-ci.yml`) prima di compilare in locale.
 
 ## Build e release automatiche (GitHub Actions)
 
-- **`.github/workflows/frattalogic-ci.yml`** compila un APK di debug ad ogni
-  push/PR che tocca il modulo `game` e lo carica come artifact della run, per
-  provarlo subito senza dover taggare una release.
-- **`.github/workflows/frattalogic-release.yml`** compila l'APK di release e
-  pubblica una GitHub Release con l'APK allegato ogni volta che viene pushato
-  un tag `frattalogic-vX.Y.Z`, ad esempio:
+- **`.github/workflows/frattalogic-ci.yml`** compila un APK di release ad
+  ogni push/PR che tocca il modulo `game` e lo carica come artifact della
+  run, per provarlo subito senza dover taggare una release.
+- **`.github/workflows/frattalogic-release.yml`** compila lo stesso APK di
+  release e pubblica una GitHub Release con l'APK allegato ogni volta che
+  viene pushato un tag `frattalogic-vX.Y.Z`, ad esempio:
 
   ```bash
   git tag frattalogic-v0.1.0
@@ -73,13 +76,27 @@ L'APK viene generato in `game/build/outputs/apk/debug/`.
 
   Ogni nuovo tag produce una nuova release con l'APK aggiornato: per
   aggiornare il gioco sul telefono basta scaricare l'APK dell'ultima release
-  e reinstallarlo sopra al precedente (stesso `applicationId`, stessa firma
-  di debug usata da ogni build di questa CI).
+  e installarlo sopra al precedente (stesso `applicationId`, stessa firma —
+  vedi sotto — quindi Android lo installa come aggiornamento in-place, senza
+  perdere i dati dell'app).
 
-L'APK di release è firmato con il keystore di debug generato automaticamente
-da Android Gradle Plugin: è sufficiente per installare ed aggiornare l'app
-manualmente (non è pensato per la pubblicazione su Play Store, che richiede
-una firma di release dedicata e gestita a parte).
+### Firma persistente (il motivo per cui gli aggiornamenti funzionano)
+
+L'APK è firmato con un **keystore fisso e committato nel repo**
+(`game/keystore/frattalogic-release.keystore`), non con il keystore di debug
+di Android Gradle Plugin: quest'ultimo viene rigenerato automaticamente ad
+ogni macchina/runner privo di un `~/.android/debug.keystore` preesistente, e
+in CI ogni run parte da un runner nuovo — quindi ogni build avrebbe una firma
+diversa, e Android rifiuterebbe di installarla come aggiornamento della
+precedente (richiederebbe una disinstallazione, con perdita dei dati
+locali). Il primo workflow `frattalogic-ci.yml` genera questo keystore una
+tantum (se non lo trova già nel repo) e lo committa automaticamente; da quel
+momento in poi ogni build — sia i push di verifica sia le release taggate —
+riusa sempre la stessa identità di firma. La password non è pensata per
+essere segreta (è la stessa filosofia del keystore di debug standard
+"android"/"androiddebugkey"): serve solo coerenza tra le build, non
+sicurezza. Non è quindi adatto alla pubblicazione su Play Store, che
+richiede una firma di release dedicata e gestita a parte.
 
 ### Nota sulla verifica automatica della build in questo ambiente
 

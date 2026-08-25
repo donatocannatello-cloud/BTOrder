@@ -1,8 +1,11 @@
 name: FrattaLogic - CI
 
 # Verifica di build ad ogni push/PR che tocca il modulo di gioco: compila
-# l'APK e lo carica come artifact scaricabile dalla run, per poterlo
-# installare e provare senza dover aspettare una release taggata.
+# l'APK (release, firmato con il keystore persistente del progetto) e lo
+# carica come artifact scaricabile dalla run, per poterlo installare e
+# provare senza dover aspettare una release taggata. Usa sempre la stessa
+# firma delle release taggate, quindi è già un aggiornamento valido di
+# qualunque build precedente installata sullo stesso dispositivo.
 on:
   push:
     paths:
@@ -21,6 +24,9 @@ on:
       - "gradle/**"
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 concurrency:
   group: frattalogic-ci-${{ github.ref }}
   cancel-in-progress: true
@@ -28,6 +34,12 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Non segrete apposta: servono solo a firmare ogni build allo stesso modo
+      # (vedi game/README.md, sezione "Firma persistente").
+      FRATTALOGIC_KEYSTORE_PASSWORD: frattalogic-ci
+      FRATTALOGIC_KEY_ALIAS: frattalogic
+      FRATTALOGIC_KEY_PASSWORD: frattalogic-ci
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,14 +60,36 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
+      - name: Assicura il keystore di firma persistente
+        if: github.event_name != 'pull_request'
+        run: |
+          if [ -f game/keystore/frattalogic-release.keystore ]; then
+            echo "Keystore già presente nel repo, lo riuso."
+            exit 0
+          fi
+          echo "Keystore assente: lo genero una tantum e lo committo nel repo."
+          mkdir -p game/keystore
+          keytool -genkeypair \
+            -keystore game/keystore/frattalogic-release.keystore \
+            -alias "$FRATTALOGIC_KEY_ALIAS" \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "$FRATTALOGIC_KEYSTORE_PASSWORD" -keypass "$FRATTALOGIC_KEY_PASSWORD" \
+            -dname "CN=FrattaLogic, OU=BTOrder, O=BTOrder, C=IT" \
+            -storetype PKCS12
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add game/keystore/frattalogic-release.keystore
+          git commit -m "Genera il keystore di firma persistente di FrattaLogic [skip ci]"
+          git push origin "HEAD:${{ github.ref_name }}"
+
       - name: Rendi eseguibile gradlew
         run: chmod +x gradlew
 
-      - name: Build APK di debug
-        run: ./gradlew :game:assembleDebug --no-daemon
+      - name: Build APK di release
+        run: ./gradlew :game:assembleRelease --no-daemon
 
       - name: Carica APK come artifact
         uses: actions/upload-artifact@v4
         with:
-          name: frattalogic-debug-${{ github.run_number }}
-          path: game/build/outputs/apk/debug/*.apk
+          name: frattalogic-${{ github.run_number }}
+          path: game/build/outputs/apk/release/*.apk

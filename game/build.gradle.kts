@@ -21,13 +21,32 @@ android {
         versionName = frattalogicVersionName
     }
 
+    signingConfigs {
+        create("release") {
+            // Keystore fisso e committato nel repo (generato una tantum dalla CI,
+            // vedi .github/workflows): usare sempre la stessa firma, per qualunque
+            // build futura, è l'unico modo per cui l'APK di una release risulti un
+            // aggiornamento valido di quello della release precedente invece che
+            // un'app "diversa" che richiede disinstallazione. Il keystore di debug
+            // di Android Gradle Plugin non va bene per questo: viene rigenerato ad
+            // ogni macchina/runner e quindi cambierebbe firma ad ogni build in CI.
+            // Nessun valore letterale qui: le credenziali (non pensate per essere
+            // segrete, servono solo coerenza) arrivano da variabili d'ambiente
+            // impostate nei workflow — vedi game/README.md per compilare in locale.
+            storeFile = file("keystore/frattalogic-release.keystore")
+            storePassword = System.getenv("FRATTALOGIC_KEYSTORE_PASSWORD")
+                ?: error("Imposta la variabile d'ambiente FRATTALOGIC_KEYSTORE_PASSWORD (vedi game/README.md)")
+            keyAlias = System.getenv("FRATTALOGIC_KEY_ALIAS")
+                ?: error("Imposta la variabile d'ambiente FRATTALOGIC_KEY_ALIAS (vedi game/README.md)")
+            keyPassword = System.getenv("FRATTALOGIC_KEY_PASSWORD")
+                ?: error("Imposta la variabile d'ambiente FRATTALOGIC_KEY_PASSWORD (vedi game/README.md)")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
-            // Firmato con il keystore di debug (auto-generato da AGP): sufficiente per
-            // installare l'APK manualmente e per aggiornarlo tra una release e l'altra,
-            // senza dover gestire segreti di firma in CI.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
