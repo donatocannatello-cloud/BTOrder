@@ -69,8 +69,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** I giochi della suite: tutti e sei sono giocabili. */
-enum class Gioco { MOSTRO, PANINO, PARCHEGGIO, MEMORY, VESTITI, RITMO }
+/** I giochi della suite: tutti e sette sono giocabili. */
+enum class Gioco { MOSTRO, PANINO, PARCHEGGIO, MEMORY, VESTITI, RITMO, SPARA }
 
 private data class VoceGioco(val nome: String, val emoji: String, val gioco: Gioco?)
 
@@ -80,7 +80,8 @@ private val elencoGiochi = listOf(
     VoceGioco("Monster Parking", "🅿️🚗", Gioco.PARCHEGGIO),
     VoceGioco("Memory dei Mostri", "🧠👻", Gioco.MEMORY),
     VoceGioco("Vesti il Mostro", "🎨🧌", Gioco.VESTITI),
-    VoceGioco("Ritmo Mostruoso", "🎵🐙", Gioco.RITMO)
+    VoceGioco("Ritmo Mostruoso", "🎵🐙", Gioco.RITMO),
+    VoceGioco("Spara ai Mostri", "🚀👹", Gioco.SPARA)
 )
 
 /** Schermata iniziale della suite: da qui si sceglie a quale gioco giocare. */
@@ -96,6 +97,7 @@ fun AppSuite() {
         Gioco.MEMORY -> AppMemory(onTornaAiGiochi = { giocoAttivo = null })
         Gioco.VESTITI -> AppVestiti(onTornaAiGiochi = { giocoAttivo = null })
         Gioco.RITMO -> AppRitmo(onTornaAiGiochi = { giocoAttivo = null })
+        Gioco.SPARA -> AppSpara(onTornaAiGiochi = { giocoAttivo = null })
     }
 }
 

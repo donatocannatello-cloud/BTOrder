@@ -3,8 +3,9 @@
 App Android (Kotlin + Jetpack Compose) pensata per bambini di 6/7 anni: è
 una **suite di giochi**. All'avvio si apre una home ("Free Bimbo Games") da
 cui si sceglie a quale gioco giocare: **Monster Restaurant**, **Monster
-Panino**, **Monster Parking**, **Memory dei Mostri**, **Vesti il Mostro** e
-**Ritmo Mostruoso**. Tutti i testi sono in MAIUSCOLO e con parole semplici,
+Panino**, **Monster Parking**, **Memory dei Mostri**, **Vesti il Mostro**,
+**Ritmo Mostruoso** e **Spara ai Mostri**. Tutti i testi sono in MAIUSCOLO
+e con parole semplici,
 pensati per essere letti da bambini che stanno imparando a leggere. Ogni
 schermata di ogni gioco — non solo la home, ma anche partita in corso e
 fine partita — ha una freccia ⬅️ in alto a sinistra che torna subito alla
@@ -232,10 +233,37 @@ arriva prima di sbagliare.
    raggiunto in questa sessione di gioco; si può riprovare subito con
    "Riprova".
 
+## Spara ai Mostri
+
+Un mini sparatutto da luna park, pensato per essere non violento: un razzo
+in basso spara stelline verso l'alto per far scoppiare "palloncini mostro"
+che scendono dal cielo, come un classico tiro a segno. Si tocca lo schermo
+per muovere il razzo nel punto toccato e sparare una stellina in un solo
+gesto — nessun controllo separato da imparare.
+
+Come Ritmo Mostruoso **non ha livelli fissi**: è una partita continua che
+finisce quando si perdono tutte e 3 le vite (un mostro che arriva in fondo
+senza essere colpito ne toglie una), con la velocità di caduta dei mostri
+e la frequenza con cui compaiono che aumentano man mano che il punteggio
+sale.
+
+### Come si gioca
+
+1. Dalla home si tocca **"Spara ai Mostri"**, poi **"Gioca!"**.
+2. Si tocca un punto dello schermo di gioco: il razzo 🚀 si sposta lì e
+   spara subito una stellina ⭐ verso l'alto.
+3. Ogni mostro colpito da una stellina scoppia (✨) e vale un punto; i cuori
+   ❤️ in alto mostrano quante vite restano.
+4. Un mostro non colpito che arriva in fondo allo schermo toglie una vita e
+   sparisce.
+5. Quando le vite finiscono si vede il punteggio finale e il record più
+   alto raggiunto in questa sessione; si può riprovare subito con
+   "Riprova".
+
 ## File principali
 
 - **`MainActivity.kt`** — contiene la suite (`AppSuite`, `SchermataHub`,
-  l'enum `Gioco` e l'elenco `elencoGiochi` dei 6 giochi disponibili),
+  l'enum `Gioco` e l'elenco `elencoGiochi` dei 7 giochi disponibili),
   l'estensione `String.maiuscolo()` e il composable `BottoneTornaAiGiochi`
   (la freccia ⬅️ per uscire, riusata da ogni schermata di ogni gioco)
   condivisi da tutta la suite, e tutte le schermate Compose di Monster
@@ -245,7 +273,7 @@ arriva prima di sbagliare.
   pubblici qui). Un gioco futuro va aggiunto come un nuovo ramo del `when`
   in `AppSuite`; se non condivide meccaniche con i giochi esistenti
   conviene dargli subito un file proprio, come fatto per Monster Parking,
-  Memory, Vesti il Mostro e Ritmo.
+  Memory, Vesti il Mostro, Ritmo e Spara ai Mostri.
 - **`FoodData.kt`** — dati di Monster Restaurant e Monster Panino: per il
   primo le 6 portate e i loro menù, i 6 livelli di difficoltà; per il
   secondo il banco ingredienti (`elencoIngredientiPanino`) e i suoi 5
@@ -268,8 +296,14 @@ arriva prima di sbagliare.
   Compose di Vesti il Mostro; riusa i tipi di Monster Restaurant descritti
   sopra.
 - **`RitmoData.kt`** / **`RitmoGame.kt`** — dati (`TastoRitmo`) e schermate
-  Compose di Ritmo Mostruoso, l'unico gioco della suite senza una lista di
-  livelli fissi (la sequenza cresce finché non si sbaglia).
+  Compose di Ritmo Mostruoso, senza una lista di livelli fissi (la sequenza
+  cresce finché non si sbaglia).
+- **`SparaData.kt`** / **`SparaGame.kt`** — dati (`MostroVolante`,
+  `Proiettile`, generazione dei mostri) e schermate Compose di Spara ai
+  Mostri; l'unico gioco della suite con un loop grafico in tempo reale
+  (`LaunchedEffect` + `withFrameNanos`, invece delle interazioni a turni
+  degli altri giochi), riusa `elencoSimboliMemory` di Memory dei Mostri per
+  le emoji dei mostri-palloncino.
 - **`ui/theme/`** — tema con palette allegra e colorata fissa, pensata per
   bambini (non segue il tema scuro di sistema), condiviso da tutta la suite.
 - **`res/drawable-nodpi/sfondo_taverna_mostri.png`** — illustrazione usata
