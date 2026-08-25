@@ -1,0 +1,83 @@
+name: FrattaLogic - Release
+
+# Ad ogni tag "frattalogic-vX.Y.Z" compila l'APK di release (firmato con il
+# keystore di debug di Android, sufficiente per l'installazione manuale) e
+# pubblica una GitHub Release con l'APK allegato: è così che il gioco si
+# aggiorna nel tempo, una release per ogni tag.
+on:
+  push:
+    tags:
+      - "frattalogic-v*.*.*"
+  workflow_dispatch:
+    inputs:
+      versione:
+        description: "Versione da assegnare alla build manuale (es. 0.2.0)"
+        required: true
+        default: "0.0.0-manuale"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Imposta JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Determina numero e nome versione
+        id: versione
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            NOME="${{ inputs.versione }}"
+          else
+            NOME="${GITHUB_REF##*/frattalogic-v}"
+          fi
+          echo "nome=${NOME}" >> "$GITHUB_OUTPUT"
+          echo "codice=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Rendi eseguibile gradlew
+        run: chmod +x gradlew
+
+      - name: Build APK di release
+        run: |
+          ./gradlew :game:assembleRelease \
+            -PfrattalogicVersionName=${{ steps.versione.outputs.nome }} \
+            -PfrattalogicVersionCode=${{ steps.versione.outputs.codice }} \
+            --no-daemon
+
+      - name: Rinomina APK con la versione
+        run: |
+          mkdir -p dist
+          apk="$(ls game/build/outputs/apk/release/*.apk | head -n1)"
+          cp "$apk" "dist/FrattaLogic-${{ steps.versione.outputs.nome }}.apk"
+
+      - name: Carica APK come artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FrattaLogic-${{ steps.versione.outputs.nome }}
+          path: dist/*.apk
+
+      - name: Crea GitHub Release
+        if: startsWith(github.ref, 'refs/tags/frattalogic-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.apk
+          name: FrattaLogic ${{ steps.versione.outputs.nome }}
+          generate_release_notes: true

@@ -1,0 +1,62 @@
+name: FrattaLogic - CI
+
+# Verifica di build ad ogni push/PR che tocca il modulo di gioco: compila
+# l'APK e lo carica come artifact scaricabile dalla run, per poterlo
+# installare e provare senza dover aspettare una release taggata.
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "game/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "gradle/**"
+      - ".github/workflows/frattalogic-ci.yml"
+  pull_request:
+    paths:
+      - "game/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "gradle/**"
+  workflow_dispatch: {}
+
+concurrency:
+  group: frattalogic-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Imposta JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Rendi eseguibile gradlew
+        run: chmod +x gradlew
+
+      - name: Build APK di debug
+        run: ./gradlew :game:assembleDebug --no-daemon
+
+      - name: Carica APK come artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frattalogic-debug-${{ github.run_number }}
+          path: game/build/outputs/apk/debug/*.apk

@@ -1,4 +1,20 @@
-# ChiamateBT
+# BTOrder
+
+Repository multi-modulo Gradle con due app Android indipendenti (Kotlin +
+Jetpack Compose), ciascuna con la propria build e la propria CI:
+
+- **[`app/`](app) — ChiamateBT**: definisce un ordine di priorità personale tra
+  i dispositivi audio disponibili e lo applica automaticamente ad ogni
+  chiamata telefonica. Vedi la sezione [ChiamateBT](#chiamatebt) più sotto.
+- **[`game/`](game) — FrattaLogic**: passatempo/quiz logico con grafica
+  vettoriale/frattale e audio sintetizzato in tempo reale. Vedi
+  [`game/README.md`](game/README.md) per i dettagli, o la sezione
+  [FrattaLogic](#frattalogic) più sotto.
+
+I due moduli sono compilati e pubblicati come release indipendenti tramite i
+rispettivi workflow in [`.github/workflows/`](.github/workflows).
+
+## ChiamateBT
 
 App Android (Kotlin + Jetpack Compose) che permette di definire un ordine di
 priorità personale tra i dispositivi audio disponibili — cuffie/auto
@@ -10,7 +26,7 @@ automaticamente a ogni chiamata telefonica.
   e da `TelephonyCallback`
 - **targetSdk / compileSdk**: 34
 
-## Come funziona
+### Come funziona
 
 1. **`DispositiviAudio.kt`** enumera i dispositivi Bluetooth accoppiati con
    profilo audio (`BluetoothClass.Device.Major.AUDIO_VIDEO`) e li combina con
@@ -42,7 +58,7 @@ automaticamente a ogni chiamata telefonica.
 Il servizio va avviato/fermato manualmente dal pulsante "Avvia/Ferma
 monitoraggio chiamate" nella schermata principale.
 
-## Permessi
+### Permessi
 
 Richiesti a runtime da `MainActivity` con
 `ActivityResultContracts.RequestMultiplePermissions`:
@@ -55,7 +71,7 @@ Richiesti a runtime da `MainActivity` con
 - `POST_NOTIFICATIONS` (solo API 33+) — per la notifica persistente del
   servizio
 
-## Come compilare
+### Come compilare
 
 1. Apri la cartella del progetto con **Android Studio** (Koala o successivo
    consigliato, richiede AGP 8.4+).
@@ -63,11 +79,11 @@ Richiesti a runtime da `MainActivity` con
    AndroxX, Compose) e sincronizzi il progetto.
 3. Da terminale, in alternativa:
    ```bash
-   ./gradlew assembleDebug
+   ./gradlew :app:assembleDebug
    ```
    L'APK di debug viene generato in `app/build/outputs/apk/debug/`.
 
-### Nota sulla verifica automatica della build in questo ambiente
+#### Nota sulla verifica automatica della build in questo ambiente
 
 In questo ambiente di sviluppo la build (`./gradlew assembleDebug`) **non è
 stata verificata end-to-end**: la policy di rete del sandbox blocca
@@ -80,7 +96,7 @@ riletto con attenzione, ma va comunque verificato con una build reale in un
 ambiente con accesso al Google Maven repository (Android Studio su una
 macchina normale, o una CI con rete non ristretta).
 
-## Limiti noti
+### Limiti noti
 
 - `AudioManager.setCommunicationDevice` è disponibile solo da **API 31**
   (Android 12); l'app non è installabile su versioni precedenti (`minSdk`
@@ -96,3 +112,17 @@ macchina normale, o una CI con rete non ristretta).
   siano *davvero* disponibili.
 - Il servizio va avviato manualmente dall'app; non c'è (ancora) un
   `BroadcastReceiver` per l'avvio automatico al boot.
+
+## FrattaLogic
+
+Passatempo/quiz logico: un flusso infinito di piccoli enigmi (sequenze
+numeriche, sequenze di figure frattali che crescono in profondità o ruotano,
+un intruso da individuare) generati proceduralmente, con grafica interamente
+vettoriale/frattale disegnata a runtime via Compose `Canvas` e un
+accompagnamento sonoro sintetizzato in tempo reale (nessun asset audio o
+immagine incluso) che si mescola in base a punteggio, serie e difficoltà.
+
+- **Package**: `it.example.frattalogic` · **minSdk**: 26 · **compileSdk**: 34
+- Build locale: `./gradlew :game:assembleDebug`
+- Dettagli su enigmi, motore grafico/audio e CI di build/release:
+  [`game/README.md`](game/README.md)

@@ -1,0 +1,4 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Tema base della piattaforma: la UI è interamente realizzata con Jetpack Compose -->
+    <style name="Theme.FrattaLogic" parent="android:Theme.Material.NoActionBar" />
+</resources>
