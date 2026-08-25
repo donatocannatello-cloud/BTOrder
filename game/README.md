@@ -1,53 +1,63 @@
-# FrattaLogic
+# Abisso Frattale
 
-Passatempo/quiz logico per Android (Kotlin + Jetpack Compose). Un flusso
-infinito di piccoli enigmi logici generati proceduralmente, con grafica
-interamente vettoriale/frattale (nessuna immagine bitmap) e un accompagnamento
-sonoro sintetizzato in tempo reale che si mescola in base a cosa succede in
-partita.
+Passatempo esplorativo per Android (Kotlin + Jetpack Compose): scendi sempre
+più in profondità dentro un frattale, cercando ad ogni livello l'unico
+elemento dissonante che rompe l'autosimilarità. Grafica interamente
+vettoriale (nessuna immagine bitmap) e una colonna sonora sintetizzata in
+tempo reale che si arricchisce di nuovi strumenti mano a mano che si scende.
 
 - **Package**: `it.example.frattalogic`
 - **minSdk**: 26 · **targetSdk / compileSdk**: 34
 
 ## Il gioco
 
-Ad ogni turno viene proposto uno tra quattro tipi di enigma, scelto a caso:
+Ogni schermata ("camera") mostra un nucleo frattale al centro e un anello di
+nodi attorno: tutti i nodi condividono la stessa regola generativa (stesso
+tipo di frattale, stessa profondità di ricorsione, stessa rotazione, stessa
+tonalità) tranne **uno**, a cui è stata alterata una sola proprietà — è la
+nota dissonante da individuare a orecchio... anzi, a occhio.
 
-1. **Sequenza numerica** — completa la sequenza (progressioni aritmetiche,
-   geometriche, a passo alternato o di tipo Fibonacci).
-2. **Sequenza di profondità frattale** — una figura (albero ricorsivo o
-   triangolo di Sierpinski) cresce di un livello di ricorsione ad ogni passo:
-   quale prosegue la sequenza?
-3. **Sequenza di rotazione** — la figura ruota sempre dello stesso angolo:
-   quale rotazione viene dopo?
-4. **Intruso** — in una griglia di figure identiche, una ha una tonalità di
-   colore leggermente diversa: individuala.
+- **Toccare il nodo dissonante** fa scendere di un livello: si genera una
+  nuova camera più difficile (più nodi, differenza più sottile), il punteggio
+  cresce e nel mix sonoro può entrare un nuovo strumento (vedi sotto).
+- **Toccare un nodo normale** fa risalire di un livello e scatena un breve
+  cluster dissonante nella musica — un passo indietro, non un game over: la
+  discesa continua.
 
-Ogni risposta corretta aumenta punteggio e serie (streak); la serie alza
-gradualmente la difficoltà (più opzioni, distrattori più simili, rotazioni più
-strette, profondità maggiori). Ogni 5 risposte corrette di fila scatta un
-piccolo traguardo sonoro/visivo.
+Il generatore procedurale (`engine/DiveEngine.kt`) sceglie ad ogni camera
+quale delle tre proprietà alterare (tonalità, rotazione o profondità di
+ricorsione) e di quanto: l'ampiezza della perturbazione si restringe con la
+profondità, rendendo la dissonanza sempre più sottile da scovare.
 
 ## Grafica vettoriale/frattale
 
 Tutte le figure (`ui/FractalShapes.kt`) sono disegnate ricorsivamente con
 `Canvas` di Compose — albero frattale, triangolo di Sierpinski, fiocco di
 Koch — parametrizzate da profondità di ricorsione, rotazione e tonalità.
-Anche lo sfondo animato del gioco è un fiocco di Koch in lenta rotazione. Non
-c'è alcuna risorsa immagine: tutto è vettoriale e ridisegnato ad ogni frame.
+Anche lo sfondo animato è lo stesso nucleo della camera corrente, in lenta
+rotazione. Non c'è alcuna risorsa immagine: tutto è vettoriale e ridisegnato
+ad ogni frame.
 
-## Audio procedurale
+## Audio procedurale multi-strumento
 
-`audio/SoundEngine.kt` non riproduce alcun file audio: genera in tempo reale,
-via `AudioTrack` in modalità streaming, un mix per somma additiva di:
+`audio/SoundEngine.kt` non riproduce alcun file audio: sintetizza in tempo
+reale, via `AudioTrack` in modalità streaming, quattro voci che si mescolano
+per somma additiva e si aggiungono una alla volta scendendo in profondità:
 
-- un **pad ambientale** continuo la cui frequenza segue la difficoltà
-  corrente e la cui intensità cresce con la serie di risposte corrette;
-- brevi **"blip" con inviluppo** che scattano sugli eventi di gioco (risposta
-  corretta, sbagliata, traguardo di serie raggiunto).
+1. **basso** — drone continuo un'ottava sotto la nota fondamentale (sempre
+   attivo);
+2. **arpeggio** — onda triangolare che percorre una scala pentatonica minore,
+   dalla profondità 2, sempre più veloce scendendo;
+3. **pad armonico** — accordo sostenuto di tre seni (fondamentale, terza
+   minore, quinta), dalla profondità 4;
+4. **percussione** — un breve impulso di rumore filtrato ad ogni nota
+   dell'arpeggio, dalla profondità 6.
 
-Il risultato è un tappeto sonoro che cambia continuamente in base a quello
-che succede in partita, generato interamente via codice.
+La nota fondamentale scende lentamente con la profondità (sensazione di
+sprofondare sempre più in basso). Trovare la dissonanza fa suonare un breve
+accordo consonante (ottave e quinta); toccare un nodo sbagliato fa suonare un
+cluster dissonante (seconda minore + tritono). Tutto generato via codice,
+nessun file audio incluso.
 
 ## Come compilare in locale
 
@@ -102,7 +112,7 @@ richiede una firma di release dedicata e gestita a parte.
 
 Come per l'altra app del repository, in questo ambiente di sviluppo sandbox
 l'accesso a `dl.google.com`/`maven.google.com` è bloccato dalla policy di
-rete (403 dal proxy egress), quindi `./gradlew :game:assembleDebug` non è
+rete (403 dal proxy egress), quindi `./gradlew :game:assembleRelease` non è
 stato eseguito con successo qui: Gradle non riesce a risolvere il plugin
 Android Gradle Plugin né le dipendenze AndroidX/Compose senza quel
 repository. Il codice Kotlin è stato scritto e riletto con attenzione, ma la
@@ -115,13 +125,13 @@ girano su runner con rete non ristretta.
 ```
 game/src/main/java/it/example/frattalogic/
 ├── MainActivity.kt              punto di ingresso, avvia/ferma l'audio col ciclo di vita
-├── audio/SoundEngine.kt         sintesi audio in tempo reale (AudioTrack)
+├── audio/SoundEngine.kt         sintesi multi-strumento in tempo reale (AudioTrack)
 ├── engine/
-│   ├── PuzzleModels.kt          modelli dati di un enigma
-│   ├── PuzzleEngine.kt          generatori procedurali dei 4 tipi di enigma
-│   └── GameViewModel.kt         stato di gioco (punteggio, serie, difficoltà)
+│   ├── DiveModels.kt            modelli dati di una camera (nucleo + anello di nodi)
+│   ├── DiveEngine.kt            genera ogni camera e sceglie/dosa la dissonanza
+│   └── DiveViewModel.kt         stato della discesa (punteggio, profondità, esito)
 └── ui/
     ├── FractalShapes.kt         disegno ricorsivo delle figure frattali
-    ├── GameScreen.kt            schermata di gioco Compose
+    ├── DiveScreen.kt            schermata di gioco Compose (nucleo + anello tappabile)
     └── theme/                   palette colori e tipografia
 ```

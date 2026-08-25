@@ -8,14 +8,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
-import it.example.frattalogic.engine.GameViewModel
-import it.example.frattalogic.ui.GameScreen
+import it.example.frattalogic.engine.DiveViewModel
+import it.example.frattalogic.ui.DiveScreen
 import it.example.frattalogic.ui.theme.FrattaLogicTheme
 
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: GameViewModel by lazy {
-        ViewModelProvider(this)[GameViewModel::class.java]
+    private val viewModel: DiveViewModel by lazy {
+        ViewModelProvider(this)[DiveViewModel::class.java]
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    GameScreen(viewModel)
+                    DiveScreen(viewModel)
                 }
             }
         }

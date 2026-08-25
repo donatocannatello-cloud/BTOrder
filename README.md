@@ -6,10 +6,11 @@ Jetpack Compose), ciascuna con la propria build e la propria CI:
 - **[`app/`](app) — ChiamateBT**: definisce un ordine di priorità personale tra
   i dispositivi audio disponibili e lo applica automaticamente ad ogni
   chiamata telefonica. Vedi la sezione [ChiamateBT](#chiamatebt) più sotto.
-- **[`game/`](game) — FrattaLogic**: passatempo/quiz logico con grafica
-  vettoriale/frattale e audio sintetizzato in tempo reale. Vedi
-  [`game/README.md`](game/README.md) per i dettagli, o la sezione
-  [FrattaLogic](#frattalogic) più sotto.
+- **[`game/`](game) — Abisso Frattale**: passatempo esplorativo, scendi in
+  profondità in un frattale cercando l'elemento dissonante ad ogni livello,
+  con grafica vettoriale e audio multi-strumento sintetizzato in tempo
+  reale. Vedi [`game/README.md`](game/README.md) per i dettagli, o la
+  sezione [Abisso Frattale](#abisso-frattale) più sotto.
 
 I due moduli sono compilati e pubblicati come release indipendenti tramite i
 rispettivi workflow in [`.github/workflows/`](.github/workflows).
@@ -113,16 +114,18 @@ macchina normale, o una CI con rete non ristretta).
 - Il servizio va avviato manualmente dall'app; non c'è (ancora) un
   `BroadcastReceiver` per l'avvio automatico al boot.
 
-## FrattaLogic
+## Abisso Frattale
 
-Passatempo/quiz logico: un flusso infinito di piccoli enigmi (sequenze
-numeriche, sequenze di figure frattali che crescono in profondità o ruotano,
-un intruso da individuare) generati proceduralmente, con grafica interamente
-vettoriale/frattale disegnata a runtime via Compose `Canvas` e un
-accompagnamento sonoro sintetizzato in tempo reale (nessun asset audio o
-immagine incluso) che si mescola in base a punteggio, serie e difficoltà.
+Passatempo esplorativo: si scende sempre più in profondità dentro un
+frattale, cercando ad ogni livello l'unico elemento (tra un anello attorno a
+un nucleo centrale) a cui è stata alterata tonalità, rotazione o profondità
+di ricorsione rispetto agli altri. Grafica interamente vettoriale/frattale
+disegnata a runtime via Compose `Canvas` e una colonna sonora multi-strumento
+(basso, arpeggio, pad armonico, percussione) sintetizzata in tempo reale
+(nessun asset audio o immagine incluso), che si arricchisce di nuovi
+strumenti mano a mano che si scende.
 
 - **Package**: `it.example.frattalogic` · **minSdk**: 26 · **compileSdk**: 34
-- Build locale: `./gradlew :game:assembleDebug`
-- Dettagli su enigmi, motore grafico/audio e CI di build/release:
+- Build locale: `./gradlew :game:assembleRelease`
+- Dettagli su meccanica di gioco, motore grafico/audio e CI di build/release:
   [`game/README.md`](game/README.md)
