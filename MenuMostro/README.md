@@ -314,6 +314,8 @@ sale.
   come sfondo della schermata iniziale di Vesti il Mostro.
 - **`res/drawable-nodpi/sfondo_parcheggio_mostri.jpg`** — illustrazione usata
   come sfondo della schermata iniziale di Monster Parking.
+- **`res/drawable-nodpi/sfondo_memory_mostri.jpg`** — illustrazione usata
+  come sfondo della schermata iniziale di Memory dei Mostri.
 
 ## Come compilare
 

@@ -1,5 +1,6 @@
 package it.freebimbogames.app
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,7 +31,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -83,35 +87,51 @@ fun AppMemory(onTornaAiGiochi: () -> Unit) {
 
 @Composable
 fun SchermataHomeMemory(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SfondoChiaro)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.sfondo_memory_mostri),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        // Sfumatura scura solo nella metà inferiore: l'illustrazione resta ben
+        // visibile in alto, il testo resta leggibile in basso.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to Color.Transparent,
+                        0.5f to Color.Transparent,
+                        1.0f to Color(0xE6000000)
+                    )
+                )
+        )
         BottoneTornaAiGiochi(
             onClick = onTornaAiGiochi,
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(16.dp)
+                .padding(16.dp),
+            sfondo = Color(0x99000000)
         )
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Bottom
         ) {
-            Text(text = "🧠👻", fontSize = 72.sp)
-            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Memory dei Mostri".maiuscolo(),
                 style = MaterialTheme.typography.headlineLarge,
+                color = Color.White,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Trova tutte le coppie di mostri uguali nel minor numero di tentativi!".maiuscolo(),
                 style = MaterialTheme.typography.bodyLarge,
+                color = Color.White,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(32.dp))
@@ -122,6 +142,7 @@ fun SchermataHomeMemory(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
             ) {
                 Text(text = "🎮 Gioca!".maiuscolo(), fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
