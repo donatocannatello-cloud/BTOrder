@@ -116,14 +116,15 @@ macchina normale, o una CI con rete non ristretta).
 
 ## Abisso Frattale
 
-Passatempo esplorativo: si scende sempre più in profondità dentro un
-frattale, cercando ad ogni livello l'unico elemento (tra un anello attorno a
-un nucleo centrale) a cui è stata alterata tonalità, rotazione o profondità
-di ricorsione rispetto agli altri. Grafica interamente vettoriale/frattale
-disegnata a runtime via Compose `Canvas` e una colonna sonora multi-strumento
-(basso, arpeggio, pad armonico, percussione) sintetizzata in tempo reale
-(nessun asset audio o immagine incluso), che si arricchisce di nuovi
-strumenti mano a mano che si scende.
+Esplorazione fluida: si naviga con un joystick a schermo in un mare frattale
+generato dinamicamente, scoprendo mondi nuovi (palette e tipo di frattale
+dominante diversi) mano a mano che ci si allontana. Ad ogni cambio di mondo
+scatta un breve evento bonus — trovare l'unico elemento dissonante in un
+anello di figure frattali per stabilizzare l'ingresso nel mondo successivo.
+Grafica interamente vettoriale/frattale disegnata a runtime via Compose
+`Canvas` e una colonna sonora multi-strumento (basso, arpeggio, pad
+armonico, percussione) sintetizzata in tempo reale (nessun asset audio o
+immagine incluso), che si arricchisce di nuovi strumenti mondo dopo mondo.
 
 - **Package**: `it.example.frattalogic` · **minSdk**: 26 · **compileSdk**: 34
 - Build locale: `./gradlew :game:assembleRelease`

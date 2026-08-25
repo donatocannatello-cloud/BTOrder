@@ -17,10 +17,16 @@ data class NodoFrattale(
     val dissonante: Boolean
 )
 
-/** Una "camera" della discesa: il nucleo centrale più l'anello di nodi. */
+/**
+ * Una "camera" dell'evento bonus mostrato a fine livello: il nucleo centrale
+ * più l'anello di nodi tra cui trovare la dissonanza per stabilizzare
+ * l'ingresso nel mondo successivo.
+ */
 data class Camera(
     val profondita: Int,
     val nucleo: FractalSpec,
     val nodi: List<NodoFrattale>,
     val indiceDissonante: Int
 )
+
+enum class Esito { NESSUNO, RISOLTO, ROTTURA }

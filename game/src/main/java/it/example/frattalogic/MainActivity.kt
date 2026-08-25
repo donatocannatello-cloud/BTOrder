@@ -8,14 +8,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
-import it.example.frattalogic.engine.DiveViewModel
-import it.example.frattalogic.ui.DiveScreen
+import it.example.frattalogic.engine.ExplorationViewModel
+import it.example.frattalogic.ui.ExplorationScreen
 import it.example.frattalogic.ui.theme.FrattaLogicTheme
 
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: DiveViewModel by lazy {
-        ViewModelProvider(this)[DiveViewModel::class.java]
+    private val viewModel: ExplorationViewModel by lazy {
+        ViewModelProvider(this)[ExplorationViewModel::class.java]
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    DiveScreen(viewModel)
+                    ExplorationScreen(viewModel)
                 }
             }
         }
@@ -34,11 +34,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.avviaAudio()
+        viewModel.avvia()
     }
 
     override fun onPause() {
-        viewModel.fermaAudio()
+        viewModel.ferma()
         super.onPause()
     }
 }

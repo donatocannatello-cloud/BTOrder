@@ -1,63 +1,59 @@
 # Abisso Frattale
 
-Passatempo esplorativo per Android (Kotlin + Jetpack Compose): scendi sempre
-più in profondità dentro un frattale, cercando ad ogni livello l'unico
-elemento dissonante che rompe l'autosimilarità. Grafica interamente
-vettoriale (nessuna immagine bitmap) e una colonna sonora sintetizzata in
-tempo reale che si arricchisce di nuovi strumenti mano a mano che si scende.
+Esplorazione fluida per Android (Kotlin + Jetpack Compose): si naviga con
+comandi a schermo in un mare frattale generato dinamicamente, scoprendo
+mondi nuovi mano a mano che ci si allontana. Grafica interamente vettoriale
+(nessuna immagine bitmap) e una colonna sonora sintetizzata in tempo reale
+che si arricchisce di strumenti mondo dopo mondo. Il breve enigma "trova la
+dissonanza" delle versioni precedenti resta, come evento bonus ad ogni
+cambio di mondo.
 
 - **Package**: `it.example.frattalogic`
 - **minSdk**: 26 · **targetSdk / compileSdk**: 34
 
 ## Il gioco
 
-Ogni schermata ("camera") mostra un nucleo frattale al centro e un anello di
-nodi attorno: tutti i nodi condividono la stessa regola generativa (stesso
-tipo di frattale, stessa profondità di ricorsione, stessa rotazione, stessa
-tonalità) tranne **uno**, a cui è stata alterata una sola proprietà — è la
-nota dissonante da individuare a orecchio... anzi, a occhio.
-
-- **Toccare il nodo dissonante** fa scendere di un livello: si genera una
-  nuova camera più difficile (più nodi, differenza più sottile), il punteggio
-  cresce e nel mix sonoro può entrare un nuovo strumento (vedi sotto).
-- **Toccare un nodo normale** fa risalire di un livello e scatena un breve
-  cluster dissonante nella musica — un passo indietro, non un game over: la
-  discesa continua.
-
-Il generatore procedurale (`engine/DiveEngine.kt`) sceglie ad ogni camera
-quale delle tre proprietà alterare (tonalità, rotazione o profondità di
-ricorsione) e di quanto: l'ampiezza della perturbazione si restringe con la
-profondità, rendendo la dissonanza sempre più sottile da scovare.
+- **Navigazione**: il vascello avanza da solo; il joystick a schermo (in
+  basso a destra) ne imposta rotta (scostamento orizzontale) e velocità
+  (scostamento verticale) in modo continuo — si guida come una barca alla
+  deriva, non con input discreti a turni.
+- **Mondo procedurale**: il paesaggio frattale attorno al vascello
+  (`engine/MondoGenerator.kt`) è generato al volo da un hash deterministico
+  delle coordinate: nessuna mappa precaricata, ma tornando in un punto già
+  visitato si ritrova lo stesso paesaggio.
+- **Nuovi mondi**: superata una certa distanza si entra in un nuovo "mondo"
+  (nome, tipo di frattale dominante e tonalità diversi — una nuova regione
+  da scoprire) e scatta l'**evento bonus**: il nucleo del mondo "vacilla",
+  bisogna toccare tra un anello di figure frattali l'unica dissonante
+  (tonalità, rotazione o profondità di ricorsione alterata) per stabilizzare
+  l'ingresso. Risolverlo dà punti; sbagliare non blocca la partita, si
+  riprende subito a navigare.
 
 ## Grafica vettoriale/frattale
 
 Tutte le figure (`ui/FractalShapes.kt`) sono disegnate ricorsivamente con
 `Canvas` di Compose — albero frattale, triangolo di Sierpinski, fiocco di
-Koch — parametrizzate da profondità di ricorsione, rotazione e tonalità.
-Anche lo sfondo animato è lo stesso nucleo della camera corrente, in lenta
-rotazione. Non c'è alcuna risorsa immagine: tutto è vettoriale e ridisegnato
-ad ogni frame.
+Koch — parametrizzate da profondità di ricorsione, rotazione e tonalità. Il
+paesaggio che si vede navigando è composto da istanze di queste stesse
+figure, posizionate proceduralmente nel mondo. Non c'è alcuna risorsa
+immagine: tutto è vettoriale e ridisegnato ad ogni frame.
 
 ## Audio procedurale multi-strumento
 
 `audio/SoundEngine.kt` non riproduce alcun file audio: sintetizza in tempo
 reale, via `AudioTrack` in modalità streaming, quattro voci che si mescolano
-per somma additiva e si aggiungono una alla volta scendendo in profondità:
+per somma additiva e si aggiungono una alla volta esplorando mondi nuovi:
 
 1. **basso** — drone continuo un'ottava sotto la nota fondamentale (sempre
    attivo);
-2. **arpeggio** — onda triangolare che percorre una scala pentatonica minore,
-   dalla profondità 2, sempre più veloce scendendo;
-3. **pad armonico** — accordo sostenuto di tre seni (fondamentale, terza
-   minore, quinta), dalla profondità 4;
+2. **arpeggio** — onda triangolare che percorre una scala pentatonica minore;
+3. **pad armonico** — accordo sostenuto di tre seni;
 4. **percussione** — un breve impulso di rumore filtrato ad ogni nota
-   dell'arpeggio, dalla profondità 6.
+   dell'arpeggio.
 
-La nota fondamentale scende lentamente con la profondità (sensazione di
-sprofondare sempre più in basso). Trovare la dissonanza fa suonare un breve
-accordo consonante (ottave e quinta); toccare un nodo sbagliato fa suonare un
-cluster dissonante (seconda minore + tritono). Tutto generato via codice,
-nessun file audio incluso.
+La nota fondamentale scende lentamente mondo dopo mondo. Risolvere l'evento
+bonus fa suonare un breve accordo consonante; sbagliare fa suonare un
+cluster dissonante. Tutto generato via codice, nessun file audio incluso.
 
 ## Come compilare in locale
 
@@ -124,14 +120,16 @@ girano su runner con rete non ristretta.
 
 ```
 game/src/main/java/it/example/frattalogic/
-├── MainActivity.kt              punto di ingresso, avvia/ferma l'audio col ciclo di vita
+├── MainActivity.kt              punto di ingresso, avvia/ferma audio e loop col ciclo di vita
 ├── audio/SoundEngine.kt         sintesi multi-strumento in tempo reale (AudioTrack)
 ├── engine/
-│   ├── DiveModels.kt            modelli dati di una camera (nucleo + anello di nodi)
-│   ├── DiveEngine.kt            genera ogni camera e sceglie/dosa la dissonanza
-│   └── DiveViewModel.kt         stato della discesa (punteggio, profondità, esito)
+│   ├── ExplorationModels.kt     modelli dati della navigazione (vascello, mondo, elementi)
+│   ├── MondoGenerator.kt        genera il paesaggio frattale in modo procedurale/deterministico
+│   ├── ExplorationViewModel.kt  loop di gioco, sterzo, transizioni di mondo, evento bonus
+│   ├── DiveModels.kt            modelli dell'evento bonus (nucleo + anello di nodi)
+│   └── DiveEngine.kt            genera ogni evento bonus e dosa la dissonanza
 └── ui/
     ├── FractalShapes.kt         disegno ricorsivo delle figure frattali
-    ├── DiveScreen.kt            schermata di gioco Compose (nucleo + anello tappabile)
+    ├── ExplorationScreen.kt     canvas di navigazione, joystick, overlay dell'evento bonus
     └── theme/                   palette colori e tipografia
 ```

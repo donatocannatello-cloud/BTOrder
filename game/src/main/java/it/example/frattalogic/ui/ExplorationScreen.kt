@@ -1,0 +1,317 @@
+package it.example.frattalogic.ui
+
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import it.example.frattalogic.engine.Camera
+import it.example.frattalogic.engine.Esito
+import it.example.frattalogic.engine.ExplorationState
+import it.example.frattalogic.engine.ExplorationViewModel
+import it.example.frattalogic.engine.Fase
+import it.example.frattalogic.engine.Mondo
+import it.example.frattalogic.ui.theme.AccentoTeal
+import it.example.frattalogic.ui.theme.Corretto
+import it.example.frattalogic.ui.theme.Sbagliato
+import it.example.frattalogic.ui.theme.SfondoPannello
+import it.example.frattalogic.ui.theme.SfondoProfondo
+import it.example.frattalogic.ui.theme.TestoAttenuato
+import it.example.frattalogic.ui.theme.TestoChiaro
+import kotlin.math.cos
+import kotlin.math.hypot
+import kotlin.math.roundToInt
+import kotlin.math.sin
+
+@Composable
+fun ExplorationScreen(viewModel: ExplorationViewModel) {
+    val stato by viewModel.state.collectAsState()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        SfondoMondo(stato.mondo)
+        MondoCanvas(stato)
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp)
+        ) {
+            IntestazioneMondo(stato)
+            Spacer(modifier = Modifier.weight(1f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                JoystickControllo(onCambia = viewModel::impostaSterzo)
+            }
+        }
+
+        val cameraBonus = stato.cameraBonus
+        if (stato.fase == Fase.EVENTO_BONUS && cameraBonus != null) {
+            EventoBonusOverlay(
+                camera = cameraBonus,
+                indiceSelezionato = stato.indiceSelezionatoBonus,
+                esito = stato.esitoBonus,
+                onTocca = viewModel::toccaBonus
+            )
+        }
+    }
+}
+
+@Composable
+private fun IntestazioneMondo(stato: ExplorationState) {
+    Column {
+        Text(
+            text = stato.mondo.nome,
+            style = MaterialTheme.typography.headlineMedium,
+            color = AccentoTeal
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text(
+                text = "Punteggio: ${stato.punteggio}",
+                style = MaterialTheme.typography.labelLarge,
+                color = TestoAttenuato
+            )
+            Text(
+                text = "Distanza: ${stato.distanzaPercorsa.toInt()}",
+                style = MaterialTheme.typography.labelLarge,
+                color = TestoAttenuato
+            )
+        }
+    }
+}
+
+@Composable
+private fun MondoCanvas(stato: ExplorationState) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val centro = Offset(size.width / 2f, size.height / 2f)
+
+        stato.elementiVisibili.forEach { elemento ->
+            val schermoX = centro.x + (elemento.x - stato.vascello.x)
+            val schermoY = centro.y + (elemento.y - stato.vascello.y)
+            if (schermoX in -100f..size.width + 100f && schermoY in -100f..size.height + 100f) {
+                drawFractal(elemento.spec, 90f * elemento.scala, Offset(schermoX, schermoY))
+            }
+        }
+
+        rotate(degrees = stato.vascello.rotta + 90f, pivot = centro) {
+            val prua = Path().apply {
+                moveTo(centro.x, centro.y - 22f)
+                lineTo(centro.x - 14f, centro.y + 16f)
+                lineTo(centro.x + 14f, centro.y + 16f)
+                close()
+            }
+            drawPath(prua, color = AccentoTeal)
+        }
+    }
+}
+
+@Composable
+private fun SfondoMondo(mondo: Mondo) {
+    val transizione = rememberInfiniteTransition(label = "sfondoMondo")
+    val rotazione by transizione.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(animation = tween(durationMillis = 60000, easing = LinearEasing)),
+        label = "rotazioneSfondoMondo"
+    )
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+            .alpha(0.14f)
+    ) {
+        val spec = FractalSpec(mondo.kindDominante, depth = 4, rotationDeg = rotazione, hue = mondo.hueBase)
+        drawFractal(spec, size.minDimension * 1.3f, Offset(size.width / 2f, size.height / 2f))
+    }
+}
+
+@Composable
+private fun JoystickControllo(onCambia: (x: Float, y: Float) -> Unit) {
+    val raggioBaseDp = 64.dp
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    val raggioPx = with(LocalDensity.current) { raggioBaseDp.toPx() }
+
+    Box(
+        modifier = Modifier
+            .size(raggioBaseDp * 2)
+            .clip(CircleShape)
+            .background(SfondoPannello.copy(alpha = 0.55f))
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        val proposto = offset + dragAmount
+                        val distanza = hypot(proposto.x, proposto.y)
+                        offset = if (distanza > raggioPx) proposto * (raggioPx / distanza) else proposto
+                        onCambia(offset.x / raggioPx, offset.y / raggioPx)
+                    },
+                    onDragEnd = {
+                        offset = Offset.Zero
+                        onCambia(0f, 0f)
+                    },
+                    onDragCancel = {
+                        offset = Offset.Zero
+                        onCambia(0f, 0f)
+                    }
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(offset.x.roundToInt(), offset.y.roundToInt()) }
+                .size(42.dp)
+                .clip(CircleShape)
+                .background(AccentoTeal.copy(alpha = 0.85f))
+        )
+    }
+}
+
+@Composable
+private fun EventoBonusOverlay(
+    camera: Camera,
+    indiceSelezionato: Int?,
+    esito: Esito,
+    onTocca: (Int) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SfondoProfondo.copy(alpha = 0.9f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "Il nucleo del nuovo mondo vacilla",
+                style = MaterialTheme.typography.titleMedium,
+                color = TestoChiaro
+            )
+            Text(
+                text = "Trova l'elemento dissonante per stabilizzarlo",
+                style = MaterialTheme.typography.bodyLarge,
+                color = TestoAttenuato
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            AnelloNodiBonus(
+                camera = camera,
+                indiceSelezionato = indiceSelezionato,
+                esito = esito,
+                abilitato = esito == Esito.NESSUNO,
+                onTocca = onTocca,
+                modifier = Modifier.size(320.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AnelloNodiBonus(
+    camera: Camera,
+    indiceSelezionato: Int?,
+    esito: Esito,
+    abilitato: Boolean,
+    onTocca: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scalaTransizione = remember { Animatable(1f) }
+    LaunchedEffect(camera, esito) {
+        when (esito) {
+            Esito.RISOLTO -> {
+                scalaTransizione.animateTo(1.3f, tween(280))
+                scalaTransizione.snapTo(1f)
+            }
+            Esito.ROTTURA -> {
+                scalaTransizione.animateTo(0.9f, tween(110))
+                scalaTransizione.animateTo(1f, tween(160))
+            }
+            Esito.NESSUNO -> Unit
+        }
+    }
+
+    BoxWithConstraints(
+        modifier = modifier.graphicsLayer(
+            scaleX = scalaTransizione.value,
+            scaleY = scalaTransizione.value
+        ),
+        contentAlignment = Alignment.Center
+    ) {
+        val raggioPx = with(LocalDensity.current) {
+            (minOf(maxWidth, maxHeight) / 2 - 40.dp).toPx().coerceAtLeast(0f)
+        }
+
+        Canvas(modifier = Modifier.size(88.dp)) {
+            drawFractal(camera.nucleo, size.minDimension, Offset(size.width / 2f, size.height / 2f))
+        }
+
+        camera.nodi.forEach { nodo ->
+            val angoloRad = Math.toRadians(nodo.angoloDeg.toDouble() - 90.0)
+            val offsetX = (raggioPx * cos(angoloRad)).toFloat()
+            val offsetY = (raggioPx * sin(angoloRad)).toFloat()
+
+            val bordo = when {
+                esito != Esito.NESSUNO && nodo.indice == camera.indiceDissonante -> Corretto
+                esito == Esito.ROTTURA && nodo.indice == indiceSelezionato -> Sbagliato
+                else -> null
+            }
+
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+                    .size(58.dp)
+                    .clip(CircleShape)
+                    .background(SfondoPannello)
+                    .then(if (bordo != null) Modifier.border(3.dp, bordo, CircleShape) else Modifier)
+                    .clickable(enabled = abilitato) { onTocca(nodo.indice) },
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(5.dp)
+                ) {
+                    drawFractal(nodo.spec, size.minDimension, Offset(size.width / 2f, size.height / 2f))
+                }
+            }
+        }
+    }
+}
