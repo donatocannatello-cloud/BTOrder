@@ -198,7 +198,7 @@ class SoundEngine {
         return if (t < attacco) t / attacco else exp(-3.0 * (t - attacco) / durata)
     }
 
-    private fun inviluppoNota(posizione: Int, durata: Int): Double {
+    private fun inviluppoNota(posizione: Int, durata: Long): Double {
         val attacco = (durata * 0.06).coerceAtLeast(1.0)
         return when {
             posizione < attacco -> posizione / attacco
