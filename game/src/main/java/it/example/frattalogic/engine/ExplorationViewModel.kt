@@ -16,18 +16,30 @@ import kotlin.math.ln
 import kotlin.math.sin
 import kotlin.random.Random
 
-private const val LARGHEZZA_RENDER = 96
-private const val ALTEZZA_RENDER = 160
+// Risoluzione di rendering: si adatta alla dimensione reale dello schermo
+// (vedi impostaRisoluzione) invece di restare fissa — altrimenti l'immagine
+// resta sempre un piccolo bitmap ingrandito, indipendentemente da quanto si
+// scende in profondità. Questi sono solo i valori di default finché la UI
+// non riporta la dimensione reale del canvas, e i limiti di sicurezza.
+private const val LARGHEZZA_RENDER_DEFAULT = 96
+private const val ALTEZZA_RENDER_DEFAULT = 160
+private const val DIVISORE_RISOLUZIONE = 5
+private const val LARGHEZZA_RENDER_MINIMA = 96
+private const val LARGHEZZA_RENDER_MASSIMA = 220
+private const val ALTEZZA_RENDER_MINIMA = 160
+private const val ALTEZZA_RENDER_MASSIMA = 380
+
 private const val VELOCITA_ZOOM_BASE = 0.55f
 private const val VELOCITA_ZOOM_MASSIMA = 1.6f
-private const val DERIVA_LATERALE = 0.12f
+private const val DERIVA_LATERALE = 0.5f
 private const val SEMIAMPIEZZA_INIZIALE = 1.4
 private const val SEMIAMPIEZZA_MINIMA = 1e-13
 private const val LIVELLI_ZOOM_PER_EVENTO_BONUS = 15f
 
 // Inerzia della camera: velocità di discesa e deriva laterale inseguono
-// l'input del joystick invece di seguirlo istantaneamente.
-private const val COSTANTE_INERZIA = 1.8f
+// l'input del joystick invece di seguirlo istantaneamente — ma abbastanza
+// in fretta da restare percepibile come controllo, non solo come deriva.
+private const val COSTANTE_INERZIA = 4.5f
 
 // Respiro idle: un lieve drift laterale sempre presente, anche a joystick
 // fermo, così la camera non è mai perfettamente immobile.
@@ -72,6 +84,9 @@ class ExplorationViewModel : ViewModel() {
     @Volatile private var discesaInput = 0f
     private var cicloAvviato = false
 
+    @Volatile private var larghezzaRender = LARGHEZZA_RENDER_DEFAULT
+    @Volatile private var altezzaRender = ALTEZZA_RENDER_DEFAULT
+
     // Stato dell'inerzia della camera: valori effettivi che inseguono il
     // target impostato dal joystick, più il tempo totale per il respiro idle.
     private var velocitaZoomEffettiva = VELOCITA_ZOOM_BASE
@@ -101,6 +116,20 @@ class ExplorationViewModel : ViewModel() {
     }
 
     fun ferma() = soundEngine.stop()
+
+    /**
+     * Chiamato dalla UI non appena conosce la dimensione reale (in pixel)
+     * del canvas: la risoluzione di rendering si adatta di conseguenza
+     * (entro limiti di sicurezza per le prestazioni), invece di restare
+     * fissa e sempre uguale a qualunque profondità.
+     */
+    fun impostaRisoluzione(larghezzaSchermoPx: Int, altezzaSchermoPx: Int) {
+        if (larghezzaSchermoPx <= 0 || altezzaSchermoPx <= 0) return
+        larghezzaRender = (larghezzaSchermoPx / DIVISORE_RISOLUZIONE)
+            .coerceIn(LARGHEZZA_RENDER_MINIMA, LARGHEZZA_RENDER_MASSIMA)
+        altezzaRender = (altezzaSchermoPx / DIVISORE_RISOLUZIONE)
+            .coerceIn(ALTEZZA_RENDER_MINIMA, ALTEZZA_RENDER_MASSIMA)
+    }
 
     /** Chiamato dal joystick a schermo: x/y in [-1, 1] (sinistra/destra, giù/su). */
     fun impostaSterzo(x: Float, y: Float) {
@@ -135,6 +164,9 @@ class ExplorationViewModel : ViewModel() {
     private fun aggiorna(dt: Float) {
         val corrente = _state.value
         if (corrente.fase == Fase.EVENTO_BONUS) return
+
+        val larghezza = larghezzaRender
+        val altezza = altezzaRender
 
         tempoTotale += dt
 
@@ -195,8 +227,8 @@ class ExplorationViewModel : ViewModel() {
             centroX = nuovoCentroX,
             centroY = nuovoCentroY,
             semiAmpiezza = semiAmpiezzaResa,
-            larghezza = LARGHEZZA_RENDER,
-            altezza = ALTEZZA_RENDER,
+            larghezza = larghezza,
+            altezza = altezza,
             maxIterazioni = maxIterazioni,
             faseColore = faseColore
         )
@@ -229,7 +261,10 @@ class ExplorationViewModel : ViewModel() {
         val traguardoRaggiunto = (nuovoLivelloZoom / LIVELLI_ZOOM_PER_EVENTO_BONUS).toInt()
         val traguardoPrecedente = (corrente.livelloZoom / LIVELLI_ZOOM_PER_EVENTO_BONUS).toInt()
         if (traguardoRaggiunto > traguardoPrecedente && !inRisalita) {
-            avviaEventoBonus(corrente, nuovoCentroX, nuovoCentroY, nuovaSemiAmpiezza, nuovoLivelloZoom, risultato.pixel)
+            avviaEventoBonus(
+                corrente, nuovoCentroX, nuovoCentroY, nuovaSemiAmpiezza, nuovoLivelloZoom,
+                risultato.pixel, larghezza, altezza
+            )
             return
         }
 
@@ -239,8 +274,8 @@ class ExplorationViewModel : ViewModel() {
             semiAmpiezza = nuovaSemiAmpiezza,
             livelloZoom = nuovoLivelloZoom,
             pixel = risultato.pixel,
-            larghezzaPixel = LARGHEZZA_RENDER,
-            altezzaPixel = ALTEZZA_RENDER
+            larghezzaPixel = larghezza,
+            altezzaPixel = altezza
         )
     }
 
@@ -250,7 +285,9 @@ class ExplorationViewModel : ViewModel() {
         centroY: Double,
         semiAmpiezza: Double,
         livelloZoom: Float,
-        pixel: IntArray
+        pixel: IntArray,
+        larghezzaPixel: Int,
+        altezzaPixel: Int
     ) {
         _state.value = corrente.copy(
             centroX = centroX,
@@ -258,8 +295,8 @@ class ExplorationViewModel : ViewModel() {
             semiAmpiezza = semiAmpiezza,
             livelloZoom = livelloZoom,
             pixel = pixel,
-            larghezzaPixel = LARGHEZZA_RENDER,
-            altezzaPixel = ALTEZZA_RENDER,
+            larghezzaPixel = larghezzaPixel,
+            altezzaPixel = altezzaPixel,
             fase = Fase.EVENTO_BONUS,
             cameraBonus = DiveEngine.generaCamera(livelloZoom.toInt(), random),
             indiceSelezionatoBonus = null,

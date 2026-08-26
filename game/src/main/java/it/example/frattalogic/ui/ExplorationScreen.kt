@@ -37,6 +37,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -66,6 +67,9 @@ fun ExplorationScreen(viewModel: ExplorationViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .background(SfondoProfondo)
+            .onSizeChanged { dimensione ->
+                viewModel.impostaRisoluzione(dimensione.width, dimensione.height)
+            }
     ) {
         ImmersioneCanvas(stato)
 
