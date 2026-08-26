@@ -16,6 +16,7 @@ object SuoniGioco {
     private var idSuccesso = 0
     private var idErrore = 0
     private var idVittoria = 0
+    private var idNoteRitmo = listOf(0, 0, 0, 0)
     private var inizializzato = false
 
     fun inizializza(context: Context) {
@@ -37,6 +38,12 @@ object SuoniGioco {
         idSuccesso = pool.load(app, R.raw.suono_successo, 1)
         idErrore = pool.load(app, R.raw.suono_errore, 1)
         idVittoria = pool.load(app, R.raw.suono_vittoria, 1)
+        idNoteRitmo = listOf(
+            pool.load(app, R.raw.nota_ritmo_0, 1),
+            pool.load(app, R.raw.nota_ritmo_1, 1),
+            pool.load(app, R.raw.nota_ritmo_2, 1),
+            pool.load(app, R.raw.nota_ritmo_3, 1)
+        )
     }
 
     /** Un tocco/selezione qualunque: piatto scelto, carta girata, tasto premuto, auto selezionata... */
@@ -57,5 +64,10 @@ object SuoniGioco {
     /** Fine livello o fine partita completata con successo. */
     fun vittoria() {
         soundPool?.play(idVittoria, 1f, 1f, 0, 0, 1f)
+    }
+
+    /** La nota musicale di uno dei 4 tasti di Ritmo Mostruoso, in base al suo [indice] (0-3). */
+    fun notaRitmo(indice: Int) {
+        soundPool?.play(idNoteRitmo[indice], 1f, 1f, 0, 0, 1f)
     }
 }

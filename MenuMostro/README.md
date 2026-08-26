@@ -217,7 +217,11 @@ sono dedicati a questo gioco.
 
 Un "Simon Says" con 4 tasti mostruosi colorati (👹👻🧌👽): il gioco mostra una
 sequenza di tasti che si accendono uno alla volta, sempre più lunga, e il
-giocatore deve ripeterla toccando i tasti nello stesso ordine.
+giocatore deve ripeterla toccando i tasti nello stesso ordine. Ogni tasto
+ha una propria nota musicale distinta (un accordo Do-Mi-Sol-Do), invece
+del tocco generico usato dal resto della suite: più evidente e facile da
+riconoscere a orecchio, così la sequenza si può seguire anche solo ad
+occhi chiusi.
 
 A differenza degli altri giochi della suite **non ha livelli fissi**: la
 sequenza si allunga di un passo ogni volta che viene ripetuta tutta giusta,
@@ -331,8 +335,9 @@ secondi), pensato apposta per essere generoso con un bambino di 6/7 anni.
 - **`SuoniGioco.kt`** — oggetto singleton che gestisce un `SoundPool`
   condiviso da tutta la suite, con quattro suoni brevi (`tocco`, `successo`,
   `errore`, `vittoria`) richiamati da ogni gioco ad ogni interazione
-  rilevante; i 4 file `.wav` in `res/raw/` sono toni sintetizzati (nessun
-  asset audio esterno).
+  rilevante, più `notaRitmo(indice)` con le 4 note musicali dei tasti di
+  Ritmo Mostruoso; tutti i file `.wav` in `res/raw/` sono toni sintetizzati
+  (nessun asset audio esterno).
 - **`FoodData.kt`** — dati di Monster Restaurant e Monster Panino: per il
   primo le 6 portate e i loro menù, i 6 livelli di difficoltà; per il
   secondo il banco ingredienti (`elencoIngredientiPanino`) e i suoi 5
@@ -383,6 +388,9 @@ secondi), pensato apposta per essere generoso con un bambino di 6/7 anni.
 - **`res/raw/suono_tocco.wav`, `suono_successo.wav`, `suono_errore.wav`,
   `suono_vittoria.wav`** — i 4 suoni di interazione condivisi da tutta la
   suite, caricati da `SuoniGioco.kt`.
+- **`res/raw/nota_ritmo_0.wav`…`nota_ritmo_3.wav`** — le 4 note musicali
+  (un accordo Do-Mi-Sol-Do) dei tasti di Ritmo Mostruoso, più lunghe e più
+  presenti del `tocco` generico così ogni tasto si riconosce a orecchio.
 
 ## Come compilare
 
