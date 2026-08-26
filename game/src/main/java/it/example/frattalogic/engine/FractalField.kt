@@ -12,6 +12,15 @@ import kotlin.math.sqrt
  */
 object FractalField {
 
+    /**
+     * [pixel] è il fotogramma calcolato, [frazioneEscape] la quota di pixel
+     * che sono "fuggiti" (colorati) invece di restare nell'interno solido
+     * dell'insieme (nero): un valore vicino a 0 significa che la vista è
+     * finita in una zona monocromatica priva di dettaglio — un segnale che
+     * chi guida la discesa può usare per correggere la rotta.
+     */
+    data class RisultatoRender(val pixel: IntArray, val frazioneEscape: Float)
+
     fun renderizza(
         centroX: Double,
         centroY: Double,
@@ -20,19 +29,23 @@ object FractalField {
         altezza: Int,
         maxIterazioni: Int,
         faseColore: Float
-    ): IntArray {
+    ): RisultatoRender {
         val pixel = IntArray(larghezza * altezza)
         val rapportoAltezza = altezza.toDouble() / larghezza.toDouble()
+        var interni = 0
         var indice = 0
         for (py in 0 until altezza) {
             val im0 = centroY + (py.toDouble() / altezza - 0.5) * 2.0 * semiAmpiezza * rapportoAltezza
             for (px in 0 until larghezza) {
                 val re0 = centroX + (px.toDouble() / larghezza - 0.5) * 2.0 * semiAmpiezza
-                pixel[indice] = coloreDelPunto(re0, im0, maxIterazioni, faseColore)
+                val colore = coloreDelPunto(re0, im0, maxIterazioni, faseColore)
+                pixel[indice] = colore
+                if (colore == NERO_INTERNO) interni++
                 indice++
             }
         }
-        return pixel
+        val frazioneEscape = 1f - interni.toFloat() / pixel.size.toFloat()
+        return RisultatoRender(pixel, frazioneEscape)
     }
 
     private fun coloreDelPunto(re0: Double, im0: Double, maxIterazioni: Int, faseColore: Float): Int {

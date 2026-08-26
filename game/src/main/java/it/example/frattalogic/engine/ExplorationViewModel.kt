@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.sin
@@ -37,6 +39,17 @@ private const val AMPIEZZA_RESPIRO_DERIVA = 0.018f
 private const val FREQUENZA_RESPIRO_FOV = 1.3f
 private const val AMPIEZZA_RESPIRO_FOV = 0.035f
 
+// Risalita automatica: se la vista resta troppo a lungo dentro una zona
+// monocromatica (interno solido dell'insieme, senza alcun dettaglio da
+// rivelare — e da cui lo sterzo non basta più a uscire, perché la sua
+// sensibilità si restringe proporzionalmente allo zoom), la discesa si
+// inverte da sola finché non riappare dettaglio a sufficienza.
+private const val SOGLIA_ZONA_VUOTA = 0.02f
+private const val SOGLIA_TEMPO_VUOTO = 0.6f
+private const val SOGLIA_USCITA_RISALITA = 0.12f
+private const val VELOCITA_RISALITA = 1.3f
+private const val VELOCITA_FUGA_LATERALE = 0.9f
+
 /**
  * Guida un'immersione continua nel mare frattale: lo sterzo a schermo
  * imposta la velocità di discesa (zoom verso l'interno, asse principale) e
@@ -64,6 +77,11 @@ class ExplorationViewModel : ViewModel() {
     private var velocitaZoomEffettiva = VELOCITA_ZOOM_BASE
     private var derivaEffettiva = 0f
     private var tempoTotale = 0f
+
+    // Stato della risalita automatica dalle zone monocromatiche.
+    private var tempoInZonaVuota = 0f
+    private var inRisalita = false
+    private var angoloFuga = 0f
 
     fun avvia() {
         soundEngine.start()
@@ -134,11 +152,30 @@ class ExplorationViewModel : ViewModel() {
         // effettiva, presente anche a joystick fermo.
         val derivaRespiro = AMPIEZZA_RESPIRO_DERIVA * sin(tempoTotale * FREQUENZA_RESPIRO_DERIVA)
 
-        val fattoreZoom = exp(-velocitaZoomEffettiva * dt)
-        val nuovaSemiAmpiezza = (corrente.semiAmpiezza * fattoreZoom).coerceAtLeast(SEMIAMPIEZZA_MINIMA)
+        // Durante la risalita automatica la velocità di zoom viene invertita
+        // (si esce, non si scende) indipendentemente dall'input del joystick.
+        val velocitaZoomApplicata = if (inRisalita) -VELOCITA_RISALITA else velocitaZoomEffettiva
+        val fattoreZoom = exp(-velocitaZoomApplicata * dt)
+        val nuovaSemiAmpiezza = (corrente.semiAmpiezza * fattoreZoom)
+            .coerceIn(SEMIAMPIEZZA_MINIMA, SEMIAMPIEZZA_INIZIALE)
 
-        val derivaX = (derivaEffettiva + derivaRespiro) * corrente.semiAmpiezza * dt
+        // In risalita si aggiunge anche una spinta laterale decisa, in una
+        // direzione scelta una sola volta all'inizio dell'episodio, per non
+        // riemergere esattamente nello stesso punto vuoto da cui si è entrati.
+        val perturbazioneX = if (inRisalita) {
+            cos(angoloFuga) * corrente.semiAmpiezza * VELOCITA_FUGA_LATERALE * dt
+        } else {
+            0.0
+        }
+        val perturbazioneY = if (inRisalita) {
+            sin(angoloFuga) * corrente.semiAmpiezza * VELOCITA_FUGA_LATERALE * dt
+        } else {
+            0.0
+        }
+
+        val derivaX = (derivaEffettiva + derivaRespiro) * corrente.semiAmpiezza * dt + perturbazioneX
         val nuovoCentroX = corrente.centroX + derivaX
+        val nuovoCentroY = corrente.centroY + perturbazioneY
 
         val nuovoLivelloZoom = (-ln(nuovaSemiAmpiezza / SEMIAMPIEZZA_INIZIALE) / ln(2.0))
             .toFloat()
@@ -154,9 +191,9 @@ class ExplorationViewModel : ViewModel() {
             (velocitaZoomEffettiva / VELOCITA_ZOOM_MASSIMA).coerceIn(0f, 1f)
         val semiAmpiezzaResa = nuovaSemiAmpiezza * respiroFov
 
-        val pixel = FractalField.renderizza(
+        val risultato = FractalField.renderizza(
             centroX = nuovoCentroX,
-            centroY = corrente.centroY,
+            centroY = nuovoCentroY,
             semiAmpiezza = semiAmpiezzaResa,
             larghezza = LARGHEZZA_RENDER,
             altezza = ALTEZZA_RENDER,
@@ -164,20 +201,44 @@ class ExplorationViewModel : ViewModel() {
             faseColore = faseColore
         )
 
+        // Rileva le zone monocromatiche (interno solido, senza dettaglio) e,
+        // se durano troppo, inverte automaticamente la rotta finché non
+        // riappare dettaglio a sufficienza: senza questa correzione, una
+        // volta dentro non c'è più nulla da fare (nemmeno lo sterzo basta,
+        // perché la sua sensibilità si restringe con lo zoom).
+        if (risultato.frazioneEscape < SOGLIA_ZONA_VUOTA) {
+            tempoInZonaVuota += dt
+        } else {
+            tempoInZonaVuota = 0f
+        }
+        val nuovoInRisalita = when {
+            inRisalita && risultato.frazioneEscape > SOGLIA_USCITA_RISALITA -> false
+            !inRisalita && tempoInZonaVuota > SOGLIA_TEMPO_VUOTO -> true
+            else -> inRisalita
+        }
+        if (nuovoInRisalita && !inRisalita) {
+            angoloFuga = random.nextFloat() * (2f * PI.toFloat())
+            soundEngine.onRottura()
+        } else if (!nuovoInRisalita && inRisalita) {
+            soundEngine.onRisolto(nuovoLivelloZoom.toInt())
+        }
+        inRisalita = nuovoInRisalita
+
         soundEngine.aggiornaProfondita(nuovoLivelloZoom.toInt())
 
         val traguardoRaggiunto = (nuovoLivelloZoom / LIVELLI_ZOOM_PER_EVENTO_BONUS).toInt()
         val traguardoPrecedente = (corrente.livelloZoom / LIVELLI_ZOOM_PER_EVENTO_BONUS).toInt()
-        if (traguardoRaggiunto > traguardoPrecedente) {
-            avviaEventoBonus(corrente, nuovoCentroX, nuovaSemiAmpiezza, nuovoLivelloZoom, pixel)
+        if (traguardoRaggiunto > traguardoPrecedente && !inRisalita) {
+            avviaEventoBonus(corrente, nuovoCentroX, nuovoCentroY, nuovaSemiAmpiezza, nuovoLivelloZoom, risultato.pixel)
             return
         }
 
         _state.value = corrente.copy(
             centroX = nuovoCentroX,
+            centroY = nuovoCentroY,
             semiAmpiezza = nuovaSemiAmpiezza,
             livelloZoom = nuovoLivelloZoom,
-            pixel = pixel,
+            pixel = risultato.pixel,
             larghezzaPixel = LARGHEZZA_RENDER,
             altezzaPixel = ALTEZZA_RENDER
         )
@@ -186,12 +247,14 @@ class ExplorationViewModel : ViewModel() {
     private fun avviaEventoBonus(
         corrente: ImmersioneState,
         centroX: Double,
+        centroY: Double,
         semiAmpiezza: Double,
         livelloZoom: Float,
         pixel: IntArray
     ) {
         _state.value = corrente.copy(
             centroX = centroX,
+            centroY = centroY,
             semiAmpiezza = semiAmpiezza,
             livelloZoom = livelloZoom,
             pixel = pixel,
