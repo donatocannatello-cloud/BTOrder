@@ -11,16 +11,31 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.math.exp
 import kotlin.math.ln
+import kotlin.math.sin
 import kotlin.random.Random
 
 private const val LARGHEZZA_RENDER = 96
 private const val ALTEZZA_RENDER = 160
 private const val VELOCITA_ZOOM_BASE = 0.55f
 private const val VELOCITA_ZOOM_MASSIMA = 1.6f
-private const val DERIVA_LATERALE = 0.12
+private const val DERIVA_LATERALE = 0.12f
 private const val SEMIAMPIEZZA_INIZIALE = 1.4
 private const val SEMIAMPIEZZA_MINIMA = 1e-13
 private const val LIVELLI_ZOOM_PER_EVENTO_BONUS = 15f
+
+// Inerzia della camera: velocità di discesa e deriva laterale inseguono
+// l'input del joystick invece di seguirlo istantaneamente.
+private const val COSTANTE_INERZIA = 1.8f
+
+// Respiro idle: un lieve drift laterale sempre presente, anche a joystick
+// fermo, così la camera non è mai perfettamente immobile.
+private const val FREQUENZA_RESPIRO_DERIVA = 0.8f
+private const val AMPIEZZA_RESPIRO_DERIVA = 0.018f
+
+// "FOV" che respira con la velocità: variazione puramente visiva della
+// finestra inquadrata (non della vera traiettoria di discesa).
+private const val FREQUENZA_RESPIRO_FOV = 1.3f
+private const val AMPIEZZA_RESPIRO_FOV = 0.035f
 
 /**
  * Guida un'immersione continua nel mare frattale: lo sterzo a schermo
@@ -43,6 +58,12 @@ class ExplorationViewModel : ViewModel() {
     @Volatile private var derivaInput = 0f
     @Volatile private var discesaInput = 0f
     private var cicloAvviato = false
+
+    // Stato dell'inerzia della camera: valori effettivi che inseguono il
+    // target impostato dal joystick, più il tempo totale per il respiro idle.
+    private var velocitaZoomEffettiva = VELOCITA_ZOOM_BASE
+    private var derivaEffettiva = 0f
+    private var tempoTotale = 0f
 
     fun avvia() {
         soundEngine.start()
@@ -97,12 +118,26 @@ class ExplorationViewModel : ViewModel() {
         val corrente = _state.value
         if (corrente.fase == Fase.EVENTO_BONUS) return
 
-        val velocitaZoom = VELOCITA_ZOOM_BASE + (VELOCITA_ZOOM_MASSIMA - VELOCITA_ZOOM_BASE) *
+        tempoTotale += dt
+
+        val velocitaZoomTarget = VELOCITA_ZOOM_BASE + (VELOCITA_ZOOM_MASSIMA - VELOCITA_ZOOM_BASE) *
             ((discesaInput + 1f) / 2f)
-        val fattoreZoom = exp(-velocitaZoom * dt)
+        val derivaTarget = derivaInput * DERIVA_LATERALE
+
+        // Inerzia: la velocità e la deriva effettive inseguono il target con
+        // uno smorzamento esponenziale, mai un salto istantaneo.
+        val fattoreInerzia = 1f - exp(-COSTANTE_INERZIA * dt)
+        velocitaZoomEffettiva += (velocitaZoomTarget - velocitaZoomEffettiva) * fattoreInerzia
+        derivaEffettiva += (derivaTarget - derivaEffettiva) * fattoreInerzia
+
+        // Respiro idle: un lieve drift continuo che si somma alla deriva
+        // effettiva, presente anche a joystick fermo.
+        val derivaRespiro = AMPIEZZA_RESPIRO_DERIVA * sin(tempoTotale * FREQUENZA_RESPIRO_DERIVA)
+
+        val fattoreZoom = exp(-velocitaZoomEffettiva * dt)
         val nuovaSemiAmpiezza = (corrente.semiAmpiezza * fattoreZoom).coerceAtLeast(SEMIAMPIEZZA_MINIMA)
 
-        val derivaX = derivaInput * DERIVA_LATERALE * corrente.semiAmpiezza * dt
+        val derivaX = (derivaEffettiva + derivaRespiro) * corrente.semiAmpiezza * dt
         val nuovoCentroX = corrente.centroX + derivaX
 
         val nuovoLivelloZoom = (-ln(nuovaSemiAmpiezza / SEMIAMPIEZZA_INIZIALE) / ln(2.0))
@@ -111,10 +146,18 @@ class ExplorationViewModel : ViewModel() {
         val maxIterazioni = (60 + nuovoLivelloZoom * 4f).toInt().coerceAtMost(400)
         val faseColore = (nuovoLivelloZoom * 14f) % 360f
 
+        // "FOV" che respira con la velocità: variazione puramente visiva
+        // della finestra inquadrata (nuovaSemiAmpiezza, quella "vera" che
+        // guida profondità/audio/traguardi, resta pulita da questo effetto).
+        val respiroFov = 1f + AMPIEZZA_RESPIRO_FOV *
+            sin(tempoTotale * FREQUENZA_RESPIRO_FOV) *
+            (velocitaZoomEffettiva / VELOCITA_ZOOM_MASSIMA).coerceIn(0f, 1f)
+        val semiAmpiezzaResa = nuovaSemiAmpiezza * respiroFov
+
         val pixel = FractalField.renderizza(
             centroX = nuovoCentroX,
             centroY = corrente.centroY,
-            semiAmpiezza = nuovaSemiAmpiezza,
+            semiAmpiezza = semiAmpiezzaResa,
             larghezza = LARGHEZZA_RENDER,
             altezza = ALTEZZA_RENDER,
             maxIterazioni = maxIterazioni,
