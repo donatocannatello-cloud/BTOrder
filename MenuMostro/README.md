@@ -4,13 +4,17 @@ App Android (Kotlin + Jetpack Compose) pensata per bambini di 6/7 anni: è
 una **suite di giochi**. All'avvio si apre una home ("Free Bimbo Games") da
 cui si sceglie a quale gioco giocare: **Monster Restaurant**, **Monster
 Panino**, **Monster Parking**, **Memory dei Mostri**, **Vesti il Mostro**,
-**Ritmo Mostruoso** e **Spara ai Mostri**. Tutti i testi sono in MAIUSCOLO
-e con parole semplici,
+**Ritmo Mostruoso**, **Spara ai Mostri** e **Il Mostro Cerca**. Tutti i
+testi sono in MAIUSCOLO e con parole semplici,
 pensati per essere letti da bambini che stanno imparando a leggere. Ogni
 schermata di ogni gioco — non solo la home, ma anche partita in corso e
 fine partita — ha una freccia ⬅️ in alto a sinistra che torna subito alla
 home "Free Bimbo Games": si può sempre uscire da un minigioco senza dover
-prima finire la manche o il livello.
+prima finire la manche o il livello. Ogni tocco, risposta giusta/sbagliata
+e fine livello ha anche un piccolo suono di riscontro (un tocco secco per
+le selezioni, un arpeggio per i successi, un suono morbido per gli errori,
+una fanfara per fine livello/partita), per dare un feedback immediato
+anche a chi non legge ancora bene.
 
 ## Monster Restaurant
 
@@ -260,20 +264,61 @@ sale.
    alto raggiunto in questa sessione; si può riprovare subito con
    "Riprova".
 
+## Il Mostro Cerca
+
+Un gioco di osservazione: la griglia si riempie di icone tutte uguali
+tranne una, il "bersaglio" mostrato in alto, da trovare toccandolo prima
+che scada il tempo. Come Memory e Monster Parking ha **livelli fissi**: la
+griglia cresce di livello in livello, da 3×3 a 8×8, e ogni livello richiede
+di trovare il bersaglio **4 volte di seguito** (ogni volta con una griglia
+nuova). Il tempo a disposizione cresce insieme alla griglia (da 14 a 24
+secondi), pensato apposta per essere generoso con un bambino di 6/7 anni.
+
+**6 livelli sequenziali**, con griglia via via più grande:
+
+| Livello | Griglia |
+| --- | --- |
+| 1 | 3×3 |
+| 2 | 4×4 |
+| 3 | 5×5 |
+| 4 | 6×6 |
+| 5 | 7×7 |
+| 6 | 8×8 |
+
+### Come si gioca
+
+1. Dalla home si tocca **"Il Mostro Cerca"**, poi **"Gioca!"**.
+2. In alto è indicata l'icona da trovare (es. "Trova: 👻") insieme al tempo
+   rimanente in secondi.
+3. Si tocca l'icona giusta tra tutte le altre: se è quella giusta si sente
+   un suono di successo, altrimenti un suono morbido di errore (ma si può
+   riprovare subito, il tocco sbagliato non fa perdere la ricerca).
+4. Se il tempo scade prima di trovarla, il bersaglio viene rivelato con un
+   bordo colorato prima di passare alla ricerca successiva.
+5. Dopo 4 ricerche superate si passa automaticamente al livello successivo
+   (griglia più grande). Dopo il livello 6 si può ricominciare con "Nuova
+   partita".
+
 ## File principali
 
 - **`MainActivity.kt`** — contiene la suite (`AppSuite`, `SchermataHub`,
-  l'enum `Gioco` e l'elenco `elencoGiochi` dei 7 giochi disponibili),
+  l'enum `Gioco` e l'elenco `elencoGiochi` degli 8 giochi disponibili),
   l'estensione `String.maiuscolo()` e il composable `BottoneTornaAiGiochi`
   (la freccia ⬅️ per uscire, riusata da ogni schermata di ogni gioco)
   condivisi da tutta la suite, e tutte le schermate Compose di Monster
   Restaurant e Monster Panino (questi due giochi condividono `Piatto`,
   `Commensale`, `RichiestaMostro`, `CartaRichiesta`, `CartaPiattoMenu`,
   `RisultatoOverlay`, riusati anche da Vesti il Mostro, quindi restano
-  pubblici qui). Un gioco futuro va aggiunto come un nuovo ramo del `when`
+  pubblici qui). Chiama anche `SuoniGioco.inizializza()` all'avvio
+  dell'activity. Un gioco futuro va aggiunto come un nuovo ramo del `when`
   in `AppSuite`; se non condivide meccaniche con i giochi esistenti
   conviene dargli subito un file proprio, come fatto per Monster Parking,
-  Memory, Vesti il Mostro, Ritmo e Spara ai Mostri.
+  Memory, Vesti il Mostro, Ritmo, Spara ai Mostri e Il Mostro Cerca.
+- **`SuoniGioco.kt`** — oggetto singleton che gestisce un `SoundPool`
+  condiviso da tutta la suite, con quattro suoni brevi (`tocco`, `successo`,
+  `errore`, `vittoria`) richiamati da ogni gioco ad ogni interazione
+  rilevante; i 4 file `.wav` in `res/raw/` sono toni sintetizzati (nessun
+  asset audio esterno).
 - **`FoodData.kt`** — dati di Monster Restaurant e Monster Panino: per il
   primo le 6 portate e i loro menù, i 6 livelli di difficoltà; per il
   secondo il banco ingredienti (`elencoIngredientiPanino`) e i suoi 5
@@ -304,6 +349,10 @@ sale.
   (`LaunchedEffect` + `withFrameNanos`, invece delle interazioni a turni
   degli altri giochi), riusa `elencoSimboliMemory` di Memory dei Mostri per
   le emoji dei mostri-palloncino.
+- **`CercaData.kt`** / **`CercaGame.kt`** — dati (`LivelloCerca`,
+  `GrigliaCerca`, generazione della griglia con un solo bersaglio) e
+  schermate Compose de Il Mostro Cerca; riusa anch'esso
+  `elencoSimboliMemory` di Memory dei Mostri come pool di icone.
 - **`ui/theme/`** — tema con palette allegra e colorata fissa, pensata per
   bambini (non segue il tema scuro di sistema), condiviso da tutta la suite.
 - **`res/drawable-nodpi/sfondo_taverna_mostri.png`** — illustrazione usata
@@ -316,6 +365,9 @@ sale.
   come sfondo della schermata iniziale di Monster Parking.
 - **`res/drawable-nodpi/sfondo_memory_mostri.jpg`** — illustrazione usata
   come sfondo della schermata iniziale di Memory dei Mostri.
+- **`res/raw/suono_tocco.wav`, `suono_successo.wav`, `suono_errore.wav`,
+  `suono_vittoria.wav`** — i 4 suoni di interazione condivisi da tutta la
+  suite, caricati da `SuoniGioco.kt`.
 
 ## Come compilare
 
@@ -381,8 +433,8 @@ GitHub Actions, pronto per l'upload manuale su Play Console.
 
 ## Idee per estensioni future
 
-Con Memory dei Mostri, Vesti il Mostro e Ritmo Mostruoso tutte le caselle
-della home sono ora giocabili. Prossime idee non ancora implementate:
+Tutte le caselle della home sono ora giocabili e ogni gioco ha già suoni di
+interazione. Idee non ancora implementate:
 
 - **Conta i Mostri** — mini-gioco di conteggio/matematica per bambini
   piccoli: quanti mostri di un certo tipo compaiono a schermo, si tocca il
@@ -393,6 +445,5 @@ Altre idee per la suite in generale:
 - Salvare la partita in corso (livello e punteggio) per poterla riprendere
   riaprendo l'app, con la home "Free Bimbo Games" che offra "Continua" oltre a
   scegliere un gioco nuovo.
-- Suoni ed effetti sonori quando il commensale mangia.
 - Più richieste e più piatti per portata, per aumentare la varietà.
 - Animazioni di masticazione/coriandoli quando si ottengono 100 punti.

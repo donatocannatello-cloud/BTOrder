@@ -204,6 +204,7 @@ fun SchermataGiocoSpara(onGameOver: (Int) -> Unit, onTornaAiGiochi: () -> Unit) 
                         }
                     }
                     if (mostriColpiti.isNotEmpty()) {
+                        SuoniGioco.successo()
                         punteggio += mostriColpiti.size
                         effetti = effetti + mostri.filter { it.id in mostriColpiti }.map { colpito ->
                             EffettoPop(id = nuovoId(), x = colpito.x, y = colpito.y, scadenzaNanos = tempoNanos + 300_000_000L)
@@ -214,6 +215,7 @@ fun SchermataGiocoSpara(onGameOver: (Int) -> Unit, onTornaAiGiochi: () -> Unit) 
 
                     val sfuggiti = mostri.count { it.y > altezzaPx }
                     if (sfuggiti > 0) {
+                        SuoniGioco.errore()
                         vite = (vite - sfuggiti).coerceAtLeast(0)
                         mostri = mostri.filter { it.y <= altezzaPx }
                     }
@@ -230,6 +232,7 @@ fun SchermataGiocoSpara(onGameOver: (Int) -> Unit, onTornaAiGiochi: () -> Unit) 
                         detectTapGestures { offset ->
                             cannoneX = offset.x.coerceIn(30f, larghezzaPx - 30f)
                             proiettili = proiettili + Proiettile(id = nuovoId(), x = cannoneX, y = altezzaPx - 70f)
+                            SuoniGioco.tocco()
                         }
                     }
             ) {

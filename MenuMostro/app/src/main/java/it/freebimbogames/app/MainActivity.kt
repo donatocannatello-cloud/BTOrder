@@ -30,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +60,7 @@ fun String.maiuscolo(): String = uppercase(Locale.ITALIAN)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        SuoniGioco.inizializza(this)
         setContent {
             MenuMostroTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -69,8 +71,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** I giochi della suite: tutti e sette sono giocabili. */
-enum class Gioco { MOSTRO, PANINO, PARCHEGGIO, MEMORY, VESTITI, RITMO, SPARA }
+/** I giochi della suite: tutti e otto sono giocabili. */
+enum class Gioco { MOSTRO, PANINO, PARCHEGGIO, MEMORY, VESTITI, RITMO, SPARA, CERCA }
 
 private data class VoceGioco(val nome: String, val emoji: String, val gioco: Gioco?)
 
@@ -81,7 +83,8 @@ private val elencoGiochi = listOf(
     VoceGioco("Memory dei Mostri", "🧠👻", Gioco.MEMORY),
     VoceGioco("Vesti il Mostro", "🎨🧌", Gioco.VESTITI),
     VoceGioco("Ritmo Mostruoso", "🎵🐙", Gioco.RITMO),
-    VoceGioco("Spara ai Mostri", "🚀👹", Gioco.SPARA)
+    VoceGioco("Spara ai Mostri", "🚀👹", Gioco.SPARA),
+    VoceGioco("Il Mostro Cerca", "🔍👹", Gioco.CERCA)
 )
 
 /** Schermata iniziale della suite: da qui si sceglie a quale gioco giocare. */
@@ -98,6 +101,7 @@ fun AppSuite() {
         Gioco.VESTITI -> AppVestiti(onTornaAiGiochi = { giocoAttivo = null })
         Gioco.RITMO -> AppRitmo(onTornaAiGiochi = { giocoAttivo = null })
         Gioco.SPARA -> AppSpara(onTornaAiGiochi = { giocoAttivo = null })
+        Gioco.CERCA -> AppCerca(onTornaAiGiochi = { giocoAttivo = null })
     }
 }
 
@@ -126,7 +130,10 @@ fun SchermataHub(onSeleziona: (Gioco) -> Unit) {
                     .padding(vertical = 6.dp)
                     .then(
                         if (disponibile) {
-                            Modifier.clickable { onSeleziona(voce.gioco!!) }
+                            Modifier.clickable {
+                                SuoniGioco.tocco()
+                                onSeleziona(voce.gioco!!)
+                            }
                         } else {
                             Modifier
                         }
@@ -186,7 +193,10 @@ fun BottoneTornaAiGiochi(onClick: () -> Unit, modifier: Modifier = Modifier, sfo
             .size(48.dp)
             .clip(CircleShape)
             .background(sfondo)
-            .clickable(onClick = onClick),
+            .clickable {
+                SuoniGioco.tocco()
+                onClick()
+            },
         contentAlignment = Alignment.Center
     ) {
         Text(text = "⬅️", fontSize = 22.sp)
@@ -505,7 +515,10 @@ fun CartaPiattoMenu(
                     Modifier
                 }
             )
-            .clickable(onClick = onClick),
+            .clickable {
+                SuoniGioco.tocco()
+                onClick()
+            },
         colors = CardDefaults.cardColors(containerColor = colore),
         shape = RoundedCornerShape(16.dp)
     ) {
@@ -543,6 +556,9 @@ fun CartaPiattoMenu(
 
 @Composable
 fun RisultatoOverlay(punteggio: Int, ultimaMancha: Boolean, onContinua: () -> Unit) {
+    LaunchedEffect(punteggio) {
+        if (punteggio >= 67) SuoniGioco.successo() else SuoniGioco.errore()
+    }
     val (emoji, messaggio) = when (punteggio) {
         100 -> "🤩" to "Perfetto! Il mostro è felice!"
         67 -> "😋" to "Bravo! Al mostro piace!"
@@ -597,6 +613,7 @@ fun SchermataFine(
     onNuovaPartita: () -> Unit,
     onTornaAiGiochi: () -> Unit
 ) {
+    LaunchedEffect(Unit) { SuoniGioco.vittoria() }
     val ultimoLivello = livelloCompletato.numero >= elencoLivelli.size
     val puntiMassimiFinora = NUMERO_MANCHE * PUNTEGGIO_MASSIMO_MANCHA * livelloCompletato.numero
     val percentuale = punteggioTotale.toFloat() / puntiMassimiFinora
@@ -945,6 +962,7 @@ fun SchermataFinePanino(
     onNuovaPartita: () -> Unit,
     onTornaAiGiochi: () -> Unit
 ) {
+    LaunchedEffect(Unit) { SuoniGioco.vittoria() }
     val ultimoLivello = livelloCompletato.numero >= elencoLivelliPanino.size
     val puntiMassimiFinora = NUMERO_MANCHE * PUNTEGGIO_MASSIMO_MANCHA * livelloCompletato.numero
     val percentuale = punteggioTotale.toFloat() / puntiMassimiFinora

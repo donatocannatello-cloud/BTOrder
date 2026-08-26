@@ -20,6 +20,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -322,6 +323,7 @@ fun SchermataFineVestiti(
     onNuovaPartita: () -> Unit,
     onTornaAiGiochi: () -> Unit
 ) {
+    LaunchedEffect(Unit) { SuoniGioco.vittoria() }
     val ultimoLivello = livelloCompletato.numero >= elencoLivelliVestiti.size
     val puntiMassimiFinora = NUMERO_MANCHE_VESTITI * 100 * livelloCompletato.numero
 

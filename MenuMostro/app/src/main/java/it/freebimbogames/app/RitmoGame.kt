@@ -140,6 +140,7 @@ fun SchermataGiocoRitmo(onErrore: (Int) -> Unit, onTornaAiGiochi: () -> Unit) {
         delay(500)
         for (id in sequenza) {
             indiceEvidenziato = id
+            SuoniGioco.tocco()
             delay(500)
             indiceEvidenziato = -1
             delay(250)
@@ -151,9 +152,11 @@ fun SchermataGiocoRitmo(onErrore: (Int) -> Unit, onTornaAiGiochi: () -> Unit) {
         if (inMostra) return
         val posizione = inputGiocatore.size
         if (sequenza[posizione] != id) {
+            SuoniGioco.errore()
             onErrore(sequenza.size - 1)
             return
         }
+        SuoniGioco.tocco()
         val nuovoInput = inputGiocatore + id
         inputGiocatore = nuovoInput
         if (nuovoInput.size == sequenza.size) {

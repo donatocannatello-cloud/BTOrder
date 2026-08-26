@@ -162,9 +162,11 @@ fun SchermataGiocoMemory(livello: LivelloMemory, onCompletato: (Int) -> Unit, on
             val prima = mazzo.first { it.id == primoId }
             val seconda = mazzo.first { it.id == secondoId }
             if (prima.emoji == seconda.emoji) {
+                SuoniGioco.successo()
                 mazzo = mazzo.map { if (it.id == primoId || it.id == secondoId) it.copy(abbinata = true) else it }
                 girate = emptyList()
             } else {
+                SuoniGioco.errore()
                 bloccaInput = true
                 delay(900)
                 girate = emptyList()
@@ -182,6 +184,7 @@ fun SchermataGiocoMemory(livello: LivelloMemory, onCompletato: (Int) -> Unit, on
         if (bloccaInput || completato) return
         val carta = mazzo.first { it.id == id }
         if (carta.abbinata || id in girate || girate.size >= 2) return
+        SuoniGioco.tocco()
         girate = girate + id
         if (girate.size == 2) tentativi += 1
     }
@@ -263,6 +266,7 @@ fun SchermataFineMemory(
     onNuovaPartita: () -> Unit,
     onTornaAiGiochi: () -> Unit
 ) {
+    LaunchedEffect(Unit) { SuoniGioco.vittoria() }
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
