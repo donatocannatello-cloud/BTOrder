@@ -116,15 +116,15 @@ macchina normale, o una CI con rete non ristretta).
 
 ## Abisso Frattale
 
-Esplorazione fluida: si naviga con un joystick a schermo in un mare frattale
-generato dinamicamente, scoprendo mondi nuovi (palette e tipo di frattale
-dominante diversi) mano a mano che ci si allontana. Ad ogni cambio di mondo
-scatta un breve evento bonus — trovare l'unico elemento dissonante in un
-anello di figure frattali per stabilizzare l'ingresso nel mondo successivo.
-Grafica interamente vettoriale/frattale disegnata a runtime via Compose
-`Canvas` e una colonna sonora multi-strumento (basso, arpeggio, pad
-armonico, percussione) sintetizzata in tempo reale (nessun asset audio o
-immagine incluso), che si arricchisce di nuovi strumenti mondo dopo mondo.
+Immersione: ci si inabissa senza sosta in un vero insieme di Mandelbrot
+calcolato in tempo reale, denso di colore e dettaglio. La navigazione è
+principalmente verticale — un joystick a schermo regola soprattutto la
+velocità di discesa nello zoom, con una lieve deriva laterale per scegliere
+dove infilarsi — e la colonna sonora multi-strumento (basso, arpeggio, pad
+armonico, percussione) cambia di continuo seguendo la profondità raggiunta,
+non solo a tappe discrete. Ogni tanto la discesa apre un breve evento bonus
+— trovare l'unico elemento dissonante in un anello di figure frattali — che
+punteggia senza interrompere il flusso.
 
 - **Package**: `it.example.frattalogic` · **minSdk**: 26 · **compileSdk**: 34
 - Build locale: `./gradlew :game:assembleRelease`

@@ -1,10 +1,7 @@
 package it.example.frattalogic.ui
 
+import android.graphics.Bitmap
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -35,22 +32,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import it.example.frattalogic.engine.Camera
 import it.example.frattalogic.engine.Esito
-import it.example.frattalogic.engine.ExplorationState
 import it.example.frattalogic.engine.ExplorationViewModel
 import it.example.frattalogic.engine.Fase
-import it.example.frattalogic.engine.Mondo
+import it.example.frattalogic.engine.ImmersioneState
 import it.example.frattalogic.ui.theme.AccentoTeal
 import it.example.frattalogic.ui.theme.Corretto
 import it.example.frattalogic.ui.theme.Sbagliato
@@ -67,16 +62,19 @@ import kotlin.math.sin
 fun ExplorationScreen(viewModel: ExplorationViewModel) {
     val stato by viewModel.state.collectAsState()
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        SfondoMondo(stato.mondo)
-        MondoCanvas(stato)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SfondoProfondo)
+    ) {
+        ImmersioneCanvas(stato)
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(20.dp)
         ) {
-            IntestazioneMondo(stato)
+            IntestazioneImmersione(stato)
             Spacer(modifier = Modifier.weight(1f))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -99,10 +97,27 @@ fun ExplorationScreen(viewModel: ExplorationViewModel) {
 }
 
 @Composable
-private fun IntestazioneMondo(stato: ExplorationState) {
+private fun ImmersioneCanvas(stato: ImmersioneState) {
+    val pixelArray = stato.pixel
+    if (pixelArray == null || stato.larghezzaPixel <= 0 || stato.altezzaPixel <= 0) return
+
+    val immagine = Bitmap
+        .createBitmap(pixelArray, stato.larghezzaPixel, stato.altezzaPixel, Bitmap.Config.ARGB_8888)
+        .asImageBitmap()
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        drawImage(
+            image = immagine,
+            dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt())
+        )
+    }
+}
+
+@Composable
+private fun IntestazioneImmersione(stato: ImmersioneState) {
     Column {
         Text(
-            text = stato.mondo.nome,
+            text = "Immersione",
             style = MaterialTheme.typography.headlineMedium,
             color = AccentoTeal
         )
@@ -113,55 +128,11 @@ private fun IntestazioneMondo(stato: ExplorationState) {
                 color = TestoAttenuato
             )
             Text(
-                text = "Distanza: ${stato.distanzaPercorsa.toInt()}",
+                text = "Profondità: ${stato.livelloZoom.toInt()}",
                 style = MaterialTheme.typography.labelLarge,
                 color = TestoAttenuato
             )
         }
-    }
-}
-
-@Composable
-private fun MondoCanvas(stato: ExplorationState) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val centro = Offset(size.width / 2f, size.height / 2f)
-
-        stato.elementiVisibili.forEach { elemento ->
-            val schermoX = centro.x + (elemento.x - stato.vascello.x)
-            val schermoY = centro.y + (elemento.y - stato.vascello.y)
-            if (schermoX in -100f..size.width + 100f && schermoY in -100f..size.height + 100f) {
-                drawFractal(elemento.spec, 90f * elemento.scala, Offset(schermoX, schermoY))
-            }
-        }
-
-        rotate(degrees = stato.vascello.rotta + 90f, pivot = centro) {
-            val prua = Path().apply {
-                moveTo(centro.x, centro.y - 22f)
-                lineTo(centro.x - 14f, centro.y + 16f)
-                lineTo(centro.x + 14f, centro.y + 16f)
-                close()
-            }
-            drawPath(prua, color = AccentoTeal)
-        }
-    }
-}
-
-@Composable
-private fun SfondoMondo(mondo: Mondo) {
-    val transizione = rememberInfiniteTransition(label = "sfondoMondo")
-    val rotazione by transizione.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(animation = tween(durationMillis = 60000, easing = LinearEasing)),
-        label = "rotazioneSfondoMondo"
-    )
-    Canvas(
-        modifier = Modifier
-            .fillMaxSize()
-            .alpha(0.14f)
-    ) {
-        val spec = FractalSpec(mondo.kindDominante, depth = 4, rotationDeg = rotazione, hue = mondo.hueBase)
-        drawFractal(spec, size.minDimension * 1.3f, Offset(size.width / 2f, size.height / 2f))
     }
 }
 
@@ -222,12 +193,12 @@ private fun EventoBonusOverlay(
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "Il nucleo del nuovo mondo vacilla",
+                text = "La corrente si increspa",
                 style = MaterialTheme.typography.titleMedium,
                 color = TestoChiaro
             )
             Text(
-                text = "Trova l'elemento dissonante per stabilizzarlo",
+                text = "Trova l'elemento dissonante per stabilizzare la discesa",
                 style = MaterialTheme.typography.bodyLarge,
                 color = TestoAttenuato
             )

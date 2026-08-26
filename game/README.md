@@ -1,59 +1,71 @@
 # Abisso Frattale
 
-Esplorazione fluida per Android (Kotlin + Jetpack Compose): si naviga con
-comandi a schermo in un mare frattale generato dinamicamente, scoprendo
-mondi nuovi mano a mano che ci si allontana. Grafica interamente vettoriale
-(nessuna immagine bitmap) e una colonna sonora sintetizzata in tempo reale
-che si arricchisce di strumenti mondo dopo mondo. Il breve enigma "trova la
-dissonanza" delle versioni precedenti resta, come evento bonus ad ogni
-cambio di mondo.
+Immersione per Android (Kotlin + Jetpack Compose): ci si inabissa senza
+sosta in un vero insieme di Mandelbrot, calcolato in tempo reale — denso di
+colore e di dettaglio, mai un'immagine precaricata. La navigazione è
+principalmente verticale: si scende sempre più a fondo nello zoom, con un
+joystick a schermo che regola la velocità di discesa e una lieve deriva
+laterale per scegliere dove infilarsi. La colonna sonora, multi-strumento,
+cambia di continuo seguendo la profondità raggiunta. Ogni tanto, scendendo,
+la corrente "si increspa": un breve enigma — trovare l'unico elemento
+dissonante in un anello di figure frattali — punteggia la discesa senza
+interromperne il flusso.
 
 - **Package**: `it.example.frattalogic`
 - **minSdk**: 26 · **targetSdk / compileSdk**: 34
 
 ## Il gioco
 
-- **Navigazione**: il vascello avanza da solo; il joystick a schermo (in
-  basso a destra) ne imposta rotta (scostamento orizzontale) e velocità
-  (scostamento verticale) in modo continuo — si guida come una barca alla
-  deriva, non con input discreti a turni.
-- **Mondo procedurale**: il paesaggio frattale attorno al vascello
-  (`engine/MondoGenerator.kt`) è generato al volo da un hash deterministico
-  delle coordinate: nessuna mappa precaricata, ma tornando in un punto già
-  visitato si ritrova lo stesso paesaggio.
-- **Nuovi mondi**: superata una certa distanza si entra in un nuovo "mondo"
-  (nome, tipo di frattale dominante e tonalità diversi — una nuova regione
-  da scoprire) e scatta l'**evento bonus**: il nucleo del mondo "vacilla",
-  bisogna toccare tra un anello di figure frattali l'unica dissonante
-  (tonalità, rotazione o profondità di ricorsione alterata) per stabilizzare
-  l'ingresso. Risolverlo dà punti; sbagliare non blocca la partita, si
-  riprende subito a navigare.
+- **Discesa continua**: il livello di zoom nell'insieme di Mandelbrot
+  scende da solo; il joystick a schermo (in basso a destra) ne regola
+  soprattutto la **velocità verticale** (spingere in su per scendere più in
+  fretta) e in misura minore la **deriva laterale** (per curiosare in una
+  direzione piuttosto che un'altra). Non c'è un obiettivo da "vincere": è
+  un'immersione senza fine, sempre più in profondità, sempre diversa.
+- **Un mondo denso e mutevole**: ogni fotogramma è un vero calcolo
+  dell'insieme di Mandelbrot (algoritmo a tempo di fuga, colorazione
+  continua sul numero di iterazioni), a partire da un punto della "valle
+  dei cavallucci marini" sul bordo dell'insieme — una zona nota per la sua
+  ricchezza di dettaglio a qualunque livello di zoom. Il colore stesso
+  ruota lentamente con la profondità, così il paesaggio non si ripete mai
+  davvero.
+- **Evento bonus**: ogni tanti livelli di zoom la discesa apre un breve
+  enigma — un nucleo frattale centrale e un anello di figure attorno, tutte
+  identiche tranne una (tonalità, rotazione o profondità di ricorsione
+  alterata): toccarla dà punti; sbagliare non interrompe la discesa.
 
-## Grafica vettoriale/frattale
+## Grafica: un vero frattale, non un'illustrazione
 
-Tutte le figure (`ui/FractalShapes.kt`) sono disegnate ricorsivamente con
-`Canvas` di Compose — albero frattale, triangolo di Sierpinski, fiocco di
-Koch — parametrizzate da profondità di ricorsione, rotazione e tonalità. Il
-paesaggio che si vede navigando è composto da istanze di queste stesse
-figure, posizionate proceduralmente nel mondo. Non c'è alcuna risorsa
-immagine: tutto è vettoriale e ridisegnato ad ogni frame.
+A differenza delle prime versioni (figure vettoriali disegnate a mano —
+alberi ricorsivi, Sierpinski, Koch, ancora usate per l'evento bonus in
+`ui/FractalShapes.kt`), il paesaggio principale è **l'insieme di Mandelbrot
+vero e proprio**: `engine/FractalField.kt` calcola punto per punto, ad ogni
+fotogramma, se ciascun pixel appartiene all'insieme (tempo di fuga, fino a
+qualche centinaia di iterazioni man mano che si scende) e lo colora con una
+formula di colorazione continua sul numero di iterazioni frazionario, per
+evitare le fasce nette e ottenere invece gradazioni morbide. Il calcolo
+avviene su una griglia ridotta (per restare fluido su telefono) e viene
+scalato per riempire lo schermo — nessuna immagine bitmap inclusa nell'app,
+tutto è calcolato via codice.
 
-## Audio procedurale multi-strumento
+## Audio procedurale multi-strumento, continuo con la profondità
 
 `audio/SoundEngine.kt` non riproduce alcun file audio: sintetizza in tempo
 reale, via `AudioTrack` in modalità streaming, quattro voci che si mescolano
-per somma additiva e si aggiungono una alla volta esplorando mondi nuovi:
+per somma additiva e si aggiungono una alla volta scendendo:
 
 1. **basso** — drone continuo un'ottava sotto la nota fondamentale (sempre
    attivo);
-2. **arpeggio** — onda triangolare che percorre una scala pentatonica minore;
-3. **pad armonico** — accordo sostenuto di tre seni;
+2. **arpeggio** — onda triangolare che percorre una scala pentatonica minore
+   (dalla profondità 2 in su);
+3. **pad armonico** — accordo sostenuto di tre seni (dalla profondità 4);
 4. **percussione** — un breve impulso di rumore filtrato ad ogni nota
-   dell'arpeggio.
+   dell'arpeggio (dalla profondità 6).
 
-La nota fondamentale scende lentamente mondo dopo mondo. Risolvere l'evento
-bonus fa suonare un breve accordo consonante; sbagliare fa suonare un
-cluster dissonante. Tutto generato via codice, nessun file audio incluso.
+La nota fondamentale e il tempo dell'arpeggio seguono il livello di zoom
+**ad ogni fotogramma**, non solo a soglie discrete: la musica cambia
+davvero mentre si naviga. Risolvere l'evento bonus fa suonare un breve
+accordo consonante; sbagliare fa suonare un cluster dissonante.
 
 ## Come compilare in locale
 
@@ -116,6 +128,17 @@ build va verificata con accesso reale al Google Maven repository — cosa che
 avviene automaticamente nei workflow di GitHub Actions sopra descritti, che
 girano su runner con rete non ristretta.
 
+### Nota sulla precisione numerica dello zoom
+
+Lo zoom usa numeri in doppia precisione (`Double`, ~15-17 cifre
+significative): è il limite pratico di qualunque semplice "zoomer" di
+Mandelbrot senza aritmetica a precisione arbitraria. Dopo una discesa molto
+lunga (ordine dei minuti a velocità sostenuta) il dettaglio comincia a
+sgranarsi per esaurimento di precisione: è un limite noto e accettato, non
+un bug — implementare l'aritmetica a precisione arbitraria (`BigDecimal` o
+simili) per il calcolo per-pixel in tempo reale non sarebbe praticabile su
+telefono.
+
 ## Struttura del codice
 
 ```
@@ -123,13 +146,13 @@ game/src/main/java/it/example/frattalogic/
 ├── MainActivity.kt              punto di ingresso, avvia/ferma audio e loop col ciclo di vita
 ├── audio/SoundEngine.kt         sintesi multi-strumento in tempo reale (AudioTrack)
 ├── engine/
-│   ├── ExplorationModels.kt     modelli dati della navigazione (vascello, mondo, elementi)
-│   ├── MondoGenerator.kt        genera il paesaggio frattale in modo procedurale/deterministico
-│   ├── ExplorationViewModel.kt  loop di gioco, sterzo, transizioni di mondo, evento bonus
+│   ├── FractalField.kt          calcola l'insieme di Mandelbrot (tempo di fuga + colorazione continua)
+│   ├── ImmersioneModels.kt      stato della discesa (finestra sul piano complesso, fotogramma, fase)
+│   ├── ExplorationViewModel.kt  loop di discesa, sterzo, soglie di profondità, evento bonus
 │   ├── DiveModels.kt            modelli dell'evento bonus (nucleo + anello di nodi)
 │   └── DiveEngine.kt            genera ogni evento bonus e dosa la dissonanza
 └── ui/
-    ├── FractalShapes.kt         disegno ricorsivo delle figure frattali
-    ├── ExplorationScreen.kt     canvas di navigazione, joystick, overlay dell'evento bonus
+    ├── FractalShapes.kt         disegno ricorsivo delle figure frattali (usato dall'evento bonus)
+    ├── ExplorationScreen.kt     canvas della discesa, joystick, overlay dell'evento bonus
     └── theme/                   palette colori e tipografia
 ```
