@@ -245,11 +245,21 @@ che scendono dal cielo, come un classico tiro a segno. Si tocca lo schermo
 per muovere il razzo nel punto toccato e sparare una stellina in un solo
 gesto — nessun controllo separato da imparare.
 
-Come Ritmo Mostruoso **non ha livelli fissi**: è una partita continua che
-finisce quando si perdono tutte e 3 le vite (un mostro che arriva in fondo
-senza essere colpito ne toglie una), con la velocità di caduta dei mostri
-e la frequenza con cui compaiono che aumentano man mano che il punteggio
-sale.
+Come Ritmo Mostruoso **non ha livelli fissi**, ma la sfida cresce in 4
+fasi via via che il punteggio sale (mostrate in alto come "Livello 1-4"):
+velocità di caduta e frequenza dei mostri aumentano di continuo, e a certe
+soglie di punteggio compaiono elementi nuovi:
+
+| Livello | Punteggio | Cosa cambia |
+| --- | --- | --- |
+| 1 | 0-7 | Solo i classici mostri-palloncino da far scoppiare. |
+| 2 | 8-15 | Compaiono anche amici travestiti da mostro (😇🐰🦋🐣👼): **non vanno colpiti**, o si perde una vita. |
+| 3 | 16-29 | Compare anche un mostro speciale 🌟: colpirlo **raddoppia i punti** per qualche secondo. |
+| 4 | 30+ | Tutto insieme, ancora più veloce e frequente. |
+
+Gli amici travestiti che non vengono colpiti e arrivano in fondo allo
+schermo non tolgono vite: l'unico modo di perderne una è colpirli per
+sbaglio, oppure lasciar scappare un vero mostro.
 
 ### Come si gioca
 
@@ -258,9 +268,13 @@ sale.
    spara subito una stellina ⭐ verso l'alto.
 3. Ogni mostro colpito da una stellina scoppia (✨) e vale un punto; i cuori
    ❤️ in alto mostrano quante vite restano.
-4. Un mostro non colpito che arriva in fondo allo schermo toglie una vita e
-   sparisce.
-5. Quando le vite finiscono si vede il punteggio finale e il record più
+4. Attenzione agli amici travestiti (😇🐰🦋): colpirli per sbaglio (💥) fa
+   perdere una vita invece di fare punti. Il mostro speciale 🌟, se
+   colpito, attiva per qualche secondo un moltiplicatore "🌟x2" che
+   raddoppia i punti dei mostri veri colpiti.
+5. Un vero mostro non colpito che arriva in fondo allo schermo toglie una
+   vita e sparisce (gli amici travestiti no).
+6. Quando le vite finiscono si vede il punteggio finale e il record più
    alto raggiunto in questa sessione; si può riprovare subito con
    "Riprova".
 
@@ -343,12 +357,13 @@ secondi), pensato apposta per essere generoso con un bambino di 6/7 anni.
 - **`RitmoData.kt`** / **`RitmoGame.kt`** — dati (`TastoRitmo`) e schermate
   Compose di Ritmo Mostruoso, senza una lista di livelli fissi (la sequenza
   cresce finché non si sbaglia).
-- **`SparaData.kt`** / **`SparaGame.kt`** — dati (`MostroVolante`,
-  `Proiettile`, generazione dei mostri) e schermate Compose di Spara ai
-  Mostri; l'unico gioco della suite con un loop grafico in tempo reale
-  (`LaunchedEffect` + `withFrameNanos`, invece delle interazioni a turni
-  degli altri giochi), riusa `elencoSimboliMemory` di Memory dei Mostri per
-  le emoji dei mostri-palloncino.
+- **`SparaData.kt`** / **`SparaGame.kt`** — dati (`MostroVolante` con il suo
+  `TipoMostro` — normale, da evitare o moltiplicatore —, `Proiettile`,
+  generazione dei mostri e delle 4 fasi di difficoltà via `livelloSpara`) e
+  schermate Compose di Spara ai Mostri; l'unico gioco della suite con un
+  loop grafico in tempo reale (`LaunchedEffect` + `withFrameNanos`, invece
+  delle interazioni a turni degli altri giochi), riusa `elencoSimboliMemory`
+  di Memory dei Mostri per le emoji dei mostri-palloncino veri.
 - **`CercaData.kt`** / **`CercaGame.kt`** — dati (`LivelloCerca`,
   `GrigliaCerca`, generazione della griglia con un solo bersaglio) e
   schermate Compose de Il Mostro Cerca; riusa anch'esso

@@ -46,6 +46,7 @@ import kotlin.math.roundToInt
 // ---------------------------------------------------------------------------------
 
 private const val VITE_INIZIALI = 3
+private const val MOLTIPLICATORE_DURATA_NANOS = 6_000_000_000L
 
 private enum class SchermataSpara { HOME, GIOCO, FINE }
 
@@ -113,6 +114,12 @@ fun SchermataHomeSpara(record: Int, onGioca: () -> Unit, onTornaAiGiochi: () -> 
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center
             )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Attenzione: alcuni sono amici travestiti (😇🐰🦋)! Non colpirli, o perdi una vita. Il mostro speciale 🌟 raddoppia i punti per qualche secondo!".maiuscolo(),
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
             if (record > 0) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(text = "Record: $record".maiuscolo(), style = MaterialTheme.typography.titleLarge)
@@ -137,6 +144,8 @@ fun SchermataGiocoSpara(onGameOver: (Int) -> Unit, onTornaAiGiochi: () -> Unit) 
     var punteggio by remember { mutableStateOf(0) }
     var vite by remember { mutableStateOf(VITE_INIZIALI) }
     var prossimoId by remember { mutableStateOf(0) }
+    var moltiplicatoreScadenzaNanos by remember { mutableStateOf(0L) }
+    var moltiplicatoreSecondi by remember { mutableStateOf(0) }
 
     fun nuovoId(): Int {
         prossimoId += 1
@@ -156,10 +165,15 @@ fun SchermataGiocoSpara(onGameOver: (Int) -> Unit, onTornaAiGiochi: () -> Unit) 
             verticalAlignment = Alignment.CenterVertically
         ) {
             BottoneTornaAiGiochi(onClick = onTornaAiGiochi)
+            Text(text = "Livello ${livelloSpara(punteggio)}".maiuscolo(), style = MaterialTheme.typography.titleMedium)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(text = "⭐ $punteggio".maiuscolo(), style = MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(text = "❤️".repeat(vite))
+                if (moltiplicatoreSecondi > 0) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "🌟x2".maiuscolo(), style = MaterialTheme.typography.titleMedium)
+                }
             }
         }
 
@@ -181,9 +195,16 @@ fun SchermataGiocoSpara(onGameOver: (Int) -> Unit, onTornaAiGiochi: () -> Unit) 
                     ultimoTempoNanos = tempoNanos
                     val tempoMillis = tempoNanos / 1_000_000L
 
+                    moltiplicatoreSecondi = if (moltiplicatoreScadenzaNanos > tempoNanos) {
+                        ((moltiplicatoreScadenzaNanos - tempoNanos) / 1_000_000_000L + 1).toInt()
+                    } else {
+                        0
+                    }
+
                     if (tempoMillis - ultimoSpawnMillis > intervalloSpawnMillis(punteggio)) {
                         ultimoSpawnMillis = tempoMillis
-                        generaMostro(nuovoId(), larghezzaPx, punteggio, mostri.size)?.let { nuovo ->
+                        val esisteMoltiplicatoreInVolo = mostri.any { it.tipo == TipoMostro.MOLTIPLICATORE }
+                        generaMostro(nuovoId(), larghezzaPx, punteggio, mostri.size, esisteMoltiplicatoreInVolo)?.let { nuovo ->
                             mostri = mostri + nuovo
                         }
                     }
@@ -193,30 +214,57 @@ fun SchermataGiocoSpara(onGameOver: (Int) -> Unit, onTornaAiGiochi: () -> Unit) 
                         .filter { it.y > -40f }
                     mostri = mostri.map { it.copy(y = it.y + it.velocitaY * deltaSecondi) }
 
-                    val mostriColpiti = mutableSetOf<Int>()
+                    val idColpiti = mutableSetOf<Int>()
                     val proiettiliUsati = mutableSetOf<Int>()
                     for (p in proiettili) {
                         for (m in mostri) {
-                            if (m.id !in mostriColpiti && p.id !in proiettiliUsati && colpisce(p.x, p.y, m.x, m.y)) {
-                                mostriColpiti += m.id
+                            if (m.id !in idColpiti && p.id !in proiettiliUsati && colpisce(p.x, p.y, m.x, m.y)) {
+                                idColpiti += m.id
                                 proiettiliUsati += p.id
                             }
                         }
                     }
-                    if (mostriColpiti.isNotEmpty()) {
-                        SuoniGioco.successo()
-                        punteggio += mostriColpiti.size
-                        effetti = effetti + mostri.filter { it.id in mostriColpiti }.map { colpito ->
-                            EffettoPop(id = nuovoId(), x = colpito.x, y = colpito.y, scadenzaNanos = tempoNanos + 300_000_000L)
+                    if (idColpiti.isNotEmpty()) {
+                        val colpiti = mostri.filter { it.id in idColpiti }
+                        val normaliColpiti = colpiti.count { it.tipo == TipoMostro.NORMALE }
+                        val evitaColpiti = colpiti.count { it.tipo == TipoMostro.EVITA }
+                        val moltiplicatoreColpito = colpiti.any { it.tipo == TipoMostro.MOLTIPLICATORE }
+                        val moltiplicatoreAttivo = moltiplicatoreScadenzaNanos > tempoNanos
+
+                        if (normaliColpiti > 0) {
+                            SuoniGioco.successo()
+                            punteggio += normaliColpiti * (if (moltiplicatoreAttivo) 2 else 1)
                         }
-                        mostri = mostri.filter { it.id !in mostriColpiti }
+                        if (evitaColpiti > 0) {
+                            SuoniGioco.errore()
+                            vite = (vite - evitaColpiti).coerceAtLeast(0)
+                        }
+                        if (moltiplicatoreColpito) {
+                            SuoniGioco.vittoria()
+                            moltiplicatoreScadenzaNanos = tempoNanos + MOLTIPLICATORE_DURATA_NANOS
+                        }
+
+                        effetti = effetti + colpiti.map { colpito ->
+                            val emojiEffetto = if (colpito.tipo == TipoMostro.EVITA) "💥" else "✨"
+                            EffettoPop(
+                                id = nuovoId(),
+                                x = colpito.x,
+                                y = colpito.y,
+                                emoji = emojiEffetto,
+                                scadenzaNanos = tempoNanos + 300_000_000L
+                            )
+                        }
+                        mostri = mostri.filter { it.id !in idColpiti }
                         proiettili = proiettili.filter { it.id !in proiettiliUsati }
                     }
 
-                    val sfuggiti = mostri.count { it.y > altezzaPx }
-                    if (sfuggiti > 0) {
-                        SuoniGioco.errore()
-                        vite = (vite - sfuggiti).coerceAtLeast(0)
+                    val fuoriSchermo = mostri.filter { it.y > altezzaPx }
+                    if (fuoriSchermo.isNotEmpty()) {
+                        val daPenalizzare = fuoriSchermo.count { it.tipo != TipoMostro.EVITA }
+                        if (daPenalizzare > 0) {
+                            SuoniGioco.errore()
+                            vite = (vite - daPenalizzare).coerceAtLeast(0)
+                        }
                         mostri = mostri.filter { it.y <= altezzaPx }
                     }
 
@@ -252,7 +300,7 @@ fun SchermataGiocoSpara(onGameOver: (Int) -> Unit, onTornaAiGiochi: () -> Unit) 
                 }
                 effetti.forEach { e ->
                     Text(
-                        text = "✨",
+                        text = e.emoji,
                         fontSize = 28.sp,
                         modifier = Modifier.offset { IntOffset((e.x - 14f).roundToInt(), e.y.roundToInt()) }
                     )
@@ -281,7 +329,7 @@ fun SchermataFineSpara(punteggio: Int, record: Int, onRiprova: () -> Unit, onTor
             Text(text = if (punteggio >= record && punteggio > 0) "🏆" else "👾", fontSize = 96.sp)
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Hai fatto scoppiare $punteggio mostri!".maiuscolo(),
+                text = "Hai fatto $punteggio punti!".maiuscolo(),
                 style = MaterialTheme.typography.headlineMedium,
                 textAlign = TextAlign.Center
             )
