@@ -63,10 +63,11 @@ private const val VELOCITA_RISALITA = 1.3f
 private const val VELOCITA_FUGA_LATERALE = 0.9f
 
 /**
- * Guida un'immersione continua nel mare frattale: lo sterzo a schermo
- * imposta la velocità di discesa (zoom verso l'interno, asse principale) e
- * una lieve deriva laterale; un loop continuo ricalcola ad ogni fotogramma
- * la finestra sul piano complesso e la passa a [FractalField]. La colonna
+ * Guida un'immersione continua nel mare frattale con due joystick
+ * indipendenti: uno imposta solo la velocità di discesa (zoom verso
+ * l'interno, asse principale), l'altro sposta lateralmente in ogni
+ * direzione; un loop continuo ricalcola ad ogni fotogramma la finestra sul
+ * piano complesso e la passa a [FractalField]. La colonna
  * sonora segue [livelloZoom] con continuità ad ogni fotogramma; ogni tot
  * livelli di zoom (non troppo spesso, per non spezzare il flusso) si apre
  * un breve evento bonus — lo stesso enigma "trova la dissonanza" (nucleo +
@@ -80,17 +81,21 @@ class ExplorationViewModel : ViewModel() {
     private val _state = MutableStateFlow(ImmersioneState())
     val state: StateFlow<ImmersioneState> = _state.asStateFlow()
 
-    @Volatile private var derivaInput = 0f
+    // Due joystick indipendenti: uno regola solo la velocità di discesa
+    // (su/giù), l'altro sposta lateralmente in ogni direzione (sx/su/dx/giù).
     @Volatile private var discesaInput = 0f
+    @Volatile private var panXInput = 0f
+    @Volatile private var panYInput = 0f
     private var cicloAvviato = false
 
     @Volatile private var larghezzaRender = LARGHEZZA_RENDER_DEFAULT
     @Volatile private var altezzaRender = ALTEZZA_RENDER_DEFAULT
 
     // Stato dell'inerzia della camera: valori effettivi che inseguono il
-    // target impostato dal joystick, più il tempo totale per il respiro idle.
+    // target impostato dai joystick, più il tempo totale per il respiro idle.
     private var velocitaZoomEffettiva = VELOCITA_ZOOM_BASE
-    private var derivaEffettiva = 0f
+    private var derivaEffettivaX = 0f
+    private var derivaEffettivaY = 0f
     private var tempoTotale = 0f
 
     // Stato della risalita automatica dalle zone monocromatiche.
@@ -131,10 +136,15 @@ class ExplorationViewModel : ViewModel() {
             .coerceIn(ALTEZZA_RENDER_MINIMA, ALTEZZA_RENDER_MASSIMA)
     }
 
-    /** Chiamato dal joystick a schermo: x/y in [-1, 1] (sinistra/destra, giù/su). */
-    fun impostaSterzo(x: Float, y: Float) {
-        derivaInput = x.coerceIn(-1f, 1f)
+    /** Joystick di discesa: y in [-1, 1], su = si scende più veloce, giù = si rallenta/risale. */
+    fun impostaDiscesa(y: Float) {
         discesaInput = (-y).coerceIn(-1f, 1f)
+    }
+
+    /** Joystick di direzione: x/y in [-1, 1], sposta lateralmente in ogni direzione. */
+    fun impostaPan(x: Float, y: Float) {
+        panXInput = x.coerceIn(-1f, 1f)
+        panYInput = (-y).coerceIn(-1f, 1f)
     }
 
     fun toccaBonus(indice: Int) {
@@ -172,13 +182,15 @@ class ExplorationViewModel : ViewModel() {
 
         val velocitaZoomTarget = VELOCITA_ZOOM_BASE + (VELOCITA_ZOOM_MASSIMA - VELOCITA_ZOOM_BASE) *
             ((discesaInput + 1f) / 2f)
-        val derivaTarget = derivaInput * DERIVA_LATERALE
+        val derivaTargetX = panXInput * DERIVA_LATERALE
+        val derivaTargetY = panYInput * DERIVA_LATERALE
 
         // Inerzia: la velocità e la deriva effettive inseguono il target con
         // uno smorzamento esponenziale, mai un salto istantaneo.
         val fattoreInerzia = 1f - exp(-COSTANTE_INERZIA * dt)
         velocitaZoomEffettiva += (velocitaZoomTarget - velocitaZoomEffettiva) * fattoreInerzia
-        derivaEffettiva += (derivaTarget - derivaEffettiva) * fattoreInerzia
+        derivaEffettivaX += (derivaTargetX - derivaEffettivaX) * fattoreInerzia
+        derivaEffettivaY += (derivaTargetY - derivaEffettivaY) * fattoreInerzia
 
         // Respiro idle: un lieve drift continuo che si somma alla deriva
         // effettiva, presente anche a joystick fermo.
@@ -205,9 +217,10 @@ class ExplorationViewModel : ViewModel() {
             0.0
         }
 
-        val derivaX = (derivaEffettiva + derivaRespiro) * corrente.semiAmpiezza * dt + perturbazioneX
+        val derivaX = (derivaEffettivaX + derivaRespiro) * corrente.semiAmpiezza * dt + perturbazioneX
+        val derivaY = derivaEffettivaY * corrente.semiAmpiezza * dt + perturbazioneY
         val nuovoCentroX = corrente.centroX + derivaX
-        val nuovoCentroY = corrente.centroY + perturbazioneY
+        val nuovoCentroY = corrente.centroY + derivaY
 
         val nuovoLivelloZoom = (-ln(nuovaSemiAmpiezza / SEMIAMPIEZZA_INIZIALE) / ln(2.0))
             .toFloat()

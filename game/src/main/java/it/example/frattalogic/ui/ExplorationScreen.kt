@@ -82,9 +82,10 @@ fun ExplorationScreen(viewModel: ExplorationViewModel) {
             Spacer(modifier = Modifier.weight(1f))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                JoystickControllo(onCambia = viewModel::impostaSterzo)
+                JoystickControllo(onCambia = { _, y -> viewModel.impostaDiscesa(y) })
+                JoystickControllo(onCambia = viewModel::impostaPan)
             }
         }
 

@@ -3,11 +3,12 @@
 Immersione per Android (Kotlin + Jetpack Compose): ci si inabissa senza
 sosta in un vero insieme di Mandelbrot, calcolato in tempo reale — denso di
 colore e di dettaglio, mai un'immagine precaricata. La navigazione è
-principalmente verticale: si scende sempre più a fondo nello zoom, con un
-joystick a schermo che regola la velocità di discesa e una lieve deriva
-laterale per scegliere dove infilarsi. La colonna sonora, multi-strumento,
-cambia di continuo seguendo la profondità raggiunta. Ogni tanto, scendendo,
-la corrente "si increspa": un breve enigma — trovare l'unico elemento
+principalmente verticale: si scende sempre più a fondo nello zoom, con due
+joystick indipendenti — uno regola solo la velocità di discesa (su/giù),
+l'altro sposta lateralmente in ogni direzione (sinistra/su/destra/giù) per
+scegliere dove infilarsi. La colonna sonora, multi-strumento, cambia di
+continuo seguendo la profondità raggiunta. Ogni tanto, scendendo, la
+corrente "si increspa": un breve enigma — trovare l'unico elemento
 dissonante in un anello di figure frattali — punteggia la discesa senza
 interromperne il flusso.
 
@@ -17,11 +18,12 @@ interromperne il flusso.
 ## Il gioco
 
 - **Discesa continua**: il livello di zoom nell'insieme di Mandelbrot
-  scende da solo; il joystick a schermo (in basso a destra) ne regola
-  soprattutto la **velocità verticale** (spingere in su per scendere più in
-  fretta) e in misura minore la **deriva laterale** (per curiosare in una
-  direzione piuttosto che un'altra). Non c'è un obiettivo da "vincere": è
-  un'immersione senza fine, sempre più in profondità, sempre diversa.
+  scende da solo. Due joystick indipendenti a schermo: quello a sinistra
+  regola solo la **velocità verticale** (su = si scende più in fretta, giù
+  = si rallenta/risale); quello a destra sposta lateralmente in ogni
+  direzione, per curiosare in una zona piuttosto che un'altra. Non c'è un
+  obiettivo da "vincere": è un'immersione senza fine, sempre più in
+  profondità, sempre diversa.
 - **Un mondo denso e mutevole**: ogni fotogramma è un vero calcolo
   dell'insieme di Mandelbrot (algoritmo a tempo di fuga, colorazione
   continua sul numero di iterazioni), a partire da un punto della "valle

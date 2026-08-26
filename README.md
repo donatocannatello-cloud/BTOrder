@@ -118,9 +118,9 @@ macchina normale, o una CI con rete non ristretta).
 
 Immersione: ci si inabissa senza sosta in un vero insieme di Mandelbrot
 calcolato in tempo reale, denso di colore e dettaglio. La navigazione è
-principalmente verticale — un joystick a schermo regola soprattutto la
-velocità di discesa nello zoom, con una lieve deriva laterale per scegliere
-dove infilarsi — e la colonna sonora multi-strumento (basso, arpeggio, pad
+principalmente verticale — due joystick indipendenti, uno per la velocità
+di discesa nello zoom e uno per spostarsi lateralmente in ogni direzione —
+e la colonna sonora multi-strumento (basso, arpeggio, pad
 armonico, percussione) cambia di continuo seguendo la profondità raggiunta,
 non solo a tappe discrete. Ogni tanto la discesa apre un breve evento bonus
 — trovare l'unico elemento dissonante in un anello di figure frattali — che
