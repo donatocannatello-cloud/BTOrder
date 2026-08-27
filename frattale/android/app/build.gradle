@@ -20,7 +20,27 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Firma di debug fissa e committata nel repo (debug.keystore, credenziali
+    // standard Android "androiddebugkey/android" -- e' la stessa identita'
+    // pubblica che Android Studio genera in locale per default, non una
+    // chiave di release: nessun segreto qui). Senza questo, ogni build della
+    // CI userebbe il keystore di debug generato al volo dal runner (nuovo e
+    // diverso a ogni run, dato che i runner sono effimeri), e Android
+    // rifiuta di installare un APK aggiornato se la firma non coincide con
+    // quella gia' installata sul telefono ("conflitto con un pacchetto
+    // esistente").
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
     buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
