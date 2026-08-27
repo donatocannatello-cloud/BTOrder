@@ -27,8 +27,9 @@
         touch-action: none;
         cursor: crosshair;
       }
-      /* Indicatori dei joystick touch: invisibili finché non si tocca lo
-         schermo, svaniscono al rilascio. Nessun elemento fisso/persistente. */
+      /* Joystick touch: sempre visibili e ancorati agli angoli, cosi' e'
+         chiaro a colpo d'occhio dove toccare (muovi a sinistra, guarda a
+         destra). Si illuminano leggermente quando in uso. */
       #touch-layer {
         position: fixed;
         inset: 0;
@@ -36,23 +37,37 @@
       }
       .joy-base {
         position: absolute;
+        bottom: max(28px, env(safe-area-inset-bottom));
+        width: 104px;
+        height: 104px;
         border-radius: 50%;
-        border: 1.5px solid rgba(220, 210, 240, 0.35);
-        background: rgba(220, 210, 240, 0.06);
-        transition: opacity 0.2s ease;
+        border: 1.5px solid rgba(220, 210, 240, 0.3);
+        background: rgba(220, 210, 240, 0.05);
+        transition: border-color 0.15s ease, background 0.15s ease;
       }
-      .joy-base.fade {
-        opacity: 0;
+      .joy-base.active {
+        border-color: rgba(220, 210, 240, 0.6);
+        background: rgba(220, 210, 240, 0.1);
+      }
+      .joy-move {
+        left: max(28px, env(safe-area-inset-left));
+      }
+      .joy-look {
+        right: max(28px, env(safe-area-inset-right));
       }
       .joy-knob {
         position: absolute;
         left: 50%;
         top: 50%;
-        width: 28px;
-        height: 28px;
-        margin: -14px 0 0 -14px;
+        width: 40px;
+        height: 40px;
+        margin: -20px 0 0 -20px;
         border-radius: 50%;
-        background: rgba(220, 210, 240, 0.55);
+        background: rgba(220, 210, 240, 0.45);
+        transition: transform 0.05s linear;
+      }
+      .joy-base.active .joy-knob {
+        background: rgba(220, 210, 240, 0.7);
       }
     </style>
   </head>

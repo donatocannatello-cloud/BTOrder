@@ -21,35 +21,45 @@ uniform vec3 uCamUp;
 uniform vec3 uCamForward;
 uniform float uFov;      // vertical fov, radians
 uniform float uTime;
-uniform float uPower;    // Mandelbulb exponent
+uniform float uPower;    // Mandelbulb exponent, evolves slowly over time (JS side)
+uniform int uMaxIter;    // iteration budget: fewer far away, more up close (LOD)
 
 out vec4 fragColor;
 
 const int MAX_STEPS = 110;
 const float MAX_DIST = 45.0;
 const float SURF_EPS = 0.0009;
-const int BULB_ITER = 8;
+const float PROX_RADIUS = 2.2; // world units: how far the "presence" reaction reaches
+
+mat3 rotY(float a) {
+  float s = sin(a), c = cos(a);
+  return mat3(c, 0.0, -s, 0.0, 1.0, 0.0, s, 0.0, c);
+}
+mat3 rotX(float a) {
+  float s = sin(a), c = cos(a);
+  return mat3(1.0, 0.0, 0.0, 0.0, c, -s, 0.0, s, c);
+}
 
 // Mandelbulb distance estimator.
 // Returns distance estimate; also writes orbit trap info into 'trap' for coloring.
-float deMandelbulb(vec3 pos, out vec4 trap) {
+float deMandelbulb(vec3 pos, float power, out vec4 trap) {
   vec3 z = pos;
   float dr = 1.0;
   float r = 0.0;
   trap = vec4(abs(z), dot(z, z));
 
-  for (int i = 0; i < BULB_ITER; i++) {
+  for (int i = 0; i < uMaxIter; i++) {
     r = length(z);
     if (r > 2.5) break;
 
     // polar decomposition
     float theta = acos(clamp(z.z / max(r, 1e-6), -1.0, 1.0));
     float phi = atan(z.y, z.x);
-    dr = pow(r, uPower - 1.0) * uPower * dr + 1.0;
+    dr = pow(r, power - 1.0) * power * dr + 1.0;
 
-    float zr = pow(r, uPower);
-    theta *= uPower;
-    phi *= uPower;
+    float zr = pow(r, power);
+    theta *= power;
+    phi *= power;
 
     z = zr * vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
     z += pos;
@@ -59,8 +69,18 @@ float deMandelbulb(vec3 pos, out vec4 trap) {
   return 0.5 * log(max(r, 1e-6)) * r / dr;
 }
 
+// The fractal slowly rotates in place over time (the world "breathes" even
+// without input), and the exponent gets a small extra wobble near wherever
+// the camera currently is, as a gentle "presence" reaction. Proximity is
+// measured in the *unrotated* world/camera frame so it tracks the camera
+// correctly regardless of how far the domain has rotated.
 float sceneDE(vec3 p, out vec4 trap) {
-  return deMandelbulb(p, trap);
+  float distToCam = length(p - uCamPos);
+  float proximity = 1.0 - smoothstep(0.0, PROX_RADIUS, distToCam);
+  float localPower = uPower + proximity * 0.45 * sin(uTime * 1.3 + dot(p, p) * 2.0);
+
+  vec3 rp = rotY(uTime * 0.015) * rotX(uTime * 0.006) * p;
+  return deMandelbulb(rp, localPower, trap);
 }
 
 vec3 estimateNormal(vec3 p) {
@@ -113,10 +133,20 @@ void main() {
     float ao = 1.0 - steps / float(MAX_STEPS);
     float rim = pow(1.0 - max(dot(n, -rd), 0.0), 2.5);
 
-    // Orbit-trap based palette: cool blues/violets shifting into warm rim light.
+    // Orbit-trap based palette: cool blues/violets shifting into warm rim light,
+    // plus a slow overall hue drift so the mood shifts over long timescales
+    // even without the player doing anything.
+    vec3 mood = 0.5 + 0.5 * cos(uTime * 0.025 + vec3(0.0, 2.0, 4.0));
     vec3 baseCol = mix(vec3(0.15, 0.25, 0.55), vec3(0.7, 0.35, 0.85), clamp(trap.w, 0.0, 1.0));
+    baseCol = mix(baseCol, baseCol * mood * 1.4, 0.3);
+
     vec3 lit = baseCol * (0.18 + 0.82 * diff) * (0.55 + 0.45 * ao);
     lit += rim * vec3(0.4, 0.55, 0.9) * 0.6;
+
+    // Presence glow: surfaces close to the camera light up a little, echoing
+    // the local exponent wobble from sceneDE().
+    float proximity = 1.0 - smoothstep(0.0, PROX_RADIUS, t);
+    lit += proximity * vec3(0.35, 0.28, 0.5) * 0.5;
 
     color = lit;
   } else {

@@ -12,8 +12,27 @@ function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
 }
 
-// Mandelbulb power fixed for level 1 (static fractal, no time evolution yet).
-const FRACTAL_POWER = 8.0;
+// Il potere del Mandelbulb "respira" lentamente nel tempo, anche senza
+// input: il mondo e' vivo di suo, non solo quando ci si muove.
+const POWER_BASE = 8.0;
+const POWER_AMPLITUDE = 1.2;
+const POWER_FREQ = 0.05; // rad/s, periodo ~125s
+
+// Dettaglio (numero di iterazioni del frattale) in funzione della distanza
+// dalla camera all'origine: da lontano il frattale resta una forma
+// semplice/liscia (economica), avvicinandosi emergono via via le
+// increspature piu' fini, cosi' la scena non e' statica quando ci si
+// avvicina.
+const LOD_MIN_ITER = 5;
+const LOD_MAX_ITER = 10;
+const LOD_NEAR = 1.35; // gia' a ridosso della superficie
+const LOD_FAR = 5.5; // punto di spawn iniziale della camera
+
+function fractalDetail(camPos: readonly [number, number, number]): number {
+  const dist = Math.hypot(camPos[0], camPos[1], camPos[2]);
+  const t = clamp((LOD_FAR - dist) / (LOD_FAR - LOD_NEAR), 0, 1);
+  return Math.round(LOD_MIN_ITER + t * (LOD_MAX_ITER - LOD_MIN_ITER));
+}
 
 const keys = new Set<string>();
 let yawAccum = 0;
@@ -73,14 +92,16 @@ function frame(now: number) {
   const { cam, boost } = readInput();
   camera.update(dt, cam, boost);
 
+  const time = now / 1000;
   renderer.render({
     camPos: camera.position,
     camRight: camera.rightAxis,
     camUp: camera.upAxis,
     camForward: camera.forwardAxis,
     fov: camera.fov,
-    time: now / 1000,
-    power: FRACTAL_POWER,
+    time,
+    power: POWER_BASE + Math.sin(time * POWER_FREQ) * POWER_AMPLITUDE,
+    maxIter: fractalDetail(camera.position),
   });
 
   requestAnimationFrame(frame);
