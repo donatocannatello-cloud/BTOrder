@@ -243,13 +243,20 @@ ShadeResult shadeSurface(vec3 p, vec3 n, vec3 rd, float t, vec4 trap, float absL
   // roughly the same way as the view ray) still rims instead of going dark.
   float ndotv = twoSided ? abs(dot(n, -rd)) : max(dot(n, -rd), 0.0);
   float rimLine = smoothstep(0.5, 0.85, pow(1.0 - ndotv, 2.2));
-  vec3 dimFill = lineColor * 0.05 * (0.5 + 0.5 * ao);
+  // Kept deliberately faint: gamma correction at the end of the pipeline
+  // (color^(1/2.2)) inflates even a small flat value a lot (0.05 becomes
+  // ~0.24), so anything much brighter here washes the whole shell into a
+  // flat tint instead of reading as line-art.
+  vec3 dimFill = lineColor * 0.02 * (0.5 + 0.5 * ao);
 
   // Presence glow: surfaces close to the camera light up a little, echoing
-  // the local exponent wobble from deLayerAt().
+  // the local exponent wobble from deLayerAt(). Kept small for the same
+  // gamma reason -- and because when the camera is deep inside a shell
+  // (t small almost everywhere on screen), a strong flat glow here would
+  // wash out the whole surface rather than just accenting it.
   float proximity = 1.0 - smoothstep(0.0, PROX_RADIUS, t);
   vec3 glow = lineColor * (lines * 1.4 + rimLine * 0.8);
-  glow += proximity * lineColor * 0.5;
+  glow += proximity * lineColor * 0.15;
 
   vec3 color = dimFill + glow;
 
@@ -357,7 +364,11 @@ void main() {
     vec3 n = estimateNormal(p);
     float ao = 1.0 - totalSteps / float(uRaySteps);
     float absLayer = uDepthLayerBase + wk;
-    ShadeResult sr = shadeSurface(p, n, rd, t, trap, absLayer, ao, false);
+    // Two-sided like the container layer: pushing past a hit can land on
+    // the far (inward-facing) wall of that same shell just as easily as on
+    // the next nested layer, and that inner wall must read as wireframe
+    // too, not go dark for facing "the wrong way".
+    ShadeResult sr = shadeSurface(p, n, rd, t, trap, absLayer, ao, true);
     // Each successive shell seen through the ones in front of it reads a
     // little dimmer, purely by compositing order (not distance) -- so the
     // fractal(s) glimpsed inside the current one clearly recede rather than
