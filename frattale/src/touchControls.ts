@@ -86,12 +86,14 @@ export class TouchControls {
     const clamped = Math.min(len, STICK_RADIUS);
     const nx = len > 0 ? dx / len : 0;
     const ny = len > 0 ? dy / len : 0;
-    // Invertito rispetto al trascinamento del pollice: spingere lo stick a
-    // destra/su ora orbita verso sinistra/giù (e viceversa). Il pallino
-    // continua pero' a seguire il dito normalmente (nx/ny non invertiti
-    // nel transform), solo il moto della camera risultante e' invertito.
+    // Orizzontale invertito rispetto al trascinamento del pollice (destra
+    // orbita verso sinistra e viceversa). Verticale invece riportato alla
+    // mappatura originale (spingere su fa "salire" visivamente il frattale
+    // nell'inquadratura, non scendere) dopo il feedback che l'inversione
+    // precedente lo rendeva sbagliato nel verso opposto. Il pallino segue
+    // comunque il dito normalmente (nx/ny non invertiti nel transform).
     this.azimuthValue = -nx * (clamped / STICK_RADIUS);
-    this.elevationValue = ny * (clamped / STICK_RADIUS);
+    this.elevationValue = -ny * (clamped / STICK_RADIUS);
     this.stickKnob.style.transform = `translate(${nx * clamped}px, ${ny * clamped}px)`;
   }
 
