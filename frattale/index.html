@@ -23,13 +23,42 @@
         display: block;
         width: 100vw;
         height: 100vh;
+        height: 100dvh;
         touch-action: none;
         cursor: crosshair;
+      }
+      /* Indicatori dei joystick touch: invisibili finché non si tocca lo
+         schermo, svaniscono al rilascio. Nessun elemento fisso/persistente. */
+      #touch-layer {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+      }
+      .joy-base {
+        position: absolute;
+        border-radius: 50%;
+        border: 1.5px solid rgba(220, 210, 240, 0.35);
+        background: rgba(220, 210, 240, 0.06);
+        transition: opacity 0.2s ease;
+      }
+      .joy-base.fade {
+        opacity: 0;
+      }
+      .joy-knob {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 28px;
+        height: 28px;
+        margin: -14px 0 0 -14px;
+        border-radius: 50%;
+        background: rgba(220, 210, 240, 0.55);
       }
     </style>
   </head>
   <body>
     <canvas id="gl"></canvas>
+    <div id="touch-layer"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -1,9 +1,16 @@
 import { FlightCamera, type CameraInput } from "./camera";
 import { Renderer } from "./renderer";
+import { TouchControls } from "./touchControls";
 
 const canvas = document.getElementById("gl") as HTMLCanvasElement;
+const indicatorLayer = document.getElementById("touch-layer") as HTMLElement;
 const renderer = new Renderer(canvas);
 const camera = new FlightCamera();
+const touchControls = new TouchControls(canvas, indicatorLayer);
+
+function clamp(v: number, lo: number, hi: number) {
+  return Math.max(lo, Math.min(hi, v));
+}
 
 // Mandelbulb power fixed for level 1 (static fractal, no time evolution yet).
 const FRACTAL_POWER = 8.0;
@@ -37,18 +44,20 @@ window.addEventListener("resize", resize);
 resize();
 
 function readInput(): { cam: CameraInput; boost: boolean } {
-  const forward = (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0);
-  const right = (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0);
+  const kForward = (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0);
+  const kRight = (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0);
   const up = (keys.has("Space") ? 1 : 0) - (keys.has("ShiftLeft") || keys.has("ShiftRight") ? 1 : 0);
   const roll = (keys.has("KeyE") ? 1 : 0) - (keys.has("KeyQ") ? 1 : 0);
 
+  const touch = touchControls.consumeFrame();
+
   const cam: CameraInput = {
-    forward,
-    right,
+    forward: clamp(kForward + touch.forward, -1, 1),
+    right: clamp(kRight + touch.right, -1, 1),
     up,
     roll,
-    yawDelta: yawAccum,
-    pitchDelta: pitchAccum,
+    yawDelta: yawAccum + touch.yawDelta,
+    pitchDelta: pitchAccum + touch.pitchDelta,
   };
   yawAccum = 0;
   pitchAccum = 0;
