@@ -12,16 +12,57 @@ const touchControls = new TouchControls(canvas, indicatorLayer);
 const quality = new QualityManager();
 const audio = new AudioEngine();
 
-// L'audio puo' partire solo dentro un gesto utente (autoplay policy dei
-// browser): lo sblocchiamo al primo tocco/click/tasto, senza bisogno di un
-// overlay/tap-to-enter dedicato.
-function unlockAudio() {
+// ---- schermata iniziale + schermo intero + uscita -------------------------
+// L'app gira sempre a schermo intero: la schermata iniziale serve sia da
+// gesto utente per sbloccare l'audio (autoplay policy dei browser) sia da
+// punto di ingresso esplicito nel fullscreen; il pulsante X riporta qui e
+// mette in pausa l'audio, dato che non c'e' un tasto Indietro di sistema
+// collegato.
+const entry = document.getElementById("entry") as HTMLElement;
+const legend = document.getElementById("legend") as HTMLElement;
+const exitBtn = document.getElementById("exit-btn") as HTMLElement;
+let entered = false;
+let legendTimer: ReturnType<typeof setTimeout> | null = null;
+
+function enter() {
+  if (entered) return;
+  entered = true;
+  entry.classList.add("hidden");
+  legend.classList.add("show");
+  exitBtn.classList.add("show");
+  legendTimer = setTimeout(() => legend.classList.add("fade"), 6000);
   audio.resume();
-  window.removeEventListener("pointerdown", unlockAudio);
-  window.removeEventListener("keydown", unlockAudio);
+  const root = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
+  const req = root.requestFullscreen || root.webkitRequestFullscreen;
+  if (req) req.call(root).catch(() => {});
 }
-window.addEventListener("pointerdown", unlockAudio);
-window.addEventListener("keydown", unlockAudio);
+
+function exit() {
+  if (!entered) return;
+  entered = false;
+  entry.classList.remove("hidden");
+  legend.classList.remove("show");
+  exitBtn.classList.remove("show");
+  audio.suspend();
+  const doc = document as Document & { webkitExitFullscreen?: () => Promise<void>; webkitFullscreenElement?: Element };
+  const exitFs = document.exitFullscreen || doc.webkitExitFullscreen;
+  if (exitFs && (document.fullscreenElement || doc.webkitFullscreenElement)) {
+    exitFs.call(document).catch(() => {});
+  }
+}
+
+entry.addEventListener("pointerdown", enter);
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") exit();
+  else enter();
+});
+exitBtn.addEventListener("click", exit);
+
+canvas.addEventListener("pointerdown", () => {
+  if (legendTimer) clearTimeout(legendTimer);
+  legend.classList.remove("fade");
+  legendTimer = setTimeout(() => legend.classList.add("fade"), 4000);
+});
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));

@@ -80,7 +80,12 @@ export class AudioEngine {
     this.dry = this.ctx.createGain();
     this.dry.gain.value = 0.75;
     this.wet = this.ctx.createGain();
-    this.wet.gain.value = 0.4;
+    // Coda di riverbero tenuta corta e discreta: non c'e' nessuna
+    // spazializzazione 3D in questo motore (niente PannerNode/AudioListener
+    // -- il bus e' lo stesso per ogni suono), quindi la sensazione di "eco"
+    // veniva tutta da qui: una coda lunga (prima 3.4s) che si accumulava
+    // sopra pizzicati e accordi sempre piu' frequenti scendendo.
+    this.wet.gain.value = 0.16;
     this.filter.connect(this.dry);
     this.filter.connect(this.wet);
     this.dry.connect(this.master);
@@ -92,7 +97,7 @@ export class AudioEngine {
     reverbTone.type = "lowpass";
     reverbTone.frequency.value = 2200;
     const convolver = this.ctx.createConvolver();
-    convolver.buffer = makeImpulseResponse(this.ctx, 3.4, 2.3);
+    convolver.buffer = makeImpulseResponse(this.ctx, 1.1, 3.2);
     this.wet.connect(convolver);
     convolver.connect(reverbTone);
     reverbTone.connect(this.master);
@@ -112,11 +117,18 @@ export class AudioEngine {
   }
 
   /** Da chiamare dentro un gesto utente (tap/click/tasto), per rispettare
-   * le policy di autoplay dei browser. */
+   * le policy di autoplay dei browser -- e anche per riprendere dopo un
+   * suspend() (uscita/rientro dal frattale), quindi va sempre eseguito
+   * anche se non e' il primo avvio. */
   resume() {
-    if (this.started) return;
     this.started = true;
     void this.ctx.resume();
+  }
+
+  /** Da chiamare quando si esce dal frattale (pulsante X), per non tenere
+   * l'audio a suonare mentre si e' tornati alla schermata iniziale. */
+  suspend() {
+    void this.ctx.suspend();
   }
 
   /**
@@ -127,7 +139,12 @@ export class AudioEngine {
     if (!this.started) return;
     const t = this.ctx.currentTime;
 
-    const targetFreq = 260 + radiusT * 2200;
+    // Il floor era 260Hz: dato che radiusT sta vicino a 0 per la maggior
+    // parte della discesa (il raggio si riduce esponenzialmente, non
+    // linearmente), il suono restava quasi sempre ovattato al massimo
+    // invece che scurirsi solo un po'. Floor alzato cosi' il timbro resta
+    // presente/chiaro anche in profondita'.
+    const targetFreq = 900 + radiusT * 1800;
     this.filter.frequency.setTargetAtTime(targetFreq, t, 0.35);
 
     const targetDroneLevel = 0.065 + (1 - radiusT) * 0.06; // più risonante/presente da vicino
