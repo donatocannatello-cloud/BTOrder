@@ -37,16 +37,39 @@ leggermente con la velocità, anch'esso smussato.
 > mondo) è una modifica piccola e isolata in `camera.ts`.
 
 **Input**: `src/touchControls.ts`. Il target è Android, quindi il touch è
-lo schema *primario*, non un ripiego: doppio joystick invisibile — appare
-solo sotto il dito, sparisce al rilascio, nessun elemento fisso a schermo.
-Metà sinistra dello schermo = movimento (avanti/indietro + laterale,
-analogico); metà destra = guarda intorno (yaw/pitch), stesso gesto del
-drag desktop. Non c'è un gesto dedicato per su/giù: come in un volo/
-aereo, ci si alza o abbassa inclinando lo sguardo e andando avanti — tiene
-i controlli a due soli stick invece di tre-quattro zone sullo schermo.
-Tastiera (WASD/Space/Shift/Q/E/Ctrl) e trascinamento col mouse restano
-attivi in parallelo, utili solo per un test rapido da laptop durante lo
-sviluppo.
+lo schema *primario*, non un ripiego: doppio joystick, **sempre visibile**
+e ancorato agli angoli (basso-sinistra = movimento, basso-destra = guarda),
+con un highlight quando in uso — la prima versione (invisibile finché non
+tocchi) risultava confusa senza un riferimento fisso a schermo. Il tocco
+iniziale è comunque accettato in tutta la metà schermo corrispondente, non
+serve centrare il dito sul cerchietto; la base resta ferma nell'angolo e la
+manopola si sposta verso il dito. Metà sinistra = movimento
+(avanti/indietro + laterale, analogico); metà destra = guarda intorno
+(yaw/pitch), stesso gesto del drag desktop. Non c'è un gesto dedicato per
+su/giù: come in un volo/aereo, ci si alza o abbassa inclinando lo sguardo e
+andando avanti — tiene i controlli a due soli stick invece di tre-quattro
+zone sullo schermo. Tastiera (WASD/Space/Shift/Q/E/Ctrl) e trascinamento
+col mouse restano attivi in parallelo, utili solo per un test rapido da
+laptop durante lo sviluppo.
+
+**Dettaglio dinamico (LOD)**: il numero di iterazioni del Mandelbulb
+(`uMaxIter`, uniform invece di costante) cresce da 5 a 10 mano a mano che
+la camera si avvicina all'origine del frattale (`fractalDetail()` in
+`main.ts`, in base a `length(camPos)`). Da lontano la forma resta liscia e
+semplice (economica), avvicinandosi emergono via via le increspature più
+fini — altrimenti il frattale sembra una texture statica indipendentemente
+da quanto ci si avvicina.
+
+**Livello 2 — evoluzione temporale + reazione alla camera** (in
+`shaders/raymarch.ts`): la potenza del Mandelbulb "respira" lentamente nel
+tempo (oscillazione sinusoidale calcolata in `main.ts`, periodo ~125s); il
+dominio del frattale ruota lentamente su sé stesso nel tempo via `uTime`,
+indipendentemente dall'input; la palette ha una deriva cromatica lenta
+(cosine palette); le superfici vicine alla posizione della camera si
+illuminano leggermente e l'esponente locale riceve una piccola oscillazione
+in più ("presence" reaction) — calcolata nel frame camera/mondo *non*
+ruotato, così la "zona che reagisce" segue davvero la posizione reale della
+camera invece di scivolare via mentre il frattale ruota.
 
 **Audio** (livello 3, non ancora implementato): Web Audio API pura,
 nessun file precampionato. Un `AudioEngine` leggerà ogni frame: profondità
@@ -89,9 +112,9 @@ build), così il link di download resta sempre lo stesso.
 
 - [x] **Livello 1** — rendering frattale statico navigabile, camera libera
       6DOF con inerzia, FOV dinamico, fog/desaturazione in lontananza.
-      Nessuna evoluzione temporale, nessuna reazione alla camera, nessun
-      HUD/audio/nucleo: solo la base di navigazione.
-- [ ] Livello 2 — evoluzione temporale del frattale + reazione alla camera
+- [x] **Livello 2** — potenza/rotazione/palette che evolvono lentamente nel
+      tempo, superfici vicine alla camera che si illuminano/deformano
+      leggermente, dettaglio (iterazioni) crescente avvicinandosi.
 - [ ] Livello 3 — audio generativo reattivo
 - [ ] Livello 4 — nuclei, meccanica di risoluzione, persistenza
 - [ ] Livello 5 — repo/CI Android, APK con nome/package fissi, release
