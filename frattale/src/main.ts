@@ -1,7 +1,8 @@
-import { OrbitCamera, type OrbitInput } from "./camera";
+import { OrbitCamera, RADIUS_MIN, RADIUS_MAX, type OrbitInput } from "./camera";
 import { Renderer } from "./renderer";
 import { TouchControls } from "./touchControls";
 import { QualityManager } from "./quality";
+import { AudioEngine } from "./audio";
 
 const canvas = document.getElementById("gl") as HTMLCanvasElement;
 const indicatorLayer = document.getElementById("touch-layer") as HTMLElement;
@@ -9,6 +10,18 @@ const renderer = new Renderer(canvas);
 const camera = new OrbitCamera();
 const touchControls = new TouchControls(canvas, indicatorLayer);
 const quality = new QualityManager();
+const audio = new AudioEngine();
+
+// L'audio puo' partire solo dentro un gesto utente (autoplay policy dei
+// browser): lo sblocchiamo al primo tocco/click/tasto, senza bisogno di un
+// overlay/tap-to-enter dedicato.
+function unlockAudio() {
+  audio.resume();
+  window.removeEventListener("pointerdown", unlockAudio);
+  window.removeEventListener("keydown", unlockAudio);
+}
+window.addEventListener("pointerdown", unlockAudio);
+window.addEventListener("keydown", unlockAudio);
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
@@ -142,6 +155,9 @@ function frame(now: number) {
   const dt = dtMs / 1000;
   const { cam, boost } = readInput();
   camera.update(dt, cam, boost);
+
+  const radiusT = clamp((camera.radius - RADIUS_MIN) / (RADIUS_MAX - RADIUS_MIN), 0, 1);
+  audio.update(now, radiusT, camera.motionIntensity);
 
   const time = now / 1000;
   renderer.render({

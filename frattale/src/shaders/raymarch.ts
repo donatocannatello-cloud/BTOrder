@@ -176,6 +176,14 @@ void main() {
     glow += proximity * lineColor * 0.5;
 
     color = dimFill + glow;
+
+    // Affondamento: quando l'hit e' fortissimamente ravvicinato (si e'
+    // immersi dentro la nube del frattale, circondati da geometria, non
+    // solo vicini a una parete) il colore vira verso un violaceo profondo
+    // e piu' scuro, cosi' "essere dentro" si sente visivamente diverso da
+    // "essere vicino a una superficie".
+    float enclosure = 1.0 - smoothstep(0.0, 0.5, t);
+    color = mix(color, color * vec3(0.45, 0.35, 0.65) * 0.45, enclosure * 0.8);
   } else {
     color = bg;
   }

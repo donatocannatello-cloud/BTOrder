@@ -102,12 +102,30 @@ sottostante (LOD). Un riempimento molto tenue (5% del colore linea) più un
 bordo di silhouette netto danno comunque un minimo di lettura del volume,
 senza tornare a un rendering "pieno".
 
-**Audio** (livello 3, non ancora implementato): Web Audio API pura,
-nessun file precampionato. Un `AudioEngine` leggerà ogni frame: profondità
-media raymarching nel campo visivo, velocità della camera, distanza dal
-nucleo attivo più vicino, e pilotherà oscillatori + filtri + riverbero
-(convoluzione con impulse response generata proceduralmente, o feedback
-delay network) per un drone continuo che cambia timbro/densità/armonia.
+**Livello 3 — audio generativo** (`src/audio.ts`): Web Audio API pura,
+nessun file precampionato. Tutto passa dallo stesso bus (un filtro
+condiviso, poi dry/wet verso un riverbero a convoluzione con impulse
+response generata proceduralmente) — drone e impulsi ritmici non sono due
+suoni separati sovrapposti, sono voci della stessa composizione, così si
+combinano davvero in un'unica musica. Due segnali pilotano tutto, già
+disponibili dalla camera: il raggio orbitale (`radiusT`, 0 = immersi nella
+nube, 1 = lontano) apre/chiude il filtro e cambia il registro del drone —
+da lontano suono aperto e chiaro, immergendosi si scurisce e si fa più
+risonante; l'intensità di movimento (`camera.motionIntensity`, orbita +
+zoom combinati) governa la densità degli impulsi ritmici (pizzicati su
+scala pentatonica) — fermi quasi silenzio, muovendosi la trama si
+infittisce. L'`AudioContext` parte al primo gesto utente (tap/click/tasto),
+non prima, per rispettare le policy di autoplay dei browser.
+
+**Affondamento dentro la nube**: il raggio minimo della camera è sceso a
+0.5 (prima 1.5) per poter penetrare davvero dentro la struttura, e lo
+shader aggiunge un termine di "enclosure" — quando l'hit è fortissimamente
+ravvicinato su un pixel (si è circondati da geometria, non solo vicini a
+una parete) il colore vira verso un violaceo più scuro e denso, così
+"essere dentro" si legge visivamente diverso da "essere vicino a una
+superficie". Nota: il Mandelbulb ha cavità/sacche relativamente vuote
+anche vicino al centro, quindi l'effetto non è uniforme a ogni raggio
+basso — dipende da dove ci si trova rispetto ai lobi locali.
 
 **Nuclei e persistenza** (livello 4, non ancora implementato): punti
 generati deterministicamente (seed fisso + hash), verificati contro la
@@ -146,7 +164,8 @@ build), così il link di download resta sempre lo stesso.
 - [x] **Livello 2** — potenza/rotazione/palette che evolvono lentamente nel
       tempo, superfici vicine alla camera che si illuminano/deformano
       leggermente, dettaglio (iterazioni) crescente avvicinandosi.
-- [ ] Livello 3 — audio generativo reattivo
+- [x] **Livello 3** — audio generativo reattivo (drone + impulsi ritmici
+      su un bus condiviso, pilotati da raggio/velocità della camera).
 - [ ] Livello 4 — nuclei, meccanica di risoluzione, persistenza
 - [ ] Livello 5 — repo/CI Android, APK con nome/package fissi, release
       con link diretto stabile

@@ -26,8 +26,8 @@ export interface OrbitInput {
   dragElevation: number; // radianti in questo frame, istantaneo (drag mouse)
 }
 
-const RADIUS_MIN = 1.5;
-const RADIUS_MAX = 9.0;
+export const RADIUS_MIN = 0.5; // abbastanza vicino al centro da affondare dentro la nube del frattale
+export const RADIUS_MAX = 9.0;
 const RADIUS_SPEED = 2.4; // unità/s a levetta tutta spinta
 const ROTATE_SPEED = 1.0; // rad/s a stick tutto spinto
 const BOOST_MULT = 2.4;
@@ -43,6 +43,8 @@ export class OrbitCamera {
   azimuth = 0;
   elevation = 0;
   fov = BASE_FOV;
+  /** 0..1: quanto ci si sta muovendo (orbita + zoom combinati), per l'audio. */
+  motionIntensity = 0;
 
   private velAzimuth = 0;
   private velElevation = 0;
@@ -93,7 +95,8 @@ export class OrbitCamera {
 
     const rotSpeed = Math.hypot(this.velAzimuth, this.velElevation) / ROTATE_SPEED;
     const zoomSpeed = Math.abs(this.velRadius) / RADIUS_SPEED;
-    const targetFov = BASE_FOV + (MAX_FOV - BASE_FOV) * clamp(rotSpeed + zoomSpeed, 0, 1);
+    this.motionIntensity = clamp(rotSpeed + zoomSpeed, 0, 1);
+    const targetFov = BASE_FOV + (MAX_FOV - BASE_FOV) * this.motionIntensity;
     this.fov += (targetFov - this.fov) * (1 - Math.exp(-2.5 * dt));
   }
 }
