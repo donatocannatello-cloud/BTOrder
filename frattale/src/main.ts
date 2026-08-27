@@ -1,4 +1,4 @@
-import { FlightCamera, type CameraInput } from "./camera";
+import { OrbitCamera, type OrbitInput } from "./camera";
 import { Renderer } from "./renderer";
 import { TouchControls } from "./touchControls";
 import { QualityManager } from "./quality";
@@ -6,7 +6,7 @@ import { QualityManager } from "./quality";
 const canvas = document.getElementById("gl") as HTMLCanvasElement;
 const indicatorLayer = document.getElementById("touch-layer") as HTMLElement;
 const renderer = new Renderer(canvas);
-const camera = new FlightCamera();
+const camera = new OrbitCamera();
 const touchControls = new TouchControls(canvas, indicatorLayer);
 const quality = new QualityManager();
 
@@ -21,41 +21,65 @@ const POWER_AMPLITUDE = 1.2;
 const POWER_FREQ = 0.05; // rad/s, periodo ~125s
 
 // Dettaglio (numero di iterazioni del frattale) in funzione della distanza
-// dalla camera all'origine: da lontano il frattale resta una forma
-// semplice/liscia (economica), avvicinandosi emergono via via le
-// increspature piu' fini, cosi' la scena non e' statica quando ci si
-// avvicina.
+// dal centro: da lontano il frattale resta una forma semplice/liscia
+// (economica), avvicinandosi emergono via via le increspature piu' fini,
+// cosi' la scena non e' statica quando ci si avvicina. La camera orbitale
+// ha gia' il raggio come distanza esatta dal centro, non serve ricalcolarla.
 const LOD_MIN_ITER = 5;
 const LOD_MAX_ITER = 10;
-const LOD_NEAR = 1.35; // gia' a ridosso della superficie
-const LOD_FAR = 5.5; // punto di spawn iniziale della camera
+const LOD_NEAR = 1.6;
+const LOD_FAR = 7.0;
 
-function fractalDetail(camPos: readonly [number, number, number]): number {
-  const dist = Math.hypot(camPos[0], camPos[1], camPos[2]);
-  const t = clamp((LOD_FAR - dist) / (LOD_FAR - LOD_NEAR), 0, 1);
+function fractalDetail(radius: number): number {
+  const t = clamp((LOD_FAR - radius) / (LOD_FAR - LOD_NEAR), 0, 1);
   return Math.round(LOD_MIN_ITER + t * (LOD_MAX_ITER - LOD_MIN_ITER));
 }
 
 const keys = new Set<string>();
-let yawAccum = 0;
-let pitchAccum = 0;
-const MOUSE_SENSITIVITY = 0.0022;
+
+// Il drag col mouse ruota la camera direttamente (manipolazione diretta,
+// nessuna inerzia: e' cosi' che ci si aspetta funzioni un trascinamento),
+// mentre stick/tastiera pilotano una velocita' di orbita smussata
+// dall'inerzia della camera stessa.
+let dragAzimuthAccum = 0;
+let dragElevationAccum = 0;
+let dragging = false;
+let lastX = 0;
+let lastY = 0;
+const DRAG_SENSITIVITY = 0.0028;
+let wheelZoom = 0;
 
 window.addEventListener("keydown", (e) => keys.add(e.code));
 window.addEventListener("keyup", (e) => keys.delete(e.code));
 window.addEventListener("blur", () => keys.clear());
 
-canvas.addEventListener("click", () => {
-  if (document.pointerLockElement !== canvas) {
-    canvas.requestPointerLock();
-  }
+canvas.addEventListener("pointerdown", (e) => {
+  if (e.pointerType === "touch") return; // gestito da TouchControls
+  dragging = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
+  canvas.setPointerCapture(e.pointerId);
 });
-
-window.addEventListener("mousemove", (e) => {
-  if (document.pointerLockElement !== canvas) return;
-  yawAccum += e.movementX * MOUSE_SENSITIVITY;
-  pitchAccum += e.movementY * MOUSE_SENSITIVITY;
+canvas.addEventListener("pointerup", (e) => {
+  if (e.pointerType === "touch") return;
+  dragging = false;
+  canvas.releasePointerCapture(e.pointerId);
 });
+canvas.addEventListener("pointermove", (e) => {
+  if (e.pointerType === "touch" || !dragging) return;
+  dragAzimuthAccum += (e.clientX - lastX) * DRAG_SENSITIVITY;
+  dragElevationAccum += -(e.clientY - lastY) * DRAG_SENSITIVITY;
+  lastX = e.clientX;
+  lastY = e.clientY;
+});
+canvas.addEventListener(
+  "wheel",
+  (e) => {
+    e.preventDefault();
+    wheelZoom = clamp(wheelZoom - e.deltaY * 0.0015, -1, 1);
+  },
+  { passive: false }
+);
 
 // Il DPR e' gia' limitato in partenza (un telefono a 3x non deve renderizzare
 // a 3x: il costo del raymarching scala con il numero di pixel), e il
@@ -83,24 +107,24 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
-function readInput(): { cam: CameraInput; boost: boolean } {
-  const kForward = (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0);
-  const kRight = (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0);
-  const up = (keys.has("Space") ? 1 : 0) - (keys.has("ShiftLeft") || keys.has("ShiftRight") ? 1 : 0);
-  const roll = (keys.has("KeyE") ? 1 : 0) - (keys.has("KeyQ") ? 1 : 0);
+function readInput(): { cam: OrbitInput; boost: boolean } {
+  // WASD = orbita nelle 4 direzioni cardinali, Space/Shift = vicino/lontano.
+  const kAzimuth = (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0);
+  const kElevation = (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0);
+  const kZoom = (keys.has("Space") ? 1 : 0) - (keys.has("ShiftLeft") || keys.has("ShiftRight") ? 1 : 0);
 
   const touch = touchControls.consumeFrame();
 
-  const cam: CameraInput = {
-    forward: clamp(kForward + touch.forward, -1, 1),
-    right: clamp(kRight + touch.right, -1, 1),
-    up,
-    roll,
-    yawDelta: yawAccum + touch.yawDelta,
-    pitchDelta: pitchAccum + touch.pitchDelta,
+  const cam: OrbitInput = {
+    azimuth: clamp(kAzimuth + touch.azimuth, -1, 1),
+    elevation: clamp(kElevation + touch.elevation, -1, 1),
+    zoom: clamp(kZoom + touch.zoom + wheelZoom, -1, 1),
+    dragAzimuth: dragAzimuthAccum,
+    dragElevation: dragElevationAccum,
   };
-  yawAccum = 0;
-  pitchAccum = 0;
+  dragAzimuthAccum = 0;
+  dragElevationAccum = 0;
+  wheelZoom *= 0.85;
 
   return { cam, boost: keys.has("ControlLeft") || keys.has("ControlRight") };
 }
@@ -128,7 +152,7 @@ function frame(now: number) {
     fov: camera.fov,
     time,
     power: POWER_BASE + Math.sin(time * POWER_FREQ) * POWER_AMPLITUDE,
-    maxIter: fractalDetail(camera.position),
+    maxIter: fractalDetail(camera.radius),
     raySteps: q.raySteps,
   });
 

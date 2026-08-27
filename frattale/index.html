@@ -27,16 +27,20 @@
         touch-action: none;
         cursor: crosshair;
       }
-      /* Joystick touch: sempre visibili e ancorati agli angoli, cosi' e'
-         chiaro a colpo d'occhio dove toccare (muovi a sinistra, guarda a
-         destra). Si illuminano leggermente quando in uso. */
+      /* Controlli touch, sempre visibili. Stick a sinistra = orbita
+         intorno al centro (2 assi). Levetta a destra = avvicina/allontana
+         dal centro (1 solo asse): forma deliberatamente diversa da uno
+         stick, per segnalare che governa una cosa sola. Si illuminano
+         leggermente quando in uso. */
       #touch-layer {
         position: fixed;
         inset: 0;
         pointer-events: none;
       }
-      .joy-base {
+
+      .stick-base {
         position: absolute;
+        left: max(28px, env(safe-area-inset-left));
         bottom: max(28px, env(safe-area-inset-bottom));
         width: 104px;
         height: 104px;
@@ -45,17 +49,11 @@
         background: rgba(220, 210, 240, 0.05);
         transition: border-color 0.15s ease, background 0.15s ease;
       }
-      .joy-base.active {
+      .stick-base.active {
         border-color: rgba(220, 210, 240, 0.6);
         background: rgba(220, 210, 240, 0.1);
       }
-      .joy-move {
-        left: max(28px, env(safe-area-inset-left));
-      }
-      .joy-look {
-        right: max(28px, env(safe-area-inset-right));
-      }
-      .joy-knob {
+      .stick-knob {
         position: absolute;
         left: 50%;
         top: 50%;
@@ -66,8 +64,62 @@
         background: rgba(220, 210, 240, 0.45);
         transition: transform 0.05s linear;
       }
-      .joy-base.active .joy-knob {
+      .stick-base.active .stick-knob {
         background: rgba(220, 210, 240, 0.7);
+      }
+
+      .lever-track {
+        position: absolute;
+        right: max(40px, env(safe-area-inset-right));
+        bottom: max(28px, env(safe-area-inset-bottom));
+        width: 48px;
+        height: 158px;
+        border-radius: 24px;
+        border: 1.5px solid rgba(220, 210, 240, 0.3);
+        background: rgba(220, 210, 240, 0.05);
+        transition: border-color 0.15s ease, background 0.15s ease;
+      }
+      .lever-track.active {
+        border-color: rgba(220, 210, 240, 0.6);
+        background: rgba(220, 210, 240, 0.1);
+      }
+      .lever-track::before {
+        /* segno "vicino" in alto */
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 14px;
+        width: 14px;
+        height: 14px;
+        margin-left: -7px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(220, 210, 240, 0.35);
+      }
+      .lever-track::after {
+        /* segno "lontano" in basso */
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: 14px;
+        width: 14px;
+        height: 14px;
+        margin-left: -7px;
+        border-radius: 50%;
+        background: rgba(220, 210, 240, 0.35);
+      }
+      .lever-handle {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 38px;
+        height: 38px;
+        margin: -19px 0 0 -19px;
+        border-radius: 12px;
+        background: rgba(220, 210, 240, 0.5);
+        transition: transform 0.05s linear;
+      }
+      .lever-track.active .lever-handle {
+        background: rgba(220, 210, 240, 0.75);
       }
     </style>
   </head>

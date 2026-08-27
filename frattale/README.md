@@ -38,45 +38,44 @@ risoluzione poi gli step, se sta comodo sopra 55fps risale. Cambi piccoli e
 non troppo frequenti per evitare "pompaggi" visibili. Il render loop si
 ferma del tutto quando la pagina è in background (`visibilitychange`).
 
-**Camera**: `src/camera.ts` + `src/quat.ts`. Camera a volo libero 6DOF vera
-(non FPS-style): orientamento come quaternione, aggiornato ogni frame con
-rotazioni incrementali attorno agli assi *locali* correnti (yaw dal mouse
-attorno all'asse "up" locale, pitch attorno al "right" locale, roll con
-Q/E attorno al "forward" locale) — così non c'è gimbal lock e il roll è
-possibile, oltre a beccheggio/imbardata. Il movimento (WASD + Space/Shift)
-è anch'esso relativo agli assi locali, non al mondo, per coerenza con
-"nessun pavimento/gravità". La velocità non insegue mai istantaneamente
-l'input: c'è uno smoothing esponenziale (inerzia). Il FOV cresce
-leggermente con la velocità, anch'esso smussato.
-
-> Nota: lo spec parlava di "rotazione libera" generica; ho aggiunto il
-> roll (Q/E) perché è coerente con "6 gradi di libertà" in senso stretto.
-> Se preferisci una camera stile FPS (senza roll, up/down assoluti nel
-> mondo) è una modifica piccola e isolata in `camera.ts`.
+**Camera** (`src/camera.ts`): orbitale, non più a volo libero. Il mondo ha
+un centro (l'origine, dove vive il frattale) e la camera lo guarda sempre —
+la posizione è interamente definita da coordinate sferiche attorno
+all'origine (`radius`, `azimuth`, `elevation`), niente quaternioni/roll.
+Due modi di muoversi: **orbitare** attorno al centro (azimut orizzontale +
+elevazione verticale, con l'elevazione bloccata a ~83° per non sorvolare i
+poli) e **avvicinarsi/allontanarsi** dal centro (`radius`, clampato tra 1.5
+e 9.0 unità). Stick/tastiera pilotano una velocità di orbita smussata
+dall'inerzia della camera; il trascinamento col mouse invece ruota per
+manipolazione diretta, senza inerzia propria (ci si aspetta che un drag
+risponda 1:1). Il FOV cresce leggermente con la velocità di orbita/zoom,
+anch'esso smussato.
 
 **Input**: `src/touchControls.ts`. Il target è Android, quindi il touch è
-lo schema *primario*, non un ripiego: doppio joystick, **sempre visibile**
-e ancorato agli angoli (basso-sinistra = movimento, basso-destra = guarda),
-con un highlight quando in uso — la prima versione (invisibile finché non
-tocchi) risultava confusa senza un riferimento fisso a schermo. Il tocco
-iniziale è comunque accettato in tutta la metà schermo corrispondente, non
-serve centrare il dito sul cerchietto; la base resta ferma nell'angolo e la
-manopola si sposta verso il dito. Metà sinistra = movimento
-(avanti/indietro + laterale, analogico); metà destra = guarda intorno
-(yaw/pitch), stesso gesto del drag desktop. Non c'è un gesto dedicato per
-su/giù: come in un volo/aereo, ci si alza o abbassa inclinando lo sguardo e
-andando avanti — tiene i controlli a due soli stick invece di tre-quattro
-zone sullo schermo. Tastiera (WASD/Space/Shift/Q/E/Ctrl) e trascinamento
-col mouse restano attivi in parallelo, utili solo per un test rapido da
-laptop durante lo sviluppo.
+lo schema *primario*: due controlli **sempre visibili**, ancorati agli
+angoli, con un highlight quando in uso (la prima versione, invisibile
+finché non tocchi, risultava confusa senza un riferimento fisso a
+schermo). A **sinistra** uno stick circolare per orbitare: asse
+orizzontale = azimut, asse verticale = elevazione — le "4 direzioni
+cardinali". A **destra** una **levetta verticale**, con un design
+deliberatamente diverso da uno stick (un binario allungato, non un disco,
+con un segno vuoto in alto e uno pieno in basso) per segnalare che governa
+un solo asse: avvicina/allontana dal centro. Entrambi sono "a molla":
+tornano a riposo al rilascio. Il tocco iniziale è accettato in tutta la
+metà schermo corrispondente, non serve precisione sul controllo. Su
+desktop: `WASD` = orbita (le stesse 4 direzioni cardinali), `Space`/`Shift`
+= vicino/lontano, trascinamento col mouse o rotellina per orbitare/zoomare,
+`Ctrl` per accelerare — utili solo per un test rapido da laptop durante lo
+sviluppo.
 
 **Dettaglio dinamico (LOD)**: il numero di iterazioni del Mandelbulb
 (`uMaxIter`, uniform invece di costante) cresce da 5 a 10 mano a mano che
-la camera si avvicina all'origine del frattale (`fractalDetail()` in
-`main.ts`, in base a `length(camPos)`). Da lontano la forma resta liscia e
-semplice (economica), avvicinandosi emergono via via le increspature più
-fini — altrimenti il frattale sembra una texture statica indipendentemente
-da quanto ci si avvicina.
+`camera.radius` si avvicina al centro (`fractalDetail()` in `main.ts` — con
+la camera orbitale il raggio *è* già la distanza esatta dal centro, non
+serve ricalcolarla). Da lontano la forma resta liscia e semplice
+(economica), avvicinandosi emergono via via le increspature più fini —
+altrimenti il frattale sembra una texture statica indipendentemente da
+quanto ci si avvicina.
 
 **Livello 2 — evoluzione temporale + reazione alla camera** (in
 `shaders/raymarch.ts`): la potenza del Mandelbulb "respira" lentamente nel

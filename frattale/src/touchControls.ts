@@ -1,60 +1,58 @@
-// Controlli touch: doppio joystick, sempre visibile e ancorato agli angoli
-// (basso-sinistra = movimento, basso-destra = sguardo), così è chiaro a
-// colpo d'occhio dove toccare. Il tocco iniziale viene comunque accettato
-// in tutta la metà schermo corrispondente (non serve centrare il dito sul
-// cerchietto), ma la base resta ferma nell'angolo e la manopola si sposta
-// verso il dito, invece di "nascere" dove tocchi.
+// Controlli touch, sempre visibili. A sinistra uno stick circolare per
+// orbitare intorno al centro del frattale: asse orizzontale = azimut,
+// asse verticale = elevazione -- le "4 direzioni cardinali" (su/giù/
+// sinistra/destra sullo stick). A destra una levetta verticale, con un
+// design deliberatamente diverso (un binario, non un disco) per segnalare
+// che governa un solo asse: avvicinarsi/allontanarsi dal centro.
 //
-// Metà sinistra = movimento (avanti/indietro + laterale). Metà destra =
-// guarda intorno (yaw/pitch), stesso gesto del drag-look desktop. Non c'è
-// un gesto dedicato per su/giù: come in un aereo/astronave, si sale o si
-// scende inclinando lo sguardo e andando avanti — la combinazione di pitch
-// + avanzamento copre comunque tutto lo spazio 3D, e tiene i controlli
-// touch a due soli stick invece di tre-quattro.
+// Entrambi sono "a molla": tornano a riposo al rilascio e pilotano una
+// velocità (rate), non una posizione assoluta -- la camera stessa guarda
+// sempre il centro del mondo, quindi non serve un controllo di "sguardo"
+// libero separato.
 
 export interface TouchFrameInput {
-  forward: number; // -1..1, analogico
-  right: number; // -1..1, analogico
-  yawDelta: number;
-  pitchDelta: number;
+  azimuth: number; // -1..1
+  elevation: number; // -1..1
+  zoom: number; // -1..1, positivo = avvicina
 }
 
-type Role = "move" | "look";
+const STICK_RADIUS = 50; // px, corsa massima dello stick di orbita
+const LEVER_HALF_HEIGHT = 55; // px, corsa massima della levetta sopra/sotto il centro
 
-interface ActiveTouch {
-  id: number;
-  role: Role;
-  lastX: number;
-  lastY: number;
-}
-
-const RADIUS = 52; // px, corsa massima della manopola
-const LOOK_SENSITIVITY = 0.0034;
-
-function createJoystick(role: Role): { base: HTMLDivElement; knob: HTMLDivElement } {
-  const base = document.createElement("div");
-  base.className = `joy-base joy-${role}`;
-  const knob = document.createElement("div");
-  knob.className = "joy-knob";
-  base.appendChild(knob);
-  return { base, knob };
+function clamp(v: number, lo: number, hi: number) {
+  return Math.max(lo, Math.min(hi, v));
 }
 
 export class TouchControls {
-  private touches = new Map<number, ActiveTouch>();
-  private yawAccum = 0;
-  private pitchAccum = 0;
-  private moveX = 0;
-  private moveY = 0;
-  private moveUI = createJoystick("move");
-  private lookUI = createJoystick("look");
+  private stickTouchId: number | null = null;
+  private leverTouchId: number | null = null;
+  private azimuthValue = 0;
+  private elevationValue = 0;
+  private zoomValue = 0;
+
+  private stickBase: HTMLDivElement;
+  private stickKnob: HTMLDivElement;
+  private leverTrack: HTMLDivElement;
+  private leverHandle: HTMLDivElement;
 
   constructor(
     private el: HTMLElement,
     indicatorLayer: HTMLElement
   ) {
-    indicatorLayer.appendChild(this.moveUI.base);
-    indicatorLayer.appendChild(this.lookUI.base);
+    this.stickBase = document.createElement("div");
+    this.stickBase.className = "stick-base";
+    this.stickKnob = document.createElement("div");
+    this.stickKnob.className = "stick-knob";
+    this.stickBase.appendChild(this.stickKnob);
+
+    this.leverTrack = document.createElement("div");
+    this.leverTrack.className = "lever-track";
+    this.leverHandle = document.createElement("div");
+    this.leverHandle.className = "lever-handle";
+    this.leverTrack.appendChild(this.leverHandle);
+
+    indicatorLayer.appendChild(this.stickBase);
+    indicatorLayer.appendChild(this.leverTrack);
 
     el.addEventListener("pointerdown", this.onDown);
     el.addEventListener("pointermove", this.onMove);
@@ -62,73 +60,66 @@ export class TouchControls {
     el.addEventListener("pointercancel", this.onUp);
   }
 
-  private anchorFor(role: Role): { x: number; y: number } {
-    const rect = (role === "move" ? this.moveUI.base : this.lookUI.base).getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-  }
-
   private onDown = (e: PointerEvent) => {
     if (e.pointerType !== "touch") return;
-    const role: Role = e.clientX < window.innerWidth / 2 ? "move" : "look";
-    for (const t of this.touches.values()) if (t.role === role) return; // un dito per ruolo
-
-    this.touches.set(e.pointerId, { id: e.pointerId, role, lastX: e.clientX, lastY: e.clientY });
-    (role === "move" ? this.moveUI.base : this.lookUI.base).classList.add("active");
-    this.el.setPointerCapture(e.pointerId);
-    this.applyMove(role, e.clientX, e.clientY);
+    const isLeft = e.clientX < window.innerWidth / 2;
+    if (isLeft && this.stickTouchId === null) {
+      this.stickTouchId = e.pointerId;
+      this.stickBase.classList.add("active");
+      this.el.setPointerCapture(e.pointerId);
+      this.applyStick(e.clientX, e.clientY);
+    } else if (!isLeft && this.leverTouchId === null) {
+      this.leverTouchId = e.pointerId;
+      this.leverTrack.classList.add("active");
+      this.el.setPointerCapture(e.pointerId);
+      this.applyLever(e.clientY);
+    }
   };
 
-  private applyMove(role: Role, clientX: number, clientY: number) {
-    if (role !== "move") return;
-    const anchor = this.anchorFor("move");
-    const dx = clientX - anchor.x;
-    const dy = clientY - anchor.y;
+  private applyStick(clientX: number, clientY: number) {
+    const rect = this.stickBase.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = clientX - cx;
+    const dy = clientY - cy;
     const len = Math.hypot(dx, dy);
-    const clamped = Math.min(len, RADIUS);
+    const clamped = Math.min(len, STICK_RADIUS);
     const nx = len > 0 ? dx / len : 0;
     const ny = len > 0 ? dy / len : 0;
-    this.moveX = nx * (clamped / RADIUS);
-    this.moveY = ny * (clamped / RADIUS);
-    this.moveUI.knob.style.transform = `translate(${nx * clamped}px, ${ny * clamped}px)`;
+    this.azimuthValue = nx * (clamped / STICK_RADIUS);
+    this.elevationValue = -ny * (clamped / STICK_RADIUS);
+    this.stickKnob.style.transform = `translate(${nx * clamped}px, ${ny * clamped}px)`;
+  }
+
+  private applyLever(clientY: number) {
+    const rect = this.leverTrack.getBoundingClientRect();
+    const cy = rect.top + rect.height / 2;
+    const dy = clamp(clientY - cy, -LEVER_HALF_HEIGHT, LEVER_HALF_HEIGHT);
+    this.zoomValue = -dy / LEVER_HALF_HEIGHT;
+    this.leverHandle.style.transform = `translateY(${dy}px)`;
   }
 
   private onMove = (e: PointerEvent) => {
-    const t = this.touches.get(e.pointerId);
-    if (!t) return;
-
-    if (t.role === "move") {
-      this.applyMove("move", e.clientX, e.clientY);
-    } else {
-      this.yawAccum += (e.clientX - t.lastX) * LOOK_SENSITIVITY;
-      this.pitchAccum += (e.clientY - t.lastY) * LOOK_SENSITIVITY;
-      t.lastX = e.clientX;
-      t.lastY = e.clientY;
-    }
+    if (e.pointerId === this.stickTouchId) this.applyStick(e.clientX, e.clientY);
+    else if (e.pointerId === this.leverTouchId) this.applyLever(e.clientY);
   };
 
   private onUp = (e: PointerEvent) => {
-    const t = this.touches.get(e.pointerId);
-    if (!t) return;
-    if (t.role === "move") {
-      this.moveX = 0;
-      this.moveY = 0;
-      this.moveUI.knob.style.transform = "translate(0, 0)";
-      this.moveUI.base.classList.remove("active");
-    } else {
-      this.lookUI.base.classList.remove("active");
+    if (e.pointerId === this.stickTouchId) {
+      this.stickTouchId = null;
+      this.azimuthValue = 0;
+      this.elevationValue = 0;
+      this.stickKnob.style.transform = "translate(0, 0)";
+      this.stickBase.classList.remove("active");
+    } else if (e.pointerId === this.leverTouchId) {
+      this.leverTouchId = null;
+      this.zoomValue = 0;
+      this.leverHandle.style.transform = "translateY(0)";
+      this.leverTrack.classList.remove("active");
     }
-    this.touches.delete(e.pointerId);
   };
 
   consumeFrame(): TouchFrameInput {
-    const out: TouchFrameInput = {
-      forward: -this.moveY,
-      right: this.moveX,
-      yawDelta: this.yawAccum,
-      pitchDelta: this.pitchAccum,
-    };
-    this.yawAccum = 0;
-    this.pitchAccum = 0;
-    return out;
+    return { azimuth: this.azimuthValue, elevation: this.elevationValue, zoom: this.zoomValue };
   }
 }
