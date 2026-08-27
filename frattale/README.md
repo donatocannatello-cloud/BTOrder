@@ -185,14 +185,27 @@ controllo/performance ma con costo di sviluppo molto più alto, ingiustifi-
 cato visto che l'unico target è Android e l'iterazione rapida in browser è
 prioritaria in questa fase.
 
-CI: workflow GitHub Actions che builda il sito (`npm run build`),
-`npx cap sync android`, poi `./gradlew assembleDebug` (o release con
-keystore di debug fisso) con `applicationId` e `versionName` fissi nel
-`build.gradle` e `versionCode` derivato da `github.run_number` (sempre
-crescente, richiesto da Android per accettare l'update). L'APK viene
-rinominato a un nome file fisso (es. `frattale.apk`) e pubblicato su una
-release GitHub con tag mobile fisso `latest` (aggiornata in-place ad ogni
-build), così il link di download resta sempre lo stesso.
+**CI/Build Android** (`.github/workflows/frattale-android.yml`): builda il
+sito (`npm run build`), `npx cap sync android`, poi `./gradlew
+assembleDebug` — build di debug (firma con un keystore di debug generato
+automaticamente da Gradle, non serve gestire segreti di firma per queste
+build interne). `applicationId` (`com.donatocannatello.frattale`) e
+`versionName` restano fissi in `android/app/build.gradle`; `versionCode`
+è `${{ github.run_number }}` (sempre crescente), passato via variabile
+d'ambiente `ANDROID_VERSION_CODE` letta da Gradle — così ogni build
+sovrascrive l'installazione precedente sul telefono invece di affiancarsi
+come app separata. L'APK viene rinominato a un nome fisso (`frattale.apk`)
+e pubblicato su una release GitHub con tag fisso `latest`
+(`allowUpdates`/`replacesArtifacts`, aggiornata in-place ad ogni build):
+il link di download resta sempre lo stesso,
+`.../releases/download/latest/frattale.apk`. Si attiva su ogni push che
+tocca `frattale/**`, o a mano da Actions (`workflow_dispatch`).
+
+> Nota: questo è un **build di debug** (non firmato per il Play Store),
+> pensato per installare rapidamente le iterazioni sul telefono durante lo
+> sviluppo — bisogna abilitare "Installa app sconosciute" per la sorgente
+> da cui la scarichi. Una firma di release vera (keystore dedicato) è un
+> passo successivo, quando servirà pubblicare sul Play Store.
 
 ## Stato di avanzamento
 
@@ -204,8 +217,20 @@ build), così il link di download resta sempre lo stesso.
 - [x] **Livello 3** — audio generativo reattivo (drone + impulsi ritmici
       su un bus condiviso, pilotati da raggio/velocità della camera).
 - [ ] Livello 4 — nuclei, meccanica di risoluzione, persistenza
-- [ ] Livello 5 — repo/CI Android, APK con nome/package fissi, release
-      con link diretto stabile
+- [x] **Livello 5** — Capacitor + CI Android, APK con nome/package fissi,
+      release `latest` con link diretto stabile
+
+## Scarica l'APK
+
+Link diretto, sempre aggiornato all'ultima build (si aggiorna da solo a
+ogni push su `frattale/`):
+
+**https://github.com/donatocannatello-cloud/BTOrder/releases/download/latest/frattale.apk**
+
+È un build di debug: sul telefono va abilitata l'installazione da sorgenti
+sconosciute per il browser/app con cui la scarichi. Il `versionCode`
+cresce a ogni build, quindi reinstallarla sovrascrive la versione
+precedente invece di affiancarsi come app separata.
 
 ## Sviluppo locale
 
@@ -217,6 +242,16 @@ npm run build     # build statica in dist/
 npm run preview   # serve la build di produzione
 ```
 
-Controlli: mouse (dopo un click sul canvas, pointer lock) per guardare
-intorno, `WASD` per muoversi, `Space`/`Shift` su/giù, `Q`/`E` per il roll,
-`Ctrl` per un boost di velocità.
+Controlli: stick sinistro/`WASD` per orbitare intorno al centro, levetta
+destra/`Space`+`Shift` per avvicinarsi o allontanarsi, trascinamento del
+mouse o rotellina su desktop.
+
+### Build Android locale
+
+```bash
+cd frattale
+npm run build
+npx cap sync android
+cd android
+./gradlew assembleDebug   # APK in app/build/outputs/apk/debug/
+```

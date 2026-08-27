@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Frattale</string>
+    <string name="title_activity_main">Frattale</string>
+    <string name="package_name">com.donatocannatello.frattale</string>
+    <string name="custom_url_scheme">com.donatocannatello.frattale</string>
+</resources>

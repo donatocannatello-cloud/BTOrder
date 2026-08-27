@@ -1,0 +1,9 @@
+{
+  "appId": "com.donatocannatello.frattale",
+  "appName": "Frattale",
+  "webDir": "dist",
+  "backgroundColor": "#0a0a12",
+  "android": {
+    "backgroundColor": "#0a0a12"
+  }
+}
