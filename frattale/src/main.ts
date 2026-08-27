@@ -20,6 +20,8 @@ const audio = new AudioEngine();
 // collegato.
 const entry = document.getElementById("entry") as HTMLElement;
 const exitBtn = document.getElementById("exit-btn") as HTMLElement;
+const buildIdEl = document.getElementById("build-id") as HTMLElement;
+buildIdEl.textContent = `build ${__BUILD_ID__}`;
 let entered = false;
 
 function enter() {
