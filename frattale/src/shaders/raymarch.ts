@@ -127,28 +127,55 @@ void main() {
   if (hit) {
     vec3 p = ro + rd * t;
     vec3 n = estimateNormal(p);
-
-    vec3 lightDir = normalize(vec3(0.5, 0.8, 0.3));
-    float diff = max(dot(n, lightDir), 0.0);
     float ao = 1.0 - steps / float(uRaySteps);
-    float rim = pow(1.0 - max(dot(n, -rd), 0.0), 2.5);
 
-    // Orbit-trap based palette: cool blues/violets shifting into warm rim light,
-    // plus a slow overall hue drift so the mood shifts over long timescales
-    // even without the player doing anything.
+    // Slow overall hue drift so the mood shifts over long timescales even
+    // without the player doing anything.
     vec3 mood = 0.5 + 0.5 * cos(uTime * 0.025 + vec3(0.0, 2.0, 4.0));
-    vec3 baseCol = mix(vec3(0.15, 0.25, 0.55), vec3(0.7, 0.35, 0.85), clamp(trap.w, 0.0, 1.0));
-    baseCol = mix(baseCol, baseCol * mood * 1.4, 0.3);
+    vec3 lineColor = mix(vec3(0.5, 0.75, 1.0), vec3(0.85, 0.55, 1.0), clamp(trap.w, 0.0, 1.0));
+    lineColor = mix(lineColor, lineColor * mood * 1.3, 0.3);
 
-    vec3 lit = baseCol * (0.18 + 0.82 * diff) * (0.55 + 0.45 * ao);
-    lit += rim * vec3(0.4, 0.55, 0.9) * 0.6;
+    // Multi-octave triplanar contour lines carved directly into world
+    // position: smooth and continuous (unlike the orbit trap, which
+    // oscillates chaotically across the fractal's fine bumps and reads as
+    // noise), so it engraves clean, topographic-map-like rings onto the
+    // bumpy surface. Each octave uses fwidth()-based screen-space
+    // antialiasing that fades it out once its spacing would alias
+    // (sub-pixel) -- so finer lines only resolve once the camera is close
+    // enough to actually see them, which is the "detail grows as you
+    // approach" behaviour applied to the linework itself, not just to the
+    // underlying geometry's iteration budget.
+    vec3 aw = abs(n) / (abs(n.x) + abs(n.y) + abs(n.z) + 1e-5);
+    float lines = 0.0;
+    float freq = 2.2;
+    for (int o = 0; o < 4; o++) {
+      vec3 v = p * freq;
+      vec3 w = fwidth(v) + 1e-4;
+      vec3 octaveFade = clamp(1.0 - w * 1.4, 0.0, 1.0);
+      vec3 g = abs(fract(v - 0.5) - 0.5) / w;
+      vec3 axisLine = (1.0 - clamp(g, 0.0, 1.0)) * octaveFade;
+      float lx = max(axisLine.y, axisLine.z);
+      float ly = max(axisLine.x, axisLine.z);
+      float lz = max(axisLine.x, axisLine.y);
+      float l = lx * aw.x + ly * aw.y + lz * aw.z;
+      lines = max(lines, l * (1.0 - float(o) * 0.12));
+      freq *= 2.3;
+    }
+
+    // Hard-edged silhouette line instead of a soft rim, plus a very dim
+    // ambient fill so the shape still reads as solid, not just scattered
+    // lines floating in space.
+    float ndotv = max(dot(n, -rd), 0.0);
+    float rimLine = smoothstep(0.5, 0.85, pow(1.0 - ndotv, 2.2));
+    vec3 dimFill = lineColor * 0.05 * (0.5 + 0.5 * ao);
 
     // Presence glow: surfaces close to the camera light up a little, echoing
     // the local exponent wobble from sceneDE().
     float proximity = 1.0 - smoothstep(0.0, PROX_RADIUS, t);
-    lit += proximity * vec3(0.35, 0.28, 0.5) * 0.5;
+    vec3 glow = lineColor * (lines * 1.4 + rimLine * 0.8);
+    glow += proximity * lineColor * 0.5;
 
-    color = lit;
+    color = dimFill + glow;
   } else {
     color = bg;
   }

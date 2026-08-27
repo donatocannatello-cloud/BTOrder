@@ -89,6 +89,20 @@ in più ("presence" reaction) — calcolata nel frame camera/mondo *non*
 ruotato, così la "zona che reagisce" segue davvero la posizione reale della
 camera invece di scivolare via mentre il frattale ruota.
 
+**Stile visivo — wireframe, non superficie illuminata**: lo shading non è
+più Lambertiano/fotorealistico (era stato segnalato come "troppo
+simulato"), ma un disegno a linee: una griglia di contorno triplanare
+(basata sulla posizione nello spazio, non sull'orbit trap — che oscilla in
+modo troppo caotico sulle bozze fini e dava un effetto "rumore/statico"
+invece di linee pulite) scolpita sulla superficie, multi-ottava, con
+antialiasing via `fwidth()`. Ogni ottava di frequenza più fine sfuma e
+scompare quando la sua spaziatura scenderebbe sotto il pixel (aliasing), e
+torna visibile quando ci si avvicina abbastanza da poterla risolvere: le
+linee stesse si infittiscono avvicinandosi, non solo la geometria
+sottostante (LOD). Un riempimento molto tenue (5% del colore linea) più un
+bordo di silhouette netto danno comunque un minimo di lettura del volume,
+senza tornare a un rendering "pieno".
+
 **Audio** (livello 3, non ancora implementato): Web Audio API pura,
 nessun file precampionato. Un `AudioEngine` leggerà ogni frame: profondità
 media raymarching nel campo visivo, velocità della camera, distanza dal
