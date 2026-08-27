@@ -9,69 +9,24 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.exp
-import kotlin.math.ln
-import kotlin.math.sin
 import kotlin.random.Random
 
-// Risoluzione di rendering: si adatta alla dimensione reale dello schermo
-// (vedi impostaRisoluzione) invece di restare fissa — altrimenti l'immagine
-// resta sempre un piccolo bitmap ingrandito, indipendentemente da quanto si
-// scende in profondità. Questi sono solo i valori di default finché la UI
-// non riporta la dimensione reale del canvas, e i limiti di sicurezza.
-private const val LARGHEZZA_RENDER_DEFAULT = 96
-private const val ALTEZZA_RENDER_DEFAULT = 160
-private const val DIVISORE_RISOLUZIONE = 5
-private const val LARGHEZZA_RENDER_MINIMA = 96
-private const val LARGHEZZA_RENDER_MASSIMA = 220
-private const val ALTEZZA_RENDER_MINIMA = 160
-private const val ALTEZZA_RENDER_MASSIMA = 380
-
-private const val VELOCITA_ZOOM_BASE = 0.55f
-private const val VELOCITA_ZOOM_MASSIMA = 1.6f
-private const val DERIVA_LATERALE = 0.5f
-private const val SEMIAMPIEZZA_INIZIALE = 1.4
-private const val SEMIAMPIEZZA_MINIMA = 1e-13
-private const val LIVELLI_ZOOM_PER_EVENTO_BONUS = 15f
-
-// Inerzia della camera: velocità di discesa e deriva laterale inseguono
-// l'input del joystick invece di seguirlo istantaneamente — ma abbastanza
-// in fretta da restare percepibile come controllo, non solo come deriva.
-private const val COSTANTE_INERZIA = 4.5f
-
-// Respiro idle: un lieve drift laterale sempre presente, anche a joystick
-// fermo, così la camera non è mai perfettamente immobile.
-private const val FREQUENZA_RESPIRO_DERIVA = 0.8f
-private const val AMPIEZZA_RESPIRO_DERIVA = 0.018f
-
-// "FOV" che respira con la velocità: variazione puramente visiva della
-// finestra inquadrata (non della vera traiettoria di discesa).
-private const val FREQUENZA_RESPIRO_FOV = 1.3f
-private const val AMPIEZZA_RESPIRO_FOV = 0.035f
-
-// Risalita automatica: se la vista resta troppo a lungo dentro una zona
-// monocromatica (interno solido dell'insieme, senza alcun dettaglio da
-// rivelare — e da cui lo sterzo non basta più a uscire, perché la sua
-// sensibilità si restringe proporzionalmente allo zoom), la discesa si
-// inverte da sola finché non riappare dettaglio a sufficienza.
-private const val SOGLIA_ZONA_VUOTA = 0.02f
-private const val SOGLIA_TEMPO_VUOTO = 0.6f
-private const val SOGLIA_USCITA_RISALITA = 0.12f
-private const val VELOCITA_RISALITA = 1.3f
-private const val VELOCITA_FUGA_LATERALE = 0.9f
+private const val VELOCITA_MASSIMA = 1.4f
+private const val COSTANTE_INERZIA = 6.0f
+private const val VELOCITA_PAN_PX = 260f
+private const val PAN_MASSIMO_PX = 140f
+private const val LIVELLI_PER_EVENTO_BONUS = 6.0
 
 /**
- * Guida un'immersione continua nel mare frattale con due joystick
- * indipendenti: uno imposta solo la velocità di discesa (zoom verso
- * l'interno, asse principale), l'altro sposta lateralmente in ogni
- * direzione; un loop continuo ricalcola ad ogni fotogramma la finestra sul
- * piano complesso e la passa a [FractalField]. La colonna
- * sonora segue [livelloZoom] con continuità ad ogni fotogramma; ogni tot
- * livelli di zoom (non troppo spesso, per non spezzare il flusso) si apre
- * un breve evento bonus — lo stesso enigma "trova la dissonanza" (nucleo +
- * anello di nodi) delle versioni precedenti — per stabilizzare la discesa.
+ * Guida un'immersione nel tunnel frattale vettoriale: due joystick
+ * indipendenti, uno regola solo la velocità di avanzamento (su/giù), l'altro
+ * sposta il punto di fuga in ogni direzione. A riposo (nessun joystick
+ * azionato) la camera resta perfettamente ferma — nessun movimento
+ * automatico. Un loop continuo aggiorna profondità e spostamento; la colonna
+ * sonora segue la profondità raggiunta ad ogni fotogramma. Ogni tanti
+ * livelli di avanzamento si apre un breve evento bonus — l'enigma "trova la
+ * dissonanza" (nucleo + anello di nodi) delle versioni precedenti.
  */
 class ExplorationViewModel : ViewModel() {
 
@@ -81,39 +36,29 @@ class ExplorationViewModel : ViewModel() {
     private val _state = MutableStateFlow(ImmersioneState())
     val state: StateFlow<ImmersioneState> = _state.asStateFlow()
 
-    // Due joystick indipendenti: uno regola solo la velocità di discesa
-    // (su/giù), l'altro sposta lateralmente in ogni direzione (sx/su/dx/giù).
     @Volatile private var discesaInput = 0f
     @Volatile private var panXInput = 0f
     @Volatile private var panYInput = 0f
     private var cicloAvviato = false
 
-    @Volatile private var larghezzaRender = LARGHEZZA_RENDER_DEFAULT
-    @Volatile private var altezzaRender = ALTEZZA_RENDER_DEFAULT
-
-    // Stato dell'inerzia della camera: valori effettivi che inseguono il
-    // target impostato dai joystick, più il tempo totale per il respiro idle.
-    private var velocitaZoomEffettiva = VELOCITA_ZOOM_BASE
-    private var derivaEffettivaX = 0f
-    private var derivaEffettivaY = 0f
-    private var tempoTotale = 0f
-
-    // Stato della risalita automatica dalle zone monocromatiche.
-    private var tempoInZonaVuota = 0f
-    private var inRisalita = false
-    private var angoloFuga = 0f
+    // Valori effettivi che inseguono il target impostato dai joystick: a
+    // riposo il target è sempre zero, quindi la camera si ferma davvero,
+    // non solo rallenta verso una velocità di base.
+    private var velocitaEffettiva = 0f
+    private var panXEffettivo = 0f
+    private var panYEffettivo = 0f
 
     fun avvia() {
         soundEngine.start()
-        soundEngine.aggiornaProfondita(_state.value.livelloZoom.toInt())
+        soundEngine.aggiornaProfondita(_state.value.profondita.toInt())
         if (cicloAvviato) return
         cicloAvviato = true
         viewModelScope.launch(Dispatchers.Default) {
             var ultimoTick = System.nanoTime()
             while (true) {
-                delay(40L)
+                delay(16L)
                 val ora = System.nanoTime()
-                val dt = ((ora - ultimoTick) / 1_000_000_000.0).toFloat().coerceIn(0f, 0.15f)
+                val dt = ((ora - ultimoTick) / 1_000_000_000.0).toFloat().coerceIn(0f, 0.1f)
                 ultimoTick = ora
                 aggiorna(dt)
             }
@@ -122,26 +67,12 @@ class ExplorationViewModel : ViewModel() {
 
     fun ferma() = soundEngine.stop()
 
-    /**
-     * Chiamato dalla UI non appena conosce la dimensione reale (in pixel)
-     * del canvas: la risoluzione di rendering si adatta di conseguenza
-     * (entro limiti di sicurezza per le prestazioni), invece di restare
-     * fissa e sempre uguale a qualunque profondità.
-     */
-    fun impostaRisoluzione(larghezzaSchermoPx: Int, altezzaSchermoPx: Int) {
-        if (larghezzaSchermoPx <= 0 || altezzaSchermoPx <= 0) return
-        larghezzaRender = (larghezzaSchermoPx / DIVISORE_RISOLUZIONE)
-            .coerceIn(LARGHEZZA_RENDER_MINIMA, LARGHEZZA_RENDER_MASSIMA)
-        altezzaRender = (altezzaSchermoPx / DIVISORE_RISOLUZIONE)
-            .coerceIn(ALTEZZA_RENDER_MINIMA, ALTEZZA_RENDER_MASSIMA)
-    }
-
-    /** Joystick di discesa: y in [-1, 1], su = si scende più veloce, giù = si rallenta/risale. */
+    /** Joystick di discesa: y in [-1, 1], su = avanza, giù = retrocede; a riposo la camera è ferma. */
     fun impostaDiscesa(y: Float) {
         discesaInput = (-y).coerceIn(-1f, 1f)
     }
 
-    /** Joystick di direzione: x/y in [-1, 1], sposta lateralmente in ogni direzione. */
+    /** Joystick di direzione: x/y in [-1, 1], sposta il punto di fuga in ogni direzione. */
     fun impostaPan(x: Float, y: Float) {
         panXInput = x.coerceIn(-1f, 1f)
         panYInput = (-y).coerceIn(-1f, 1f)
@@ -154,13 +85,13 @@ class ExplorationViewModel : ViewModel() {
 
         val risolto = indice == camera.indiceDissonante
         if (risolto) {
-            soundEngine.onRisolto(corrente.livelloZoom.toInt())
+            soundEngine.onRisolto(corrente.profondita.toInt())
         } else {
             soundEngine.onRottura()
         }
 
         _state.value = corrente.copy(
-            punteggio = corrente.punteggio + if (risolto) 40 + corrente.livelloZoom.toInt() * 8 else 0,
+            punteggio = corrente.punteggio + if (risolto) 40 + corrente.profondita.toInt() * 8 else 0,
             indiceSelezionatoBonus = indice,
             esitoBonus = if (risolto) Esito.RISOLTO else Esito.ROTTURA
         )
@@ -175,145 +106,43 @@ class ExplorationViewModel : ViewModel() {
         val corrente = _state.value
         if (corrente.fase == Fase.EVENTO_BONUS) return
 
-        val larghezza = larghezzaRender
-        val altezza = altezzaRender
+        // A riposo (input zero) il target è zero: la camera decelera fino a
+        // fermarsi del tutto, non continua ad avanzare a una velocità base.
+        val velocitaTarget = discesaInput * VELOCITA_MASSIMA
+        val panXTarget = panXInput * VELOCITA_PAN_PX
+        val panYTarget = panYInput * VELOCITA_PAN_PX
 
-        tempoTotale += dt
-
-        val velocitaZoomTarget = VELOCITA_ZOOM_BASE + (VELOCITA_ZOOM_MASSIMA - VELOCITA_ZOOM_BASE) *
-            ((discesaInput + 1f) / 2f)
-        val derivaTargetX = panXInput * DERIVA_LATERALE
-        val derivaTargetY = panYInput * DERIVA_LATERALE
-
-        // Inerzia: la velocità e la deriva effettive inseguono il target con
-        // uno smorzamento esponenziale, mai un salto istantaneo.
         val fattoreInerzia = 1f - exp(-COSTANTE_INERZIA * dt)
-        velocitaZoomEffettiva += (velocitaZoomTarget - velocitaZoomEffettiva) * fattoreInerzia
-        derivaEffettivaX += (derivaTargetX - derivaEffettivaX) * fattoreInerzia
-        derivaEffettivaY += (derivaTargetY - derivaEffettivaY) * fattoreInerzia
+        velocitaEffettiva += (velocitaTarget - velocitaEffettiva) * fattoreInerzia
+        panXEffettivo += (panXTarget - panXEffettivo) * fattoreInerzia
+        panYEffettivo += (panYTarget - panYEffettivo) * fattoreInerzia
 
-        // Respiro idle: un lieve drift continuo che si somma alla deriva
-        // effettiva, presente anche a joystick fermo.
-        val derivaRespiro = AMPIEZZA_RESPIRO_DERIVA * sin(tempoTotale * FREQUENZA_RESPIRO_DERIVA)
+        val nuovaProfondita = (corrente.profondita + velocitaEffettiva * dt).coerceAtLeast(0.0)
+        val nuovoOffsetX = (corrente.offsetX + panXEffettivo * dt).coerceIn(-PAN_MASSIMO_PX, PAN_MASSIMO_PX)
+        val nuovoOffsetY = (corrente.offsetY + panYEffettivo * dt).coerceIn(-PAN_MASSIMO_PX, PAN_MASSIMO_PX)
 
-        // Durante la risalita automatica la velocità di zoom viene invertita
-        // (si esce, non si scende) indipendentemente dall'input del joystick.
-        val velocitaZoomApplicata = if (inRisalita) -VELOCITA_RISALITA else velocitaZoomEffettiva
-        val fattoreZoom = exp(-velocitaZoomApplicata * dt)
-        val nuovaSemiAmpiezza = (corrente.semiAmpiezza * fattoreZoom)
-            .coerceIn(SEMIAMPIEZZA_MINIMA, SEMIAMPIEZZA_INIZIALE)
+        val livelloIntero = nuovaProfondita.toInt()
+        soundEngine.aggiornaProfondita(livelloIntero)
 
-        // In risalita si aggiunge anche una spinta laterale decisa, in una
-        // direzione scelta una sola volta all'inizio dell'episodio, per non
-        // riemergere esattamente nello stesso punto vuoto da cui si è entrati.
-        val perturbazioneX = if (inRisalita) {
-            cos(angoloFuga) * corrente.semiAmpiezza * VELOCITA_FUGA_LATERALE * dt
-        } else {
-            0.0
-        }
-        val perturbazioneY = if (inRisalita) {
-            sin(angoloFuga) * corrente.semiAmpiezza * VELOCITA_FUGA_LATERALE * dt
-        } else {
-            0.0
-        }
-
-        val derivaX = (derivaEffettivaX + derivaRespiro) * corrente.semiAmpiezza * dt + perturbazioneX
-        val derivaY = derivaEffettivaY * corrente.semiAmpiezza * dt + perturbazioneY
-        val nuovoCentroX = corrente.centroX + derivaX
-        val nuovoCentroY = corrente.centroY + derivaY
-
-        val nuovoLivelloZoom = (-ln(nuovaSemiAmpiezza / SEMIAMPIEZZA_INIZIALE) / ln(2.0))
-            .toFloat()
-            .coerceAtLeast(0f)
-        val maxIterazioni = (60 + nuovoLivelloZoom * 4f).toInt().coerceAtMost(400)
-        val faseColore = (nuovoLivelloZoom * 14f) % 360f
-
-        // "FOV" che respira con la velocità: variazione puramente visiva
-        // della finestra inquadrata (nuovaSemiAmpiezza, quella "vera" che
-        // guida profondità/audio/traguardi, resta pulita da questo effetto).
-        val respiroFov = 1f + AMPIEZZA_RESPIRO_FOV *
-            sin(tempoTotale * FREQUENZA_RESPIRO_FOV) *
-            (velocitaZoomEffettiva / VELOCITA_ZOOM_MASSIMA).coerceIn(0f, 1f)
-        val semiAmpiezzaResa = nuovaSemiAmpiezza * respiroFov
-
-        val risultato = FractalField.renderizza(
-            centroX = nuovoCentroX,
-            centroY = nuovoCentroY,
-            semiAmpiezza = semiAmpiezzaResa,
-            larghezza = larghezza,
-            altezza = altezza,
-            maxIterazioni = maxIterazioni,
-            faseColore = faseColore
-        )
-
-        // Rileva le zone monocromatiche (interno solido, senza dettaglio) e,
-        // se durano troppo, inverte automaticamente la rotta finché non
-        // riappare dettaglio a sufficienza: senza questa correzione, una
-        // volta dentro non c'è più nulla da fare (nemmeno lo sterzo basta,
-        // perché la sua sensibilità si restringe con lo zoom).
-        if (risultato.frazioneEscape < SOGLIA_ZONA_VUOTA) {
-            tempoInZonaVuota += dt
-        } else {
-            tempoInZonaVuota = 0f
-        }
-        val nuovoInRisalita = when {
-            inRisalita && risultato.frazioneEscape > SOGLIA_USCITA_RISALITA -> false
-            !inRisalita && tempoInZonaVuota > SOGLIA_TEMPO_VUOTO -> true
-            else -> inRisalita
-        }
-        if (nuovoInRisalita && !inRisalita) {
-            angoloFuga = random.nextFloat() * (2f * PI.toFloat())
-            soundEngine.onRottura()
-        } else if (!nuovoInRisalita && inRisalita) {
-            soundEngine.onRisolto(nuovoLivelloZoom.toInt())
-        }
-        inRisalita = nuovoInRisalita
-
-        soundEngine.aggiornaProfondita(nuovoLivelloZoom.toInt())
-
-        val traguardoRaggiunto = (nuovoLivelloZoom / LIVELLI_ZOOM_PER_EVENTO_BONUS).toInt()
-        val traguardoPrecedente = (corrente.livelloZoom / LIVELLI_ZOOM_PER_EVENTO_BONUS).toInt()
-        if (traguardoRaggiunto > traguardoPrecedente && !inRisalita) {
-            avviaEventoBonus(
-                corrente, nuovoCentroX, nuovoCentroY, nuovaSemiAmpiezza, nuovoLivelloZoom,
-                risultato.pixel, larghezza, altezza
+        val traguardoRaggiunto = (nuovaProfondita / LIVELLI_PER_EVENTO_BONUS).toInt()
+        val traguardoPrecedente = (corrente.profondita / LIVELLI_PER_EVENTO_BONUS).toInt()
+        if (traguardoRaggiunto > traguardoPrecedente) {
+            _state.value = corrente.copy(
+                profondita = nuovaProfondita,
+                offsetX = nuovoOffsetX,
+                offsetY = nuovoOffsetY,
+                fase = Fase.EVENTO_BONUS,
+                cameraBonus = DiveEngine.generaCamera(livelloIntero, random),
+                indiceSelezionatoBonus = null,
+                esitoBonus = Esito.NESSUNO
             )
             return
         }
 
         _state.value = corrente.copy(
-            centroX = nuovoCentroX,
-            centroY = nuovoCentroY,
-            semiAmpiezza = nuovaSemiAmpiezza,
-            livelloZoom = nuovoLivelloZoom,
-            pixel = risultato.pixel,
-            larghezzaPixel = larghezza,
-            altezzaPixel = altezza
-        )
-    }
-
-    private fun avviaEventoBonus(
-        corrente: ImmersioneState,
-        centroX: Double,
-        centroY: Double,
-        semiAmpiezza: Double,
-        livelloZoom: Float,
-        pixel: IntArray,
-        larghezzaPixel: Int,
-        altezzaPixel: Int
-    ) {
-        _state.value = corrente.copy(
-            centroX = centroX,
-            centroY = centroY,
-            semiAmpiezza = semiAmpiezza,
-            livelloZoom = livelloZoom,
-            pixel = pixel,
-            larghezzaPixel = larghezzaPixel,
-            altezzaPixel = altezzaPixel,
-            fase = Fase.EVENTO_BONUS,
-            cameraBonus = DiveEngine.generaCamera(livelloZoom.toInt(), random),
-            indiceSelezionatoBonus = null,
-            esitoBonus = Esito.NESSUNO
+            profondita = nuovaProfondita,
+            offsetX = nuovoOffsetX,
+            offsetY = nuovoOffsetY
         )
     }
 

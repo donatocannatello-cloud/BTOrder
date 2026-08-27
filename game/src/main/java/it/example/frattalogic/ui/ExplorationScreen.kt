@@ -1,6 +1,5 @@
 package it.example.frattalogic.ui
 
-import android.graphics.Bitmap
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -34,13 +33,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import it.example.frattalogic.engine.Camera
 import it.example.frattalogic.engine.Esito
@@ -59,6 +55,11 @@ import kotlin.math.hypot
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
+private const val NUMERO_LIVELLI_TUNNEL = 9
+private const val VELOCITA_ANIMAZIONE_TUNNEL = 1.6
+
+private data class LivelloTunnel(val scala: Float, val spec: FractalSpec)
+
 @Composable
 fun ExplorationScreen(viewModel: ExplorationViewModel) {
     val stato by viewModel.state.collectAsState()
@@ -67,9 +68,6 @@ fun ExplorationScreen(viewModel: ExplorationViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .background(SfondoProfondo)
-            .onSizeChanged { dimensione ->
-                viewModel.impostaRisoluzione(dimensione.width, dimensione.height)
-            }
     ) {
         ImmersioneCanvas(stato)
 
@@ -101,20 +99,36 @@ fun ExplorationScreen(viewModel: ExplorationViewModel) {
     }
 }
 
+/**
+ * Tunnel frattale interamente vettoriale: ad ogni fotogramma si ridisegnano
+ * da zero [NUMERO_LIVELLI_TUNNEL] figure frattali (da `FractalShapes.kt`),
+ * ciascuna con una fase ciclica derivata dalla profondità che ne determina
+ * la scala — le più vicine (grandi) superano lo schermo ed escono di scena,
+ * le più lontane (piccole) emergono al centro. Nessuna immagine raster: è
+ * puro disegno di percorsi vettoriali, ricalcolato in tempo reale.
+ */
 @Composable
 private fun ImmersioneCanvas(stato: ImmersioneState) {
-    val pixelArray = stato.pixel
-    if (pixelArray == null || stato.larghezzaPixel <= 0 || stato.altezzaPixel <= 0) return
-
-    val immagine = Bitmap
-        .createBitmap(pixelArray, stato.larghezzaPixel, stato.altezzaPixel, Bitmap.Config.ARGB_8888)
-        .asImageBitmap()
-
     Canvas(modifier = Modifier.fillMaxSize()) {
-        drawImage(
-            image = immagine,
-            dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt())
-        )
+        val centro = Offset(size.width / 2f + stato.offsetX, size.height / 2f + stato.offsetY)
+        val latoMinimo = size.minDimension
+        val livelloIntero = stato.profondita.toInt()
+        val hueBase = (stato.profondita.toFloat() * 18f) % 360f
+
+        val livelli = (0 until NUMERO_LIVELLI_TUNNEL).map { i ->
+            val fase = (((stato.profondita / VELOCITA_ANIMAZIONE_TUNNEL) + i.toDouble() / NUMERO_LIVELLI_TUNNEL) % 1.0)
+                .toFloat()
+            val scala = latoMinimo * 0.04f + fase * latoMinimo * 2.4f
+            val rotazione = fase * 150f + i * 47f
+            val hue = (hueBase + i * 40f) % 360f
+            val kind = FractalKind.entries[(livelloIntero + i) % FractalKind.entries.size]
+            val profonditaFrattale = 2 + (i % 3)
+            LivelloTunnel(scala, FractalSpec(kind, profonditaFrattale, rotazione, hue))
+        }.sortedBy { it.scala }
+
+        livelli.forEach { livello ->
+            drawFractal(livello.spec, livello.scala, centro)
+        }
     }
 }
 
@@ -133,7 +147,7 @@ private fun IntestazioneImmersione(stato: ImmersioneState) {
                 color = TestoAttenuato
             )
             Text(
-                text = "Profondità: ${stato.livelloZoom.toInt()}",
+                text = "Profondità: ${stato.profondita.toInt()}",
                 style = MaterialTheme.typography.labelLarge,
                 color = TestoAttenuato
             )

@@ -1,60 +1,57 @@
 # Abisso Frattale
 
-Immersione per Android (Kotlin + Jetpack Compose): ci si inabissa senza
-sosta in un vero insieme di Mandelbrot, calcolato in tempo reale — denso di
-colore e di dettaglio, mai un'immagine precaricata. La navigazione è
-principalmente verticale: si scende sempre più a fondo nello zoom, con due
-joystick indipendenti — uno regola solo la velocità di discesa (su/giù),
-l'altro sposta lateralmente in ogni direzione (sinistra/su/destra/giù) per
-scegliere dove infilarsi. La colonna sonora, multi-strumento, cambia di
-continuo seguendo la profondità raggiunta. Ogni tanto, scendendo, la
-corrente "si increspa": un breve enigma — trovare l'unico elemento
-dissonante in un anello di figure frattali — punteggia la discesa senza
-interromperne il flusso.
+Immersione per Android (Kotlin + Jetpack Compose): si avanza in un tunnel
+frattale generato proceduralmente e disegnato **interamente in vettoriale,
+in tempo reale** — nessuna immagine raster, nessun bitmap: ogni fotogramma
+ridisegna da zero le figure frattali (alberi ricorsivi, triangoli di
+Sierpinski, fiocchi di Koch) che compongono la scena. Due joystick
+indipendenti: uno regola solo la velocità di avanzamento, l'altro sposta il
+punto di fuga in ogni direzione. **A riposo (nessun joystick azionato) la
+camera non si muove affatto.** La colonna sonora, multi-strumento, cambia di
+continuo seguendo la profondità raggiunta. Ogni tanto la corrente "si
+increspa": un breve enigma — trovare l'unico elemento dissonante in un
+anello di figure frattali — punteggia l'avanzamento senza interromperne il
+flusso.
 
 - **Package**: `it.example.frattalogic`
 - **minSdk**: 26 · **targetSdk / compileSdk**: 34
 
 ## Il gioco
 
-- **Discesa continua**: il livello di zoom nell'insieme di Mandelbrot
-  scende da solo. Due joystick indipendenti a schermo: quello a sinistra
-  regola solo la **velocità verticale** (su = si scende più in fretta, giù
-  = si rallenta/risale); quello a destra sposta lateralmente in ogni
-  direzione, per curiosare in una zona piuttosto che un'altra. Non c'è un
-  obiettivo da "vincere": è un'immersione senza fine, sempre più in
-  profondità, sempre diversa.
-- **Un mondo denso e mutevole**: ogni fotogramma è un vero calcolo
-  dell'insieme di Mandelbrot (algoritmo a tempo di fuga, colorazione
-  continua sul numero di iterazioni), a partire da un punto della "valle
-  dei cavallucci marini" sul bordo dell'insieme — una zona nota per la sua
-  ricchezza di dettaglio a qualunque livello di zoom. Il colore stesso
-  ruota lentamente con la profondità, così il paesaggio non si ripete mai
-  davvero.
-- **Evento bonus**: ogni tanti livelli di zoom la discesa apre un breve
+- **Due joystick, movimento solo su comando**: quello a sinistra regola
+  soltanto la **velocità di avanzamento** (su = si avanza più in fretta,
+  giù = si retrocede; al centro, fermo); quello a destra sposta **il punto
+  di fuga** in ogni direzione (sinistra/su/destra/giù). Se non si tocca
+  alcun joystick, la scena resta immobile: nessun movimento automatico.
+- **Tunnel vettoriale dinamico**: la profondità raggiunta determina la fase
+  ciclica di un gruppo di figure frattali — le più vicine (grandi) superano
+  lo schermo e uscendo di scena, le più lontane (piccole) emergono al
+  centro — dando la sensazione di avanzare attraverso una galleria di forme
+  che si rinnovano di continuo. Tipo di frattale, tonalità e rotazione di
+  ogni figura variano con la profondità, così la scena non si ripete mai
+  davvero. Non c'è un obiettivo da "vincere": è un'immersione senza fine.
+- **Evento bonus**: ogni tanti livelli di avanzamento si apre un breve
   enigma — un nucleo frattale centrale e un anello di figure attorno, tutte
   identiche tranne una (tonalità, rotazione o profondità di ricorsione
-  alterata): toccarla dà punti; sbagliare non interrompe la discesa.
+  alterata): toccarla dà punti; sbagliare non interrompe l'avanzamento.
 
-## Grafica: un vero frattale, non un'illustrazione
+## Grafica: puro vettoriale, nessun bitmap
 
-A differenza delle prime versioni (figure vettoriali disegnate a mano —
-alberi ricorsivi, Sierpinski, Koch, ancora usate per l'evento bonus in
-`ui/FractalShapes.kt`), il paesaggio principale è **l'insieme di Mandelbrot
-vero e proprio**: `engine/FractalField.kt` calcola punto per punto, ad ogni
-fotogramma, se ciascun pixel appartiene all'insieme (tempo di fuga, fino a
-qualche centinaia di iterazioni man mano che si scende) e lo colora con una
-formula di colorazione continua sul numero di iterazioni frazionario, per
-evitare le fasce nette e ottenere invece gradazioni morbide. Il calcolo
-avviene su una griglia ridotta (per restare fluido su telefono) e viene
-scalato per riempire lo schermo — nessuna immagine bitmap inclusa nell'app,
-tutto è calcolato via codice.
+Tutte le figure (`ui/FractalShapes.kt`) sono disegnate ricorsivamente con
+`Canvas` di Compose — albero frattale, triangolo di Sierpinski, fiocco di
+Koch — parametrizzate da profondità di ricorsione, rotazione e tonalità.
+Il tunnel (`ui/ExplorationScreen.kt`, `ImmersioneCanvas`) le compone in più
+livelli, ciascuno con una propria fase/scala/rotazione/tonalità calcolate
+dalla profondità corrente, e le ridisegna da zero ad ogni fotogramma: non
+c'è alcun buffer di pixel, alcuna bitmap, alcuna immagine precaricata — solo
+disegno di percorsi vettoriali in tempo reale, ad ogni framerate del
+dispositivo.
 
 ## Audio procedurale multi-strumento, continuo con la profondità
 
 `audio/SoundEngine.kt` non riproduce alcun file audio: sintetizza in tempo
 reale, via `AudioTrack` in modalità streaming, quattro voci che si mescolano
-per somma additiva e si aggiungono una alla volta scendendo:
+per somma additiva e si aggiungono una alla volta avanzando:
 
 1. **basso** — drone continuo un'ottava sotto la nota fondamentale (sempre
    attivo);
@@ -64,10 +61,10 @@ per somma additiva e si aggiungono una alla volta scendendo:
 4. **percussione** — un breve impulso di rumore filtrato ad ogni nota
    dell'arpeggio (dalla profondità 6).
 
-La nota fondamentale e il tempo dell'arpeggio seguono il livello di zoom
-**ad ogni fotogramma**, non solo a soglie discrete: la musica cambia
-davvero mentre si naviga. Risolvere l'evento bonus fa suonare un breve
-accordo consonante; sbagliare fa suonare un cluster dissonante.
+La nota fondamentale e il tempo dell'arpeggio seguono la profondità **ad
+ogni fotogramma**, non solo a soglie discrete. Risolvere l'evento bonus fa
+suonare un breve accordo consonante; sbagliare fa suonare un cluster
+dissonante.
 
 ## Come compilare in locale
 
@@ -130,17 +127,6 @@ build va verificata con accesso reale al Google Maven repository — cosa che
 avviene automaticamente nei workflow di GitHub Actions sopra descritti, che
 girano su runner con rete non ristretta.
 
-### Nota sulla precisione numerica dello zoom
-
-Lo zoom usa numeri in doppia precisione (`Double`, ~15-17 cifre
-significative): è il limite pratico di qualunque semplice "zoomer" di
-Mandelbrot senza aritmetica a precisione arbitraria. Dopo una discesa molto
-lunga (ordine dei minuti a velocità sostenuta) il dettaglio comincia a
-sgranarsi per esaurimento di precisione: è un limite noto e accettato, non
-un bug — implementare l'aritmetica a precisione arbitraria (`BigDecimal` o
-simili) per il calcolo per-pixel in tempo reale non sarebbe praticabile su
-telefono.
-
 ## Struttura del codice
 
 ```
@@ -148,13 +134,12 @@ game/src/main/java/it/example/frattalogic/
 ├── MainActivity.kt              punto di ingresso, avvia/ferma audio e loop col ciclo di vita
 ├── audio/SoundEngine.kt         sintesi multi-strumento in tempo reale (AudioTrack)
 ├── engine/
-│   ├── FractalField.kt          calcola l'insieme di Mandelbrot (tempo di fuga + colorazione continua)
-│   ├── ImmersioneModels.kt      stato della discesa (finestra sul piano complesso, fotogramma, fase)
-│   ├── ExplorationViewModel.kt  loop di discesa, sterzo, soglie di profondità, evento bonus
+│   ├── ImmersioneModels.kt      stato dell'avanzamento (profondità, punto di fuga, fase)
+│   ├── ExplorationViewModel.kt  loop di avanzamento, sterzo, soglie, evento bonus
 │   ├── DiveModels.kt            modelli dell'evento bonus (nucleo + anello di nodi)
 │   └── DiveEngine.kt            genera ogni evento bonus e dosa la dissonanza
 └── ui/
-    ├── FractalShapes.kt         disegno ricorsivo delle figure frattali (usato dall'evento bonus)
-    ├── ExplorationScreen.kt     canvas della discesa, joystick, overlay dell'evento bonus
+    ├── FractalShapes.kt         disegno ricorsivo delle figure frattali (vettoriale)
+    ├── ExplorationScreen.kt     tunnel vettoriale, joystick, overlay dell'evento bonus
     └── theme/                   palette colori e tipografia
 ```

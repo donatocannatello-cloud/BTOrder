@@ -116,15 +116,16 @@ macchina normale, o una CI con rete non ristretta).
 
 ## Abisso Frattale
 
-Immersione: ci si inabissa senza sosta in un vero insieme di Mandelbrot
-calcolato in tempo reale, denso di colore e dettaglio. La navigazione è
-principalmente verticale — due joystick indipendenti, uno per la velocità
-di discesa nello zoom e uno per spostarsi lateralmente in ogni direzione —
-e la colonna sonora multi-strumento (basso, arpeggio, pad
+Immersione: si avanza in un tunnel frattale disegnato interamente in
+vettoriale e in tempo reale (nessun bitmap: le figure — alberi ricorsivi,
+Sierpinski, Koch — sono ridisegnate da zero ad ogni fotogramma). Due
+joystick indipendenti: uno regola solo la velocità di avanzamento, l'altro
+sposta il punto di fuga in ogni direzione — a riposo la camera non si
+muove affatto. La colonna sonora multi-strumento (basso, arpeggio, pad
 armonico, percussione) cambia di continuo seguendo la profondità raggiunta,
-non solo a tappe discrete. Ogni tanto la discesa apre un breve evento bonus
-— trovare l'unico elemento dissonante in un anello di figure frattali — che
-punteggia senza interrompere il flusso.
+non solo a tappe discrete. Ogni tanto l'avanzamento apre un breve evento
+bonus — trovare l'unico elemento dissonante in un anello di figure
+frattali — che punteggia senza interrompere il flusso.
 
 - **Package**: `it.example.frattalogic` · **minSdk**: 26 · **compileSdk**: 34
 - Build locale: `./gradlew :game:assembleRelease`

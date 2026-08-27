@@ -3,20 +3,15 @@ package it.example.frattalogic.engine
 enum class Fase { IMMERSIONE, EVENTO_BONUS }
 
 /**
- * Stato della discesa: [centroX]/[centroY]/[semiAmpiezza] sono la finestra
- * corrente sul piano complesso, [pixel] l'ultimo fotogramma calcolato da
- * [FractalField] (dimensioni [larghezzaPixel]×[altezzaPixel]). Il punto di
- * partenza è una nota "valle dei cavallucci marini" del bordo dell'insieme
- * di Mandelbrot, ricca di dettaglio a qualunque livello di zoom.
+ * Stato della discesa: [profondita] è una misura continua di quanto si è
+ * avanzati nel tunnel frattale (cresce solo mentre il joystick di discesa è
+ * azionato — a riposo resta ferma), [offsetX]/[offsetY] lo spostamento
+ * laterale del punto di fuga impostato dal joystick di direzione.
  */
 data class ImmersioneState(
-    val centroX: Double = -0.743643887037151,
-    val centroY: Double = 0.131825904205330,
-    val semiAmpiezza: Double = 1.4,
-    val livelloZoom: Float = 0f,
-    val pixel: IntArray? = null,
-    val larghezzaPixel: Int = 0,
-    val altezzaPixel: Int = 0,
+    val profondita: Double = 0.0,
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f,
     val punteggio: Int = 0,
     val fase: Fase = Fase.IMMERSIONE,
     val cameraBonus: Camera? = null,
