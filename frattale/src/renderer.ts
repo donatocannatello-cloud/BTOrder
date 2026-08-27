@@ -46,7 +46,6 @@ export class Renderer {
       "uMaxIter",
       "uRaySteps",
       "uDepthLayerBase",
-      "uFlash",
     ];
     this.uniforms = {};
     for (const name of names) {
@@ -75,7 +74,6 @@ export class Renderer {
     maxIter: number;
     raySteps: number;
     depthLayerBase: number;
-    flash: number;
   }) {
     const gl = this.gl;
     gl.useProgram(this.program);
@@ -90,7 +88,6 @@ export class Renderer {
     gl.uniform1i(this.uniforms.uMaxIter, opts.maxIter);
     gl.uniform1i(this.uniforms.uRaySteps, opts.raySteps);
     gl.uniform1f(this.uniforms.uDepthLayerBase, opts.depthLayerBase);
-    gl.uniform1f(this.uniforms.uFlash, opts.flash);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 }

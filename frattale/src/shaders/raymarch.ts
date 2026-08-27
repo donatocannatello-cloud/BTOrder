@@ -25,7 +25,6 @@ uniform float uBreath;     // small "world breathes" power oscillation, added to
 uniform int uMaxIter;      // iteration budget: fewer far away, more up close (LOD)
 uniform int uRaySteps;     // sphere-tracing step budget, tuned live by the quality manager
 uniform float uDepthLayerBase; // floor(log(RADIUS_MAX/radius)/log(SCALE)): how deep the camera currently is
-uniform float uFlash;      // 0..1, subtle decaying pulse right when a new layer takes over
 
 out vec4 fragColor;
 
@@ -402,9 +401,6 @@ void main() {
   vec2 vc = uv * (1.0 / max(uFov, 0.5));
   float vig = smoothstep(1.4, 0.2, length(vc));
   color *= mix(0.75, 1.0, vig);
-
-  // Impulso al passaggio di livello: un breve chiarore.
-  color += uFlash * vec3(0.85, 0.8, 1.0) * 0.6;
 
   color = color / (1.0 + color);
   color = pow(color, vec3(1.0 / 2.2));

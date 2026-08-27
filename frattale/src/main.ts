@@ -190,11 +190,8 @@ function readInput(): { cam: OrbitInput; boost: boolean } {
   return { cam, boost: keys.has("ControlLeft") || keys.has("ControlRight") };
 }
 
-const FLASH_DECAY = 4.0;
-
 let last = performance.now();
 let lastDepthLayerBase = 0;
-let flashLevel = 0;
 function frame(now: number) {
   if (!running) return;
 
@@ -212,9 +209,7 @@ function frame(now: number) {
   if (depthLayerBase !== lastDepthLayerBase) {
     lastDepthLayerBase = depthLayerBase;
     audio.layerTransition(depthLayerBase);
-    flashLevel = 1;
   }
-  flashLevel *= Math.exp(-FLASH_DECAY * dt);
 
   const radiusT = clamp((camera.radius - RADIUS_MIN) / (RADIUS_MAX - RADIUS_MIN), 0, 1);
   audio.update(now, radiusT, camera.motionIntensity);
@@ -231,7 +226,6 @@ function frame(now: number) {
     maxIter: fractalDetail(camera.radius),
     raySteps: q.raySteps,
     depthLayerBase,
-    flash: flashLevel,
   });
 
   requestAnimationFrame(frame);
