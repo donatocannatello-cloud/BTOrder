@@ -20,6 +20,24 @@ sola "geometria" (il frattale, definito analiticamente nello shader) e un
 solo draw call; saltare Three.js tiene il bundle minuscolo (~9 KB JS) e
 riduce l'overhead nella WebView Android.
 
+> Perché non "vettoriale": un frattale 3D via raymarching non ha un
+> equivalente vettoriale (SVG-like) — non sono forme/path, è una superficie
+> procedurale risolta pixel per pixel lungo ogni raggio (per questo ogni
+> renderer di questo tipo, da Shadertoy a Mandelbulber, è raster per
+> natura). La leva reale per alleggerirlo è risoluzione/step di calcolo per
+> pixel, vedi **Qualità adattiva** più sotto.
+
+**Qualità adattiva** (`src/quality.ts`): il DPR è limitato a 1.5 in
+partenza (un telefono a 3x non deve renderizzare a 3x: il costo del
+raymarching scala con il numero di pixel), poi un `QualityManager` misura
+il tempo-frame reale ogni ~900ms e regola `renderScale` (risoluzione
+interna del canvas, upscalata via CSS) e `raySteps` (budget di step di
+sphere-tracing, ora un uniform `uRaySteps` invece della costante fissa
+`MAX_STEPS`): se il framerate scende sotto 30fps degrada prima la
+risoluzione poi gli step, se sta comodo sopra 55fps risale. Cambi piccoli e
+non troppo frequenti per evitare "pompaggi" visibili. Il render loop si
+ferma del tutto quando la pagina è in background (`visibilitychange`).
+
 **Camera**: `src/camera.ts` + `src/quat.ts`. Camera a volo libero 6DOF vera
 (non FPS-style): orientamento come quaternione, aggiornato ogni frame con
 rotazioni incrementali attorno agli assi *locali* correnti (yaw dal mouse

@@ -23,10 +23,10 @@ uniform float uFov;      // vertical fov, radians
 uniform float uTime;
 uniform float uPower;    // Mandelbulb exponent, evolves slowly over time (JS side)
 uniform int uMaxIter;    // iteration budget: fewer far away, more up close (LOD)
+uniform int uRaySteps;   // sphere-tracing step budget, tuned live by the quality manager
 
 out vec4 fragColor;
 
-const int MAX_STEPS = 110;
 const float MAX_DIST = 45.0;
 const float SURF_EPS = 0.0009;
 const float PROX_RADIUS = 2.2; // world units: how far the "presence" reaction reaches
@@ -106,7 +106,7 @@ void main() {
   vec4 trap = vec4(0.0);
   bool hit = false;
 
-  for (int i = 0; i < MAX_STEPS; i++) {
+  for (int i = 0; i < uRaySteps; i++) {
     vec3 p = ro + rd * t;
     vec4 tr;
     float d = sceneDE(p, tr);
@@ -130,7 +130,7 @@ void main() {
 
     vec3 lightDir = normalize(vec3(0.5, 0.8, 0.3));
     float diff = max(dot(n, lightDir), 0.0);
-    float ao = 1.0 - steps / float(MAX_STEPS);
+    float ao = 1.0 - steps / float(uRaySteps);
     float rim = pow(1.0 - max(dot(n, -rd), 0.0), 2.5);
 
     // Orbit-trap based palette: cool blues/violets shifting into warm rim light,

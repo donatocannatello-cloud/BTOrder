@@ -1,12 +1,14 @@
 import { FlightCamera, type CameraInput } from "./camera";
 import { Renderer } from "./renderer";
 import { TouchControls } from "./touchControls";
+import { QualityManager } from "./quality";
 
 const canvas = document.getElementById("gl") as HTMLCanvasElement;
 const indicatorLayer = document.getElementById("touch-layer") as HTMLElement;
 const renderer = new Renderer(canvas);
 const camera = new FlightCamera();
 const touchControls = new TouchControls(canvas, indicatorLayer);
+const quality = new QualityManager();
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
@@ -55,12 +57,31 @@ window.addEventListener("mousemove", (e) => {
   pitchAccum += e.movementY * MOUSE_SENSITIVITY;
 });
 
-function resize() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  renderer.resize(Math.floor(window.innerWidth * dpr), Math.floor(window.innerHeight * dpr));
+// Il DPR e' gia' limitato in partenza (un telefono a 3x non deve renderizzare
+// a 3x: il costo del raymarching scala con il numero di pixel), e il
+// QualityManager applica un ulteriore renderScale sopra questo, misurato
+// sul frame time reale del dispositivo.
+const DPR_CAP = 1.5;
+let appliedRenderScale = -1;
+
+function resize(renderScale: number) {
+  appliedRenderScale = renderScale;
+  const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP) * renderScale;
+  renderer.resize(Math.max(1, Math.floor(window.innerWidth * dpr)), Math.max(1, Math.floor(window.innerHeight * dpr)));
 }
-window.addEventListener("resize", resize);
-resize();
+window.addEventListener("resize", () => resize(appliedRenderScale > 0 ? appliedRenderScale : 0.82));
+resize(0.82);
+
+// Niente calcoli sprecati quando l'app e' in background (tab non attiva /
+// telefono con lo schermo su un'altra app): meno carico, meno batteria.
+let running = true;
+document.addEventListener("visibilitychange", () => {
+  running = !document.hidden;
+  if (running) {
+    last = performance.now();
+    requestAnimationFrame(frame);
+  }
+});
 
 function readInput(): { cam: CameraInput; boost: boolean } {
   const kForward = (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0);
@@ -86,9 +107,15 @@ function readInput(): { cam: CameraInput; boost: boolean } {
 
 let last = performance.now();
 function frame(now: number) {
-  const dt = Math.min((now - last) / 1000, 1 / 20);
-  last = now;
+  if (!running) return;
 
+  const dtMs = Math.min(now - last, 1000 / 20);
+  last = now;
+  quality.recordFrame(dtMs);
+  const q = quality.update(now);
+  if (q.renderScale !== appliedRenderScale) resize(q.renderScale);
+
+  const dt = dtMs / 1000;
   const { cam, boost } = readInput();
   camera.update(dt, cam, boost);
 
@@ -102,6 +129,7 @@ function frame(now: number) {
     time,
     power: POWER_BASE + Math.sin(time * POWER_FREQ) * POWER_AMPLITUDE,
     maxIter: fractalDetail(camera.position),
+    raySteps: q.raySteps,
   });
 
   requestAnimationFrame(frame);

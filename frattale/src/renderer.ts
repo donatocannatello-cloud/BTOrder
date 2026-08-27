@@ -34,7 +34,18 @@ export class Renderer {
     }
     this.program = program;
 
-    const names = ["uResolution", "uCamPos", "uCamRight", "uCamUp", "uCamForward", "uFov", "uTime", "uPower", "uMaxIter"];
+    const names = [
+      "uResolution",
+      "uCamPos",
+      "uCamRight",
+      "uCamUp",
+      "uCamForward",
+      "uFov",
+      "uTime",
+      "uPower",
+      "uMaxIter",
+      "uRaySteps",
+    ];
     this.uniforms = {};
     for (const name of names) {
       this.uniforms[name] = gl.getUniformLocation(program, name);
@@ -60,6 +71,7 @@ export class Renderer {
     time: number;
     power: number;
     maxIter: number;
+    raySteps: number;
   }) {
     const gl = this.gl;
     gl.useProgram(this.program);
@@ -72,6 +84,7 @@ export class Renderer {
     gl.uniform1f(this.uniforms.uTime, opts.time);
     gl.uniform1f(this.uniforms.uPower, opts.power);
     gl.uniform1i(this.uniforms.uMaxIter, opts.maxIter);
+    gl.uniform1i(this.uniforms.uRaySteps, opts.raySteps);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 }
