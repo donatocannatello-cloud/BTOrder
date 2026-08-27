@@ -36,6 +36,18 @@ leggermente con la velocità, anch'esso smussato.
 > Se preferisci una camera stile FPS (senza roll, up/down assoluti nel
 > mondo) è una modifica piccola e isolata in `camera.ts`.
 
+**Input**: `src/touchControls.ts`. Il target è Android, quindi il touch è
+lo schema *primario*, non un ripiego: doppio joystick invisibile — appare
+solo sotto il dito, sparisce al rilascio, nessun elemento fisso a schermo.
+Metà sinistra dello schermo = movimento (avanti/indietro + laterale,
+analogico); metà destra = guarda intorno (yaw/pitch), stesso gesto del
+drag desktop. Non c'è un gesto dedicato per su/giù: come in un volo/
+aereo, ci si alza o abbassa inclinando lo sguardo e andando avanti — tiene
+i controlli a due soli stick invece di tre-quattro zone sullo schermo.
+Tastiera (WASD/Space/Shift/Q/E/Ctrl) e trascinamento col mouse restano
+attivi in parallelo, utili solo per un test rapido da laptop durante lo
+sviluppo.
+
 **Audio** (livello 3, non ancora implementato): Web Audio API pura,
 nessun file precampionato. Un `AudioEngine` leggerà ogni frame: profondità
 media raymarching nel campo visivo, velocità della camera, distanza dal
