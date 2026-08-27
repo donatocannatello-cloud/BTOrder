@@ -187,9 +187,17 @@ prioritaria in questa fase.
 
 **CI/Build Android** (`.github/workflows/frattale-android.yml`): builda il
 sito (`npm run build`), `npx cap sync android`, poi `./gradlew
-assembleDebug` — build di debug (firma con un keystore di debug generato
-automaticamente da Gradle, non serve gestire segreti di firma per queste
-build interne). `applicationId` (`com.donatocannatello.frattale`) e
+assembleDebug` — build di debug, firmata con un keystore di debug fisso
+committato nel repo (`android/app/debug.keystore`, credenziali standard
+Android `androiddebugkey`/`android`, la stessa identità pubblica che
+Android Studio genera in locale — non una chiave di release, nessun
+segreto da gestire). Necessario perché altrimenti ogni run della CI
+userebbe il keystore generato al volo dal runner (diverso a ogni run,
+dato che i runner sono effimeri): l'APK risulterebbe firmato con una
+chiave diversa dalla build precedente, e Android rifiuta di aggiornare
+un'app se la firma non coincide con quella già installata ("l'app non è
+stata installata perché è in conflitto con un pacchetto esistente").
+`applicationId` (`com.donatocannatello.frattale`) e
 `versionName` restano fissi in `android/app/build.gradle`; `versionCode`
 è `${{ github.run_number }}` (sempre crescente), passato via variabile
 d'ambiente `ANDROID_VERSION_CODE` letta da Gradle — così ogni build
@@ -231,6 +239,13 @@ ogni push su `frattale/`):
 sconosciute per il browser/app con cui la scarichi. Il `versionCode`
 cresce a ogni build, quindi reinstallarla sovrascrive la versione
 precedente invece di affiancarsi come app separata.
+
+> Se avevi già installato una build **prima** che la firma venisse fissata
+> (commit `dcbe155`), quella build ha una firma diversa da tutte quelle
+> successive: la prossima installazione fallirà con "app non installata,
+> in conflitto con un pacchetto esistente". Basta disinstallare quella
+> vecchia una volta sola — da lì in poi ogni nuova build si aggiornerà
+> sopra la precedente senza bisogno di disinstallare di nuovo.
 
 ## Sviluppo locale
 
