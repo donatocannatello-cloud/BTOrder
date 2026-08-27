@@ -42,9 +42,11 @@ export class Renderer {
       "uCamForward",
       "uFov",
       "uTime",
-      "uPower",
+      "uBreath",
       "uMaxIter",
       "uRaySteps",
+      "uDepthLayerBase",
+      "uFlash",
     ];
     this.uniforms = {};
     for (const name of names) {
@@ -69,9 +71,11 @@ export class Renderer {
     camForward: Vec3;
     fov: number;
     time: number;
-    power: number;
+    breath: number;
     maxIter: number;
     raySteps: number;
+    depthLayerBase: number;
+    flash: number;
   }) {
     const gl = this.gl;
     gl.useProgram(this.program);
@@ -82,9 +86,11 @@ export class Renderer {
     gl.uniform3f(this.uniforms.uCamForward, ...opts.camForward);
     gl.uniform1f(this.uniforms.uFov, opts.fov);
     gl.uniform1f(this.uniforms.uTime, opts.time);
-    gl.uniform1f(this.uniforms.uPower, opts.power);
+    gl.uniform1f(this.uniforms.uBreath, opts.breath);
     gl.uniform1i(this.uniforms.uMaxIter, opts.maxIter);
     gl.uniform1i(this.uniforms.uRaySteps, opts.raySteps);
+    gl.uniform1f(this.uniforms.uDepthLayerBase, opts.depthLayerBase);
+    gl.uniform1f(this.uniforms.uFlash, opts.flash);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 }

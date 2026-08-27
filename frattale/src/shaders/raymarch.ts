@@ -19,17 +19,31 @@ uniform vec3 uCamPos;
 uniform vec3 uCamRight;
 uniform vec3 uCamUp;
 uniform vec3 uCamForward;
-uniform float uFov;      // vertical fov, radians
+uniform float uFov;        // vertical fov, radians
 uniform float uTime;
-uniform float uPower;    // Mandelbulb exponent, evolves slowly over time (JS side)
-uniform int uMaxIter;    // iteration budget: fewer far away, more up close (LOD)
-uniform int uRaySteps;   // sphere-tracing step budget, tuned live by the quality manager
+uniform float uBreath;     // small "world breathes" power oscillation, added to every layer
+uniform int uMaxIter;      // iteration budget: fewer far away, more up close (LOD)
+uniform int uRaySteps;     // sphere-tracing step budget, tuned live by the quality manager
+uniform float uDepthLayerBase; // floor(log(RADIUS_MAX/radius)/log(SCALE)): how deep the camera currently is
+uniform float uFlash;      // 0..1, subtle decaying pulse right when a new layer takes over
 
 out vec4 fragColor;
 
 const float MAX_DIST = 45.0;
 const float SURF_EPS = 0.0009;
 const float PROX_RADIUS = 2.2; // world units: how far the "presence" reaction reaches
+
+// Infinite descent: instead of one fractal, the scene is the union of a
+// small, fixed *window* of NUM_LAYERS nested copies -- the current one the
+// camera sits in, plus the next ones already visible growing inside it.
+// Each copy k lives SCALE^k times smaller (standard SDF domain-scaling:
+// scale the sample point, divide the resulting distance by the same
+// factor), so as the camera's radius keeps shrinking, copy k=1 gradually
+// takes over as the nearest surface -- continuously, no cut or reset.
+// Layers already crossed, and anything beyond this window, are never
+// evaluated at all: cost stays flat regardless of how deep you go.
+const float SCALE = 2.2;
+const int NUM_LAYERS = 3;
 
 mat3 rotY(float a) {
   float s = sin(a), c = cos(a);
@@ -38,6 +52,29 @@ mat3 rotY(float a) {
 mat3 rotX(float a) {
   float s = sin(a), c = cos(a);
   return mat3(1.0, 0.0, 0.0, 0.0, c, -s, 0.0, s, c);
+}
+
+float hash11(float p) {
+  p = fract(p * 0.1031);
+  p *= p + 33.33;
+  p *= p + p;
+  return fract(p);
+}
+
+// Layer 0 (the "home" fractal, before the first descent) keeps its
+// original look exactly; variety only kicks in from layer 1 onward, so the
+// starting point never changes just because the descent system exists.
+float layerPower(float absLayer) {
+  return absLayer < 0.5 ? 8.0 : 6.0 + hash11(absLayer * 12.9898 + 3.1) * 5.0;
+}
+float layerHue(float absLayer) {
+  return absLayer < 0.5 ? 0.0 : hash11(absLayer * 7.31 + 9.7) * 6.2832;
+}
+float layerRotSpeed(float absLayer) {
+  return absLayer < 0.5 ? 1.0 : 0.5 + hash11(absLayer * 5.13 + 1.7) * 1.5;
+}
+float layerRotSign(float absLayer) {
+  return absLayer < 0.5 ? 1.0 : (hash11(absLayer * 5.13 + 8.8) > 0.5 ? 1.0 : -1.0);
 }
 
 // Mandelbulb distance estimator.
@@ -69,28 +106,63 @@ float deMandelbulb(vec3 pos, float power, out vec4 trap) {
   return 0.5 * log(max(r, 1e-6)) * r / dr;
 }
 
-// The fractal slowly rotates in place over time (the world "breathes" even
-// without input), and the exponent gets a small extra wobble near wherever
-// the camera currently is, as a gentle "presence" reaction. Proximity is
-// measured in the *unrotated* world/camera frame so it tracks the camera
-// correctly regardless of how far the domain has rotated.
-float sceneDE(vec3 p, out vec4 trap) {
+// Union of the NUM_LAYERS nested copies currently in the descent window.
+// 'wonLayer' reports which one (0..NUM_LAYERS-1, relative to uDepthLayerBase)
+// produced the winning (closest) distance, for shading.
+float sceneDE(vec3 p, out vec4 trap, out float wonLayer) {
   float distToCam = length(p - uCamPos);
   float proximity = 1.0 - smoothstep(0.0, PROX_RADIUS, distToCam);
-  float localPower = uPower + proximity * 0.45 * sin(uTime * 1.3 + dot(p, p) * 2.0);
 
-  vec3 rp = rotY(uTime * 0.015) * rotX(uTime * 0.006) * p;
-  return deMandelbulb(rp, localPower, trap);
+  float best = MAX_DIST;
+  vec4 bestTrap = vec4(0.0);
+  float bestK = 0.0;
+  // s deve partire ancorato alla profondita' assoluta gia' raggiunta, non
+  // da 1.0: la copia k=0 ("livello corrente") deve gia' essere rimpicciolita
+  // di SCALE^uDepthLayerBase, altrimenti resta sempre alla dimensione
+  // originale mentre la camera (il cui raggio si riduce con la stessa legge)
+  // le sfila via sotto, e oltre una certa profondita' non trova piu' nulla.
+  float s = pow(SCALE, uDepthLayerBase);
+
+  for (int k = 0; k < NUM_LAYERS; k++) {
+    float absLayer = uDepthLayerBase + float(k);
+    // The fractal slowly rotates in place over time (the world "breathes"
+    // even without input), independently per layer, and the exponent gets
+    // a small extra wobble near wherever the camera currently is, as a
+    // gentle "presence" reaction.
+    float power = layerPower(absLayer) + uBreath + proximity * 0.45 * sin(uTime * 1.3 + dot(p, p) * 2.0);
+    float rs = layerRotSpeed(absLayer);
+    float rsign = layerRotSign(absLayer);
+
+    vec3 lp = p * s;
+    vec3 rp = rotY(uTime * 0.015 * rs * rsign) * rotX(uTime * 0.006 * rs) * lp;
+    vec4 tr;
+    float d = deMandelbulb(rp, power, tr) / s;
+    if (d < best) {
+      best = d;
+      bestTrap = tr;
+      bestK = float(k);
+    }
+    s *= SCALE;
+  }
+
+  trap = bestTrap;
+  wonLayer = bestK;
+  return best;
+}
+
+float sceneDist(vec3 p) {
+  vec4 t;
+  float w;
+  return sceneDE(p, t, w);
 }
 
 vec3 estimateNormal(vec3 p) {
-  vec4 t;
   float e = SURF_EPS * 3.0;
   vec2 h = vec2(e, 0.0);
   return normalize(vec3(
-    sceneDE(p + h.xyy, t) - sceneDE(p - h.xyy, t),
-    sceneDE(p + h.yxy, t) - sceneDE(p - h.yxy, t),
-    sceneDE(p + h.yyx, t) - sceneDE(p - h.yyx, t)
+    sceneDist(p + h.xyy) - sceneDist(p - h.xyy),
+    sceneDist(p + h.yxy) - sceneDist(p - h.yxy),
+    sceneDist(p + h.yyx) - sceneDist(p - h.yyx)
   ));
 }
 
@@ -104,16 +176,19 @@ void main() {
   float t = 0.0;
   float steps = 0.0;
   vec4 trap = vec4(0.0);
+  float hitLayerK = 0.0;
   bool hit = false;
 
   for (int i = 0; i < uRaySteps; i++) {
     vec3 p = ro + rd * t;
     vec4 tr;
-    float d = sceneDE(p, tr);
+    float wk;
+    float d = sceneDE(p, tr, wk);
     steps += 1.0;
     if (d < SURF_EPS * max(1.0, t)) {
       hit = true;
       trap = tr;
+      hitLayerK = wk;
       break;
     }
     t += d * 0.85;
@@ -130,8 +205,10 @@ void main() {
     float ao = 1.0 - steps / float(uRaySteps);
 
     // Slow overall hue drift so the mood shifts over long timescales even
-    // without the player doing anything.
-    vec3 mood = 0.5 + 0.5 * cos(uTime * 0.025 + vec3(0.0, 2.0, 4.0));
+    // without the player doing anything, offset per descent-layer so each
+    // newly-entered fractal has a visibly different palette.
+    float hue = layerHue(uDepthLayerBase + hitLayerK);
+    vec3 mood = 0.5 + 0.5 * cos(uTime * 0.025 + hue + vec3(0.0, 2.0, 4.0));
     vec3 lineColor = mix(vec3(0.5, 0.75, 1.0), vec3(0.85, 0.55, 1.0), clamp(trap.w, 0.0, 1.0));
     lineColor = mix(lineColor, lineColor * mood * 1.3, 0.3);
 
@@ -199,6 +276,9 @@ void main() {
   vec2 vc = uv * (1.0 / max(uFov, 0.5));
   float vig = smoothstep(1.4, 0.2, length(vc));
   color *= mix(0.75, 1.0, vig);
+
+  // Impulso al passaggio di livello: un breve chiarore.
+  color += uFlash * vec3(0.85, 0.8, 1.0) * 0.6;
 
   color = color / (1.0 + color);
   color = pow(color, vec3(1.0 / 2.2));

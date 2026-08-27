@@ -28,18 +28,34 @@ function clamp(v: number, lo: number, hi: number) {
 }
 
 // Il potere del Mandelbulb "respira" lentamente nel tempo, anche senza
-// input: il mondo e' vivo di suo, non solo quando ci si muove.
-const POWER_BASE = 8.0;
+// input: il mondo e' vivo di suo, non solo quando ci si muove. E' una
+// piccola oscillazione aggiunta (nello shader) alla potenza di *ogni*
+// livello annidato, non un valore assoluto.
 const POWER_AMPLITUDE = 1.2;
 const POWER_FREQ = 0.05; // rad/s, periodo ~125s
+
+// Affondamento infinito: la scena e' sempre l'unione di 3 frattali
+// annidati (il livello attuale + i 2 successivi, gia' visibili crescere
+// dentro di esso) — vedi shaders/raymarch.ts. SCALE deve combaciare con
+// quello dello shader. depthLayerBase e' quanti "livelli" (fattori SCALE)
+// il raggio ha gia' attraversato: si ricalcola dal raggio corrente, non e'
+// uno stato a parte, quindi l'affondamento e' continuo, mai a scatti.
+const SCALE = 2.2;
+
+function computeDepthLayerBase(radius: number): number {
+  return Math.max(0, Math.floor(Math.log(RADIUS_MAX / radius) / Math.log(SCALE)));
+}
 
 // Dettaglio (numero di iterazioni del frattale) in funzione della distanza
 // dal centro: da lontano il frattale resta una forma semplice/liscia
 // (economica), avvicinandosi emergono via via le increspature piu' fini,
 // cosi' la scena non e' statica quando ci si avvicina. La camera orbitale
 // ha gia' il raggio come distanza esatta dal centro, non serve ricalcolarla.
-const LOD_MIN_ITER = 5;
-const LOD_MAX_ITER = 10;
+// Ridotto rispetto a prima (era 10): la scena ora unisce sempre 3 frattali
+// annidati, quindi il costo per step di raymarching e' gia' circa 3 volte
+// tanto anche al minimo.
+const LOD_MIN_ITER = 4;
+const LOD_MAX_ITER = 7;
 const LOD_NEAR = 1.6;
 const LOD_FAR = 7.0;
 
@@ -106,8 +122,8 @@ function resize(renderScale: number) {
   const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP) * renderScale;
   renderer.resize(Math.max(1, Math.floor(window.innerWidth * dpr)), Math.max(1, Math.floor(window.innerHeight * dpr)));
 }
-window.addEventListener("resize", () => resize(appliedRenderScale > 0 ? appliedRenderScale : 0.82));
-resize(0.82);
+window.addEventListener("resize", () => resize(appliedRenderScale > 0 ? appliedRenderScale : 0.7));
+resize(0.7);
 
 // Niente calcoli sprecati quando l'app e' in background (tab non attiva /
 // telefono con lo schermo su un'altra app): meno carico, meno batteria.
@@ -142,7 +158,11 @@ function readInput(): { cam: OrbitInput; boost: boolean } {
   return { cam, boost: keys.has("ControlLeft") || keys.has("ControlRight") };
 }
 
+const FLASH_DECAY = 4.0;
+
 let last = performance.now();
+let lastDepthLayerBase = 0;
+let flashLevel = 0;
 function frame(now: number) {
   if (!running) return;
 
@@ -156,6 +176,14 @@ function frame(now: number) {
   const { cam, boost } = readInput();
   camera.update(dt, cam, boost);
 
+  const depthLayerBase = computeDepthLayerBase(camera.radius);
+  if (depthLayerBase !== lastDepthLayerBase) {
+    lastDepthLayerBase = depthLayerBase;
+    audio.layerTransition(depthLayerBase);
+    flashLevel = 1;
+  }
+  flashLevel *= Math.exp(-FLASH_DECAY * dt);
+
   const radiusT = clamp((camera.radius - RADIUS_MIN) / (RADIUS_MAX - RADIUS_MIN), 0, 1);
   audio.update(now, radiusT, camera.motionIntensity);
 
@@ -167,9 +195,11 @@ function frame(now: number) {
     camForward: camera.forwardAxis,
     fov: camera.fov,
     time,
-    power: POWER_BASE + Math.sin(time * POWER_FREQ) * POWER_AMPLITUDE,
+    breath: Math.sin(time * POWER_FREQ) * POWER_AMPLITUDE,
     maxIter: fractalDetail(camera.radius),
     raySteps: q.raySteps,
+    depthLayerBase,
+    flash: flashLevel,
   });
 
   requestAnimationFrame(frame);

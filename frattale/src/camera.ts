@@ -4,6 +4,13 @@
 // direzioni cardinali") e avvicinarsi/allontanarsi dal centro (raggio).
 // Nessun volo libero, nessun roll: la posizione e' interamente definita
 // da coordinate sferiche attorno all'origine.
+//
+// Il raggio si muove in scala logaritmica (moltiplicativa), non lineare:
+// per un affondamento continuo su molti ordini di grandezza la velocita'
+// deve essere relativa alla scala attuale, altrimenti vicino al centro il
+// movimento sembrerebbe schizzare via (o, al contrario, essere fermo).
+// E' lo stesso motivo per cui uno zoom di mappa/fotocamera e' sempre
+// moltiplicativo, mai un semplice +/- costante.
 
 export type Vec3 = [number, number, number];
 
@@ -26,9 +33,15 @@ export interface OrbitInput {
   dragElevation: number; // radianti in questo frame, istantaneo (drag mouse)
 }
 
-export const RADIUS_MIN = 0.5; // abbastanza vicino al centro da affondare dentro la nube del frattale
+// Il raggio minimo e' bassissimo (non uno "zero" vero, ma abbastanza
+// vicino da dare comunque moltissimi ordini di grandezza di discesa
+// continua prima che la precisione in virgola mobile del renderer diventi
+// un problema pratico) -- l'affondamento e' continuo, senza un reset a
+// scatti: e' lo shader, non la camera, a occuparsi di far apparire nuovi
+// frattali via via che si scende (vedi shaders/raymarch.ts, SCALE/NUM_LAYERS).
+export const RADIUS_MIN = 1e-5;
 export const RADIUS_MAX = 9.0;
-const RADIUS_SPEED = 2.4; // unità/s a levetta tutta spinta
+const LOG_RADIUS_SPEED = 0.8; // "e-fold" al secondo a levetta tutta spinta: velocita' relativa, non assoluta
 const ROTATE_SPEED = 1.0; // rad/s a stick tutto spinto
 const BOOST_MULT = 2.4;
 const ELEVATION_LIMIT = 1.45; // rad (~83°): resta sotto i poli, niente flip
@@ -48,7 +61,7 @@ export class OrbitCamera {
 
   private velAzimuth = 0;
   private velElevation = 0;
-  private velRadius = 0;
+  private velLogRadius = 0;
 
   get position(): Vec3 {
     const ce = Math.cos(this.elevation);
@@ -75,12 +88,12 @@ export class OrbitCamera {
     const mult = boost ? BOOST_MULT : 1;
     const targetVelAzimuth = input.azimuth * ROTATE_SPEED * mult;
     const targetVelElevation = input.elevation * ROTATE_SPEED * mult;
-    const targetVelRadius = -input.zoom * RADIUS_SPEED * mult;
+    const targetVelLogRadius = -input.zoom * LOG_RADIUS_SPEED * mult;
 
     const ease = 1 - Math.exp(-EASE * dt);
     this.velAzimuth += (targetVelAzimuth - this.velAzimuth) * ease;
     this.velElevation += (targetVelElevation - this.velElevation) * ease;
-    this.velRadius += (targetVelRadius - this.velRadius) * ease;
+    this.velLogRadius += (targetVelLogRadius - this.velLogRadius) * ease;
 
     // Il drag del mouse e' manipolazione diretta (nessuna inerzia propria,
     // e' cosi' che ci si aspetta si comporti un trascinamento); stick e
@@ -91,10 +104,10 @@ export class OrbitCamera {
       -ELEVATION_LIMIT,
       ELEVATION_LIMIT
     );
-    this.radius = clamp(this.radius + this.velRadius * dt, RADIUS_MIN, RADIUS_MAX);
+    this.radius = clamp(this.radius * Math.exp(this.velLogRadius * dt), RADIUS_MIN, RADIUS_MAX);
 
     const rotSpeed = Math.hypot(this.velAzimuth, this.velElevation) / ROTATE_SPEED;
-    const zoomSpeed = Math.abs(this.velRadius) / RADIUS_SPEED;
+    const zoomSpeed = Math.abs(this.velLogRadius) / LOG_RADIUS_SPEED;
     this.motionIntensity = clamp(rotSpeed + zoomSpeed, 0, 1);
     const targetFov = BASE_FOV + (MAX_FOV - BASE_FOV) * this.motionIntensity;
     this.fov += (targetFov - this.fov) * (1 - Math.exp(-2.5 * dt));

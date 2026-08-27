@@ -40,6 +40,7 @@ export class AudioEngine {
   private started = false;
   private lastPulse = 0;
   private droneGains: GainNode[] = [];
+  private droneOscillators: OscillatorNode[] = [];
 
   constructor() {
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -79,6 +80,7 @@ export class AudioEngine {
       gain.connect(this.filter);
       osc.start();
       this.droneGains.push(gain);
+      this.droneOscillators.push(osc);
     }
   }
 
@@ -113,6 +115,38 @@ export class AudioEngine {
       this.lastPulse = nowMs;
       this.pluck(radiusT);
     }
+  }
+
+  /**
+   * Accento sonoro al passaggio di livello: la radice del drone scende di
+   * un semitono per livello (avvolta ogni 7 livelli, cosi' non esce mai
+   * dal registro udibile anche scendendo all'infinito) e un breve
+   * arpeggio discendente segna il momento della soglia attraversata.
+   */
+  layerTransition(depthLayer: number) {
+    if (!this.started) return;
+    const t = this.ctx.currentTime;
+    const semitones = depthLayer % 7;
+    const rootMultiplier = Math.pow(2, -semitones / 12);
+    this.droneOscillators.forEach((osc, i) => {
+      osc.frequency.setTargetAtTime(DRONE_ROOT * DRONE_RATIOS[i] * rootMultiplier, t, 0.8);
+    });
+
+    const notes = [523.3, 440, 349.2];
+    notes.forEach((note, i) => {
+      const at = t + i * 0.09;
+      const osc = this.ctx.createOscillator();
+      osc.type = "triangle";
+      osc.frequency.value = note;
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0, at);
+      gain.gain.linearRampToValueAtTime(0.11, at + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, at + 0.7);
+      osc.connect(gain);
+      gain.connect(this.filter);
+      osc.start(at);
+      osc.stop(at + 0.75);
+    });
   }
 
   private pluck(radiusT: number) {

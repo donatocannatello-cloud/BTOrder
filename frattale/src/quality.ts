@@ -16,9 +16,12 @@ const RENDER_SCALE_MIN = 0.5;
 const RENDER_SCALE_MAX = 1.0;
 const RENDER_SCALE_STEP = 0.08;
 
-const RAY_STEPS_MIN = 55;
-const RAY_STEPS_MAX = 95;
-const RAY_STEPS_STEP = 10;
+// Ridotti rispetto a prima: la scena ora unisce sempre 3 frattali
+// annidati (l'affondamento infinito, vedi shaders/raymarch.ts), quindi
+// ogni step di raymarching costa circa 3 volte tanto.
+const RAY_STEPS_MIN = 40;
+const RAY_STEPS_MAX = 70;
+const RAY_STEPS_STEP = 8;
 
 const TARGET_FPS_LOW = 30; // sotto: degrada
 const TARGET_FPS_HIGH = 55; // sopra (con margine): puo' risalire
@@ -27,7 +30,7 @@ const ADJUST_INTERVAL_MS = 900;
 const WINDOW_SIZE = 30;
 
 export class QualityManager {
-  private state: QualityState = { renderScale: 0.82, raySteps: 80 };
+  private state: QualityState = { renderScale: 0.7, raySteps: 58 };
   private frameTimes: number[] = [];
   private lastAdjust = 0;
 

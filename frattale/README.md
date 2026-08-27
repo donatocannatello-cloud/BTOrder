@@ -117,15 +117,41 @@ scala pentatonica) — fermi quasi silenzio, muovendosi la trama si
 infittisce. L'`AudioContext` parte al primo gesto utente (tap/click/tasto),
 non prima, per rispettare le policy di autoplay dei browser.
 
-**Affondamento dentro la nube**: il raggio minimo della camera è sceso a
-0.5 (prima 1.5) per poter penetrare davvero dentro la struttura, e lo
-shader aggiunge un termine di "enclosure" — quando l'hit è fortissimamente
-ravvicinato su un pixel (si è circondati da geometria, non solo vicini a
-una parete) il colore vira verso un violaceo più scuro e denso, così
-"essere dentro" si legge visivamente diverso da "essere vicino a una
-superficie". Nota: il Mandelbulb ha cavità/sacche relativamente vuote
-anche vicino al centro, quindi l'effetto non è uniforme a ogni raggio
-basso — dipende da dove ci si trova rispetto ai lobi locali.
+**Affondamento infinito e continuo** (`shaders/raymarch.ts`, `main.ts`,
+`camera.ts`): scendendo verso il centro non si "tocca il fondo" — la scena
+è sempre l'**unione di 3 frattali annidati** (`NUM_LAYERS`): quello in cui
+si è attualmente, e i 2 successivi, già visibili crescere al suo interno
+mentre ci si avvicina, con potenza/tinta/rotazione proprie (derivate
+deterministicamente dall'indice di profondità via hash, nessuna tabella da
+mantenere — il livello 0, il punto di partenza, resta però sempre identico
+a se stesso). Il raggio della camera si muove in **scala logaritmica**
+(moltiplicativa, non +/- costante): è l'unico modo per cui l'affondamento
+resti "continuo" e uniforme attraverso molti ordini di grandezza — uno
+zoom lineare, vicino al centro, sembrerebbe schizzare via o restare fermo.
+Nessuno scatto, nessun reset: `depthLayerBase` (quanti fattori di scala il
+raggio ha già attraversato) si ricalcola ogni frame dal raggio corrente,
+non è uno stato a parte. Livelli già superati o troppo lontani non vengono
+mai calcolati — il costo resta piatto (sempre esattamente 3 copie) a
+qualunque profondità, non si accumula nulla.
+
+> Bug corretto durante lo sviluppo: la copia "livello corrente" (k=0) va
+> ri-ancorata alla profondità assoluta (`s = pow(SCALE, uDepthLayerBase)`),
+> non può ripartire da scala 1 a ogni frame — altrimenti resta sempre alla
+> dimensione originale mentre il raggio (che si riduce con la stessa legge)
+> le sfila via sotto, e oltre una certa profondità la telecamera non trova
+> più nulla (schermo vuoto). Verificato con una discesa continua di 16s+
+> senza interruzioni.
+
+Il costo di 3 copie simultanee (~3× le iterazioni per step rispetto a
+prima) è compensato abbassando i tetti di dettaglio (`LOD_MAX_ITER`
+10→7) e il budget di step adattivo (`quality.ts`, `RAY_STEPS_MAX` 95→70) —
+il `QualityManager` (vedi sopra) resta comunque il meccanismo che tiene
+tutto entro le risorse disponibili in tempo reale.
+
+Resta anche l'effetto "enclosure": quando l'hit è fortissimamente
+ravvicinato su un pixel (circondati da geometria, non solo vicini a una
+parete) il colore vira verso un violaceo più scuro e denso, così "essere
+dentro" si legge diverso da "essere vicino a una superficie".
 
 **Nuclei e persistenza** (livello 4, non ancora implementato): punti
 generati deterministicamente (seed fisso + hash), verificati contro la
