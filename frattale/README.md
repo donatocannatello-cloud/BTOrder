@@ -117,6 +117,17 @@ scala pentatonica) — fermi quasi silenzio, muovendosi la trama si
 infittisce. L'`AudioContext` parte al primo gesto utente (tap/click/tasto),
 non prima, per rispettare le policy di autoplay dei browser.
 
+> Corretto dopo un primo giro di test: volume troppo basso e un fruscio
+> intermittente. Il fruscio veniva dall'impulse response del riverbero,
+> generata come rumore bianco puro (tutte le frequenze a pari energia) —
+> ogni pizzicato/accordo che l'attraversava si sentiva "sibilante". Ora il
+> rumore passa da un leaky integrator prima di essere scritto nel buffer
+> (lo scurisce verso un rosa/marrone, riverbero diffuso invece che
+> sibilante) e c'è un lowpass dedicato sul ritorno del riverbero. I livelli
+> individuali sono più alti (drone, pizzicati, accordi) e un
+> `DynamicsCompressorNode` sul bus finale li tiene sotto controllo senza
+> rischiare distorsione quando più suoni si sovrappongono.
+
 **Affondamento infinito e continuo** (`shaders/raymarch.ts`, `main.ts`,
 `camera.ts`): scendendo verso il centro non si "tocca il fondo" — la scena
 è sempre l'**unione di 3 frattali annidati** (`NUM_LAYERS`): quello in cui
