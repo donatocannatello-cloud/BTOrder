@@ -1,53 +1,47 @@
 // Audio generativo in tempo reale (Web Audio API, nessun file precampionato).
-// Tutto passa dallo stesso bus (filtro condiviso -> dry/wet -> riverbero ->
-// master): il drone ambientale e gli impulsi ritmici non sono due suoni
-// separati sovrapposti, sono voci della stessa composizione, cosi' si
-// combinano davvero in un'unica musica invece di leggersi come effetti
-// sonori indipendenti.
+// Tutto passa dallo stesso bus (filtro condiviso -> master): il drone
+// ambientale e gli impulsi ritmici non sono due suoni separati sovrapposti,
+// sono voci della stessa composizione, cosi' si combinano davvero in
+// un'unica musica invece di leggersi come effetti sonori indipendenti.
+//
+// Deliberatamente senza spazializzazione 3D (niente PannerNode/
+// AudioListener) e senza riverbero a convoluzione: un ConvolverNode e' il
+// nodo piu' costoso in CPU di questa catena, e su un telefono reale, in
+// concorrenza con il raymarching del frattale, la sua elaborazione era la
+// causa piu' probabile sia dei "disturbi" intermittenti (buffer audio che
+// non fanno in tempo) sia della sensazione di eco/ovattamento -- la coda
+// del riverbero si accumulava sopra pizzicati e accordi sempre piu'
+// frequenti scendendo. Rimosso del tutto: piu' leggero e piu' pulito.
 //
 // Due soli segnali pilotano tutto, entrambi gia' disponibili dalla camera:
-//  - raggio orbitale (quanto si e' vicini/dentro il centro) -> registro e
-//    apertura del filtro: da lontano suono aperto e chiaro, immergendosi
-//    nella nube il suono si scurisce e si fa piu' risonante/avvolgente
+//  - raggio orbitale (quanto si e' vicini/dentro il centro) -> quanto il
+//    drone e' presente/risonante: da lontano piu' discreto, immergendosi
+//    nella nube piu' pieno -- il timbro pero' resta sempre chiaro, non si
+//    scurisce con la profondita'
 //  - intensita' di movimento (orbita + zoom combinati) -> densita' degli
 //    impulsi ritmici: fermi non c'e' quasi percussione, muovendosi la
 //    trama si infittisce. L'impressione voluta e' che il giocatore stia
 //    "componendo" muovendosi, non ascoltando una traccia di sottofondo.
 
-// Rumore bianco puro come impulse response suona "fruscio" (tutte le
-// frequenze a pari energia); un leaky integrator lo scurisce verso un
-// rumore piu' rosa/marrone, dando un riverbero diffuso e caldo invece che
-// sibilante -- lo stesso trucco di molti riverberi algoritmici fatti in
-// casa.
-function makeImpulseResponse(ctx: BaseAudioContext, duration: number, decay: number): AudioBuffer {
-  const rate = ctx.sampleRate;
-  const length = Math.floor(rate * duration);
-  const impulse = ctx.createBuffer(2, length, rate);
-  const smoothing = 0.12; // piu' basso = piu' scuro/meno "fruscio"
-  for (let ch = 0; ch < 2; ch++) {
-    const data = impulse.getChannelData(ch);
-    let state = 0;
-    for (let i = 0; i < length; i++) {
-      const white = Math.random() * 2 - 1;
-      state += (white - state) * smoothing;
-      data[i] = state * Math.pow(1 - i / length, decay);
-    }
-  }
-  return impulse;
-}
-
 const DRONE_ROOT = 55; // A1
 const DRONE_RATIOS = [1, 1.5, 2, 2.996, 4.008]; // radice, quinta, ottava, +quinta/ottave leggermente stonate per battimenti
 const PLUCK_NOTES = [220, 261.6, 329.6, 392, 440, 523.3]; // pentatonica su A, per gli impulsi ritmici
+
+// I parametri (filtro, livelli drone) non hanno bisogno di risoluzione a
+// 60fps: il timeConstant delle rampe e' gia' molto piu' lento (0.35-0.6s).
+// Aggiornarli ogni frame significa solo mandare 6 volte piu' comandi di
+// automazione del necessario dal thread principale a quello audio -- uno
+// dei sospetti principali per i micro-disturbi su un telefono sotto carico
+// mentre il raymarching gia' occupa la CPU.
+const UPDATE_INTERVAL_MS = 100;
 
 export class AudioEngine {
   private ctx: AudioContext;
   private master: GainNode;
   private filter: BiquadFilterNode;
-  private dry: GainNode;
-  private wet: GainNode;
   private started = false;
   private lastPulse = 0;
+  private lastUpdate = 0;
   private droneGains: GainNode[] = [];
   private droneOscillators: OscillatorNode[] = [];
 
@@ -59,8 +53,7 @@ export class AudioEngine {
     this.master.gain.value = 0.85;
 
     // Compressore sul bus finale: permette di alzare i livelli individuali
-    // (prima troppo bassi) senza rischiare distorsione quando drone e
-    // impulsi si sovrappongono.
+    // senza rischiare distorsione quando drone e impulsi si sovrappongono.
     const compressor = this.ctx.createDynamicsCompressor();
     compressor.threshold.value = -18;
     compressor.knee.value = 12;
@@ -71,36 +64,13 @@ export class AudioEngine {
     compressor.connect(this.ctx.destination);
 
     // Bus condiviso: tutto (drone + impulsi) passa dallo stesso filtro
-    // prima di dividersi in dry/wet, cosi' resta un'unica voce coerente.
+    // prima del master, cosi' resta un'unica voce coerente. Frequenza
+    // fissa e chiara -- non si scurisce piu' scendendo.
     this.filter = this.ctx.createBiquadFilter();
     this.filter.type = "lowpass";
-    this.filter.frequency.value = 900;
+    this.filter.frequency.value = 2400;
     this.filter.Q.value = 0.6;
-
-    this.dry = this.ctx.createGain();
-    this.dry.gain.value = 0.75;
-    this.wet = this.ctx.createGain();
-    // Coda di riverbero tenuta corta e discreta: non c'e' nessuna
-    // spazializzazione 3D in questo motore (niente PannerNode/AudioListener
-    // -- il bus e' lo stesso per ogni suono), quindi la sensazione di "eco"
-    // veniva tutta da qui: una coda lunga (prima 3.4s) che si accumulava
-    // sopra pizzicati e accordi sempre piu' frequenti scendendo.
-    this.wet.gain.value = 0.16;
-    this.filter.connect(this.dry);
-    this.filter.connect(this.wet);
-    this.dry.connect(this.master);
-
-    // Un lowpass sul ritorno del riverbero taglia il residuo di frequenze
-    // alte che altrimenti si sente come fruscio, specialmente sugli attacchi
-    // dei pizzicati/accordi.
-    const reverbTone = this.ctx.createBiquadFilter();
-    reverbTone.type = "lowpass";
-    reverbTone.frequency.value = 2200;
-    const convolver = this.ctx.createConvolver();
-    convolver.buffer = makeImpulseResponse(this.ctx, 1.1, 3.2);
-    this.wet.connect(convolver);
-    convolver.connect(reverbTone);
-    reverbTone.connect(this.master);
+    this.filter.connect(this.master);
 
     for (const ratio of DRONE_RATIOS) {
       const osc = this.ctx.createOscillator();
@@ -137,27 +107,23 @@ export class AudioEngine {
    */
   update(nowMs: number, radiusT: number, motionIntensity: number) {
     if (!this.started) return;
-    const t = this.ctx.currentTime;
 
-    // Il floor era 260Hz: dato che radiusT sta vicino a 0 per la maggior
-    // parte della discesa (il raggio si riduce esponenzialmente, non
-    // linearmente), il suono restava quasi sempre ovattato al massimo
-    // invece che scurirsi solo un po'. Floor alzato cosi' il timbro resta
-    // presente/chiaro anche in profondita'.
-    const targetFreq = 900 + radiusT * 1800;
-    this.filter.frequency.setTargetAtTime(targetFreq, t, 0.35);
-
-    const targetDroneLevel = 0.065 + (1 - radiusT) * 0.06; // più risonante/presente da vicino
-    for (const gain of this.droneGains) {
-      gain.gain.setTargetAtTime(targetDroneLevel, t, 0.6);
-    }
-
-    // Densità ritmica: più ci si muove, più impulsi, con un tetto minimo di
-    // spaziatura perché non diventi un ronzio indistinto.
+    // Il pizzicato puo' comunque scattare ad ogni chiamata (throttlato per
+    // conto suo da lastPulse/minGapMs): solo i parametri continui (filtro,
+    // livelli drone) sono limitati alla cadenza piu' bassa qui sotto.
     const minGapMs = 650 - motionIntensity * 500;
     if (nowMs - this.lastPulse > minGapMs && Math.random() < 0.15 + motionIntensity * 0.5) {
       this.lastPulse = nowMs;
       this.pluck(radiusT);
+    }
+
+    if (nowMs - this.lastUpdate < UPDATE_INTERVAL_MS) return;
+    this.lastUpdate = nowMs;
+
+    const t = this.ctx.currentTime;
+    const targetDroneLevel = 0.065 + (1 - radiusT) * 0.06; // più risonante/presente da vicino
+    for (const gain of this.droneGains) {
+      gain.gain.setTargetAtTime(targetDroneLevel, t, 0.6);
     }
   }
 

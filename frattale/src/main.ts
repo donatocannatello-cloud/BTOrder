@@ -19,18 +19,14 @@ const audio = new AudioEngine();
 // mette in pausa l'audio, dato che non c'e' un tasto Indietro di sistema
 // collegato.
 const entry = document.getElementById("entry") as HTMLElement;
-const legend = document.getElementById("legend") as HTMLElement;
 const exitBtn = document.getElementById("exit-btn") as HTMLElement;
 let entered = false;
-let legendTimer: ReturnType<typeof setTimeout> | null = null;
 
 function enter() {
   if (entered) return;
   entered = true;
   entry.classList.add("hidden");
-  legend.classList.add("show");
   exitBtn.classList.add("show");
-  legendTimer = setTimeout(() => legend.classList.add("fade"), 6000);
   audio.resume();
   const root = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
   const req = root.requestFullscreen || root.webkitRequestFullscreen;
@@ -41,7 +37,6 @@ function exit() {
   if (!entered) return;
   entered = false;
   entry.classList.remove("hidden");
-  legend.classList.remove("show");
   exitBtn.classList.remove("show");
   audio.suspend();
   const doc = document as Document & { webkitExitFullscreen?: () => Promise<void>; webkitFullscreenElement?: Element };
@@ -57,12 +52,6 @@ window.addEventListener("keydown", (e) => {
   else enter();
 });
 exitBtn.addEventListener("click", exit);
-
-canvas.addEventListener("pointerdown", () => {
-  if (legendTimer) clearTimeout(legendTimer);
-  legend.classList.remove("fade");
-  legendTimer = setTimeout(() => legend.classList.add("fade"), 4000);
-});
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
