@@ -1,5 +1,4 @@
-import { FRAG_SRC, VERT_SRC } from "./shaders/raymarch";
-import type { Vec3 } from "./camera";
+import { FRAG_SRC, VERT_SRC } from "./shaders/fractalMap";
 
 function compileShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
   const shader = gl.createShader(type)!;
@@ -34,19 +33,7 @@ export class Renderer {
     }
     this.program = program;
 
-    const names = [
-      "uResolution",
-      "uCamPos",
-      "uCamRight",
-      "uCamUp",
-      "uCamForward",
-      "uFov",
-      "uTime",
-      "uBreath",
-      "uMaxIter",
-      "uRaySteps",
-      "uDepthLayerBase",
-    ];
+    const names = ["uResolution", "uCenter", "uFrac", "uLayerBase", "uMaxIter", "uTime", "uBreath"];
     this.uniforms = {};
     for (const name of names) {
       this.uniforms[name] = gl.getUniformLocation(program, name);
@@ -64,30 +51,23 @@ export class Renderer {
   }
 
   render(opts: {
-    camPos: Vec3;
-    camRight: Vec3;
-    camUp: Vec3;
-    camForward: Vec3;
-    fov: number;
+    centerX: number;
+    centerY: number;
+    frac: number;
+    layerBase: number;
+    maxIter: number;
     time: number;
     breath: number;
-    maxIter: number;
-    raySteps: number;
-    depthLayerBase: number;
   }) {
     const gl = this.gl;
     gl.useProgram(this.program);
     gl.uniform2f(this.uniforms.uResolution, this.canvas.width, this.canvas.height);
-    gl.uniform3f(this.uniforms.uCamPos, ...opts.camPos);
-    gl.uniform3f(this.uniforms.uCamRight, ...opts.camRight);
-    gl.uniform3f(this.uniforms.uCamUp, ...opts.camUp);
-    gl.uniform3f(this.uniforms.uCamForward, ...opts.camForward);
-    gl.uniform1f(this.uniforms.uFov, opts.fov);
+    gl.uniform2f(this.uniforms.uCenter, opts.centerX, opts.centerY);
+    gl.uniform1f(this.uniforms.uFrac, opts.frac);
+    gl.uniform1f(this.uniforms.uLayerBase, opts.layerBase);
+    gl.uniform1i(this.uniforms.uMaxIter, opts.maxIter);
     gl.uniform1f(this.uniforms.uTime, opts.time);
     gl.uniform1f(this.uniforms.uBreath, opts.breath);
-    gl.uniform1i(this.uniforms.uMaxIter, opts.maxIter);
-    gl.uniform1i(this.uniforms.uRaySteps, opts.raySteps);
-    gl.uniform1f(this.uniforms.uDepthLayerBase, opts.depthLayerBase);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 }

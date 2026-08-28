@@ -1,4 +1,4 @@
-import { OrbitCamera, RADIUS_MIN, RADIUS_MAX, type OrbitInput } from "./camera";
+import { MapCamera, type MapInput } from "./camera";
 import { Renderer } from "./renderer";
 import { TouchControls } from "./touchControls";
 import { QualityManager } from "./quality";
@@ -7,7 +7,7 @@ import { AudioEngine } from "./audio";
 const canvas = document.getElementById("gl") as HTMLCanvasElement;
 const indicatorLayer = document.getElementById("touch-layer") as HTMLElement;
 const renderer = new Renderer(canvas);
-const camera = new OrbitCamera();
+const camera = new MapCamera();
 const touchControls = new TouchControls(canvas, indicatorLayer);
 const quality = new QualityManager();
 const audio = new AudioEngine();
@@ -59,55 +59,25 @@ function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
 }
 
-// Il potere del Mandelbulb "respira" lentamente nel tempo, anche senza
-// input: il mondo e' vivo di suo, non solo quando ci si muove. E' una
-// piccola oscillazione aggiunta (nello shader) alla potenza di *ogni*
-// livello annidato, non un valore assoluto.
-const POWER_AMPLITUDE = 1.2;
-const POWER_FREQ = 0.05; // rad/s, periodo ~125s
-
-// Affondamento infinito: la scena e' sempre l'unione di 3 frattali
-// annidati (il livello attuale + i 2 successivi, gia' visibili crescere
-// dentro di esso) — vedi shaders/raymarch.ts. SCALE deve combaciare con
-// quello dello shader. depthLayerBase e' quanti "livelli" (fattori SCALE)
-// il raggio ha gia' attraversato: si ricalcola dal raggio corrente, non e'
-// uno stato a parte, quindi l'affondamento e' continuo, mai a scatti.
-const SCALE = 2.2;
-
-function computeDepthLayerBase(radius: number): number {
-  return Math.max(0, Math.floor(Math.log(RADIUS_MAX / radius) / Math.log(SCALE)));
-}
-
-// Dettaglio (numero di iterazioni del frattale) in funzione della distanza
-// dal centro: da lontano il frattale resta una forma semplice/liscia
-// (economica), avvicinandosi emergono via via le increspature piu' fini,
-// cosi' la scena non e' statica quando ci si avvicina. La camera orbitale
-// ha gia' il raggio come distanza esatta dal centro, non serve ricalcolarla.
-// Ridotto rispetto a prima (era 10): la scena ora unisce sempre 3 frattali
-// annidati, quindi il costo per step di raymarching e' gia' circa 3 volte
-// tanto anche al minimo.
-const LOD_MIN_ITER = 4;
-const LOD_MAX_ITER = 7;
-const LOD_NEAR = 1.6;
-const LOD_FAR = 7.0;
-
-function fractalDetail(radius: number): number {
-  const t = clamp((LOD_FAR - radius) / (LOD_FAR - LOD_NEAR), 0, 1);
-  return Math.round(LOD_MIN_ITER + t * (LOD_MAX_ITER - LOD_MIN_ITER));
-}
+// La mappa "respira" lentamente nel tempo, anche senza input: il mondo e'
+// vivo di suo, non solo quando ci si muove. E' una piccola oscillazione
+// che nello shader fa derivare appena il parametro di *ogni* livello, non
+// un valore assoluto.
+const BREATH_AMPLITUDE = 1.0;
+const BREATH_FREQ = 0.05; // rad/s, periodo ~125s
 
 const keys = new Set<string>();
 
-// Il drag col mouse ruota la camera direttamente (manipolazione diretta,
-// nessuna inerzia: e' cosi' che ci si aspetta funzioni un trascinamento),
-// mentre stick/tastiera pilotano una velocita' di orbita smussata
-// dall'inerzia della camera stessa.
-let dragAzimuthAccum = 0;
-let dragElevationAccum = 0;
+// Il drag col mouse scorre la mappa direttamente (manipolazione diretta,
+// nessuna inerzia: e' cosi' che ci si aspetta funzioni un trascinamento, ed
+// e' anche il gesto naturale su una mappa), mentre stick/tastiera pilotano
+// una velocita' di scorrimento smussata dall'inerzia della camera stessa.
+let dragXAccum = 0;
+let dragYAccum = 0;
 let dragging = false;
 let lastX = 0;
 let lastY = 0;
-const DRAG_SENSITIVITY = 0.0028;
+const DRAG_SENSITIVITY = 0.0035; // unita' di schermo per pixel trascinato
 let wheelZoom = 0;
 
 window.addEventListener("keydown", (e) => keys.add(e.code));
@@ -128,8 +98,9 @@ canvas.addEventListener("pointerup", (e) => {
 });
 canvas.addEventListener("pointermove", (e) => {
   if (e.pointerType === "touch" || !dragging) return;
-  dragAzimuthAccum += (e.clientX - lastX) * DRAG_SENSITIVITY;
-  dragElevationAccum += -(e.clientY - lastY) * DRAG_SENSITIVITY;
+  // Trascinando, la mappa segue il dito/cursore: stesso verso del gesto.
+  dragXAccum += (e.clientX - lastX) * DRAG_SENSITIVITY;
+  dragYAccum += -(e.clientY - lastY) * DRAG_SENSITIVITY;
   lastX = e.clientX;
   lastY = e.clientY;
 });
@@ -142,11 +113,12 @@ canvas.addEventListener(
   { passive: false }
 );
 
-// Il DPR e' gia' limitato in partenza (un telefono a 3x non deve renderizzare
-// a 3x: il costo del raymarching scala con il numero di pixel), e il
+// Il DPR e' gia' limitato in partenza (un telefono a 3x non deve
+// renderizzare a 3x: il costo scala con il numero di pixel), e il
 // QualityManager applica un ulteriore renderScale sopra questo, misurato
 // sul frame time reale del dispositivo.
 const DPR_CAP = 1.5;
+const INITIAL_RENDER_SCALE = 0.9;
 let appliedRenderScale = -1;
 
 function resize(renderScale: number) {
@@ -154,8 +126,10 @@ function resize(renderScale: number) {
   const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP) * renderScale;
   renderer.resize(Math.max(1, Math.floor(window.innerWidth * dpr)), Math.max(1, Math.floor(window.innerHeight * dpr)));
 }
-window.addEventListener("resize", () => resize(appliedRenderScale > 0 ? appliedRenderScale : 0.7));
-resize(0.7);
+window.addEventListener("resize", () =>
+  resize(appliedRenderScale > 0 ? appliedRenderScale : INITIAL_RENDER_SCALE)
+);
+resize(INITIAL_RENDER_SCALE);
 
 // Niente calcoli sprecati quando l'app e' in background (tab non attiva /
 // telefono con lo schermo su un'altra app): meno carico, meno batteria.
@@ -168,30 +142,30 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
-function readInput(): { cam: OrbitInput; boost: boolean } {
-  // WASD = orbita nelle 4 direzioni cardinali, Space/Shift = vicino/lontano.
-  const kAzimuth = (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0);
-  const kElevation = (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0);
+function readInput(): { cam: MapInput; boost: boolean } {
+  // WASD = scorrimento nelle 4 direzioni, Space/Shift = scendi/sali di scala.
+  const kPanX = (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0);
+  const kPanY = (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0);
   const kZoom = (keys.has("Space") ? 1 : 0) - (keys.has("ShiftLeft") || keys.has("ShiftRight") ? 1 : 0);
 
   const touch = touchControls.consumeFrame();
 
-  const cam: OrbitInput = {
-    azimuth: clamp(kAzimuth + touch.azimuth, -1, 1),
-    elevation: clamp(kElevation + touch.elevation, -1, 1),
+  const cam: MapInput = {
+    panX: clamp(kPanX + touch.panX, -1, 1),
+    panY: clamp(kPanY + touch.panY, -1, 1),
     zoom: clamp(kZoom + touch.zoom + wheelZoom, -1, 1),
-    dragAzimuth: dragAzimuthAccum,
-    dragElevation: dragElevationAccum,
+    dragX: dragXAccum,
+    dragY: dragYAccum,
   };
-  dragAzimuthAccum = 0;
-  dragElevationAccum = 0;
+  dragXAccum = 0;
+  dragYAccum = 0;
   wheelZoom *= 0.85;
 
   return { cam, boost: keys.has("ControlLeft") || keys.has("ControlRight") };
 }
 
 let last = performance.now();
-let lastDepthLayerBase = 0;
+let lastLayerBase = 0;
 function frame(now: number) {
   if (!running) return;
 
@@ -205,27 +179,27 @@ function frame(now: number) {
   const { cam, boost } = readInput();
   camera.update(dt, cam, boost);
 
-  const depthLayerBase = computeDepthLayerBase(camera.radius);
-  if (depthLayerBase !== lastDepthLayerBase) {
-    lastDepthLayerBase = depthLayerBase;
-    audio.layerTransition(depthLayerBase);
+  const layerBase = camera.layerBase;
+  const frac = camera.layerFrac;
+  if (layerBase !== lastLayerBase) {
+    lastLayerBase = layerBase;
+    audio.layerTransition(layerBase);
   }
 
-  const radiusT = clamp((camera.radius - RADIUS_MIN) / (RADIUS_MAX - RADIUS_MIN), 0, 1);
-  audio.update(now, radiusT, camera.motionIntensity);
+  // Per l'audio: 1 all'inizio di un livello, 0 quando lo si sta lasciando --
+  // il drone si apre man mano che si scende dentro ogni mappa e riparte al
+  // livello successivo.
+  audio.update(now, 1 - frac, camera.motionIntensity);
 
   const time = now / 1000;
   renderer.render({
-    camPos: camera.position,
-    camRight: camera.rightAxis,
-    camUp: camera.upAxis,
-    camForward: camera.forwardAxis,
-    fov: camera.fov,
+    centerX: camera.centerX,
+    centerY: camera.centerY,
+    frac,
+    layerBase,
+    maxIter: q.maxIter,
     time,
-    breath: Math.sin(time * POWER_FREQ) * POWER_AMPLITUDE,
-    maxIter: fractalDetail(camera.radius),
-    raySteps: q.raySteps,
-    depthLayerBase,
+    breath: Math.sin(time * BREATH_FREQ) * BREATH_AMPLITUDE,
   });
 
   requestAnimationFrame(frame);

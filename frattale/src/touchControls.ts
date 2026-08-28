@@ -1,22 +1,20 @@
 // Controlli touch, sempre visibili. A sinistra uno stick circolare per
-// orbitare intorno al centro del frattale: asse orizzontale = azimut,
-// asse verticale = elevazione -- le "4 direzioni cardinali" (su/giù/
-// sinistra/destra sullo stick). A destra una levetta verticale, con un
-// design deliberatamente diverso (un binario, non un disco) per segnalare
-// che governa un solo asse: avvicinarsi/allontanarsi dal centro.
+// scorrere la mappa (le "4 direzioni cardinali"): il contenuto segue lo
+// stick, spingendo in alto la mappa scorre verso l'alto dello schermo.
+// A destra una levetta verticale, con un design deliberatamente diverso
+// (un binario, non un disco) per segnalare che governa un solo asse:
+// scendere/salire di scala, cioe' lo zoom.
 //
 // Entrambi sono "a molla": tornano a riposo al rilascio e pilotano una
-// velocità (rate), non una posizione assoluta -- la camera stessa guarda
-// sempre il centro del mondo, quindi non serve un controllo di "sguardo"
-// libero separato.
+// velocita' (rate), non una posizione assoluta.
 
 export interface TouchFrameInput {
-  azimuth: number; // -1..1
-  elevation: number; // -1..1
-  zoom: number; // -1..1, positivo = avvicina
+  panX: number; // -1..1
+  panY: number; // -1..1
+  zoom: number; // -1..1, positivo = scende di scala
 }
 
-const STICK_RADIUS = 50; // px, corsa massima dello stick di orbita
+const STICK_RADIUS = 50; // px, corsa massima dello stick di scorrimento
 const LEVER_HALF_HEIGHT = 55; // px, corsa massima della levetta sopra/sotto il centro
 
 function clamp(v: number, lo: number, hi: number) {
@@ -26,8 +24,8 @@ function clamp(v: number, lo: number, hi: number) {
 export class TouchControls {
   private stickTouchId: number | null = null;
   private leverTouchId: number | null = null;
-  private azimuthValue = 0;
-  private elevationValue = 0;
+  private panXValue = 0;
+  private panYValue = 0;
   private zoomValue = 0;
 
   private stickBase: HTMLDivElement;
@@ -86,14 +84,11 @@ export class TouchControls {
     const clamped = Math.min(len, STICK_RADIUS);
     const nx = len > 0 ? dx / len : 0;
     const ny = len > 0 ? dy / len : 0;
-    // Confermato dal test con l'utente: il verticale (su/giu') e' corretto
-    // con la mappatura originale (spingere su fa salire visivamente il
-    // frattale nell'inquadratura), mentre l'orizzontale va lasciato nella
-    // sua mappatura originale (non invertita) -- il tentativo precedente di
-    // invertirlo lo rendeva sbagliato nel verso opposto. Il pallino segue
-    // comunque il dito normalmente (nx/ny non invertiti nel transform).
-    this.azimuthValue = nx * (clamped / STICK_RADIUS);
-    this.elevationValue = -ny * (clamped / STICK_RADIUS);
+    // Convenzione confermata sul dispositivo reale: spingendo lo stick in
+    // alto il contenuto sale verso l'alto dello schermo (e simmetricamente
+    // sull'orizzontale). ny e' positivo verso il basso, da qui il segno.
+    this.panXValue = nx * (clamped / STICK_RADIUS);
+    this.panYValue = -ny * (clamped / STICK_RADIUS);
     this.stickKnob.style.transform = `translate(${nx * clamped}px, ${ny * clamped}px)`;
   }
 
@@ -113,8 +108,8 @@ export class TouchControls {
   private onUp = (e: PointerEvent) => {
     if (e.pointerId === this.stickTouchId) {
       this.stickTouchId = null;
-      this.azimuthValue = 0;
-      this.elevationValue = 0;
+      this.panXValue = 0;
+      this.panYValue = 0;
       this.stickKnob.style.transform = "translate(0, 0)";
       this.stickBase.classList.remove("active");
     } else if (e.pointerId === this.leverTouchId) {
@@ -126,6 +121,6 @@ export class TouchControls {
   };
 
   consumeFrame(): TouchFrameInput {
-    return { azimuth: this.azimuthValue, elevation: this.elevationValue, zoom: this.zoomValue };
+    return { panX: this.panXValue, panY: this.panYValue, zoom: this.zoomValue };
   }
 }

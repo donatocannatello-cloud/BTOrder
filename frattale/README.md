@@ -1,9 +1,8 @@
 # Frattale
 
-Esploratore solitario 3D dentro un universo frattale generato via shader
-(raymarching), senza HUD né testo: tutto passa da immagine, suono e
-movimento. Vedi la richiesta originale nell'issue/prompt per il concept
-completo.
+Esploratore solitario dentro un universo frattale generato via shader,
+senza HUD né testo: tutto passa da immagine, suono e movimento. Vedi la
+richiesta originale nell'issue/prompt per il concept completo.
 
 Questo sotto-progetto vive nella cartella `frattale/` di questa repo, che
 contiene anche l'app Android indipendente `ChiamateBT` (root della repo):
@@ -13,156 +12,167 @@ i due progetti non condividono nulla.
 
 **Rendering**: WebGL2 "raw" (nessun Three.js) — un solo triangolo
 full-screen (`gl_VertexID`, nessun vertex buffer) e tutto il lavoro nel
-fragment shader (`src/shaders/raymarch.ts`), che fa raymarching di un
-Mandelbulb (sphere tracing + distance estimator classico, potenza
-variabile). Niente Three.js perché qui non serve uno scene graph: c'è una
-sola "geometria" (il frattale, definito analiticamente nello shader) e un
-solo draw call; saltare Three.js tiene il bundle minuscolo (~9 KB JS) e
-riduce l'overhead nella WebView Android.
+fragment shader (`src/shaders/fractalMap.ts`). Niente Three.js perché qui
+non serve uno scene graph: c'è una sola "geometria" (il frattale, definito
+analiticamente nello shader) e un solo draw call; saltare Three.js tiene il
+bundle minuscolo (~7 KB JS gzip) e riduce l'overhead nella WebView Android.
 
-> Perché non "vettoriale": un frattale 3D via raymarching non ha un
-> equivalente vettoriale (SVG-like) — non sono forme/path, è una superficie
-> procedurale risolta pixel per pixel lungo ogni raggio (per questo ogni
-> renderer di questo tipo, da Shadertoy a Mandelbulber, è raster per
-> natura). La leva reale per alleggerirlo è risoluzione/step di calcolo per
-> pixel, vedi **Qualità adattiva** più sotto.
+**Mappe piane sovrapposte, non mondi sferici concentrici.** L'impianto è
+quello di una carta topografica navigata come Google Maps: il piano si
+guarda sempre dall'alto, ci si sposta scorrendo (pan) e si scende/sale di
+scala (zoom). Ogni livello è una mappa frattale piatta — un insieme di
+Julia disegnato per curve di livello sul suo campo escape-time "smooth"
+(conteggio di fuga continuo, non a gradini, che è ciò che permette isolinee
+pulite). Il parametro di Julia, la tinta, la rotazione e lo scostamento di
+ciascun livello derivano da una hash del suo indice assoluto: ogni mappa è
+visibilmente diversa dalle altre, ma il livello 0 è fissato così il punto
+di partenza non cambia mai.
+
+I tre livelli condividono un unico sistema di coordinate 2D ma sono
+campionati a scale diverse:
+
+```
+p_k = uCenter + offset(L) + uv * SCALE^(k - uFrac)
+```
+
+dove `k` ∈ {0,1,2} è l'indice relativo, `L = uLayerBase + k` quello
+assoluto e `uFrac` la parte frazionaria dello zoom. Il livello `k=0` è
+quello "a fuoco", `k=1` e `k=2` sono le mappe più fini che si stanno già
+intravedendo sotto; una dissolvenza incrociata (`layerWeight()`) porta a
+zero l'uscente e l'entrante esattamente sui bordi della transizione, quindi
+lo scambio di indice non si vede mai. Solo 3 livelli vengono valutati per
+pixel: il costo resta piatto a qualunque profondità.
+
+> **Perché lo zoom è davvero infinito.** Poiché `SCALE^(1-1) == SCALE^0`,
+> il fattore di scala del livello entrante coincide *esattamente* con
+> quello del livello uscente nel momento dello scambio: l'indice può
+> avanzare (o arretrare) all'infinito senza scatti e **senza dover
+> ri-ancorare il centro**. Il passo di pan è proporzionale alla sola scala
+> frazionaria (`SCALE^-frac`, quindi tra `1/SCALE` e `1`), mai a quella
+> assoluta, e il centro è clampato al raggio della mappa: le coordinate non
+> crescono mai, e la precisione in virgola mobile non si degrada per quanto
+> a fondo si scenda. È il difetto che affliggeva l'impianto raymarching
+> precedente, dove le coordinate si rimpicciolivano fino a sfaldare
+> l'immagine; qui una discesa continua di ~14 livelli (oltre 3·10⁶× di
+> zoom) resta perfettamente nitida.
 
 **Qualità adattiva** (`src/quality.ts`): il DPR è limitato a 1.5 in
-partenza (un telefono a 3x non deve renderizzare a 3x: il costo del
-raymarching scala con il numero di pixel), poi un `QualityManager` misura
-il tempo-frame reale ogni ~900ms e regola `renderScale` (risoluzione
-interna del canvas, upscalata via CSS) e `raySteps` (budget di step di
-sphere-tracing, ora un uniform `uRaySteps` invece della costante fissa
-`MAX_STEPS`): se il framerate scende sotto 30fps degrada prima la
-risoluzione poi gli step, se sta comodo sopra 55fps risale. Cambi piccoli e
-non troppo frequenti per evitare "pompaggi" visibili. Il render loop si
-ferma del tutto quando la pagina è in background (`visibilitychange`).
+partenza (un telefono a 3x non deve renderizzare a 3x: il costo scala con
+il numero di pixel), poi un `QualityManager` misura il tempo-frame reale
+ogni ~900ms e regola `renderScale` (risoluzione interna del canvas,
+upscalata via CSS) e `maxIter` (budget di iterazioni escape-time per
+livello): se il framerate scende sotto 30fps degrada prima le iterazioni
+poi la risoluzione (il taglio più visibile su un disegno a linee), se sta
+comodo sopra 55fps risale. Cambi piccoli e non troppo frequenti per evitare
+"pompaggi" visibili. Il render loop si ferma del tutto quando la pagina è
+in background (`visibilitychange`). Le mappe piane costano molto meno del
+raymarching 3D precedente — una sola valutazione per livello per pixel,
+nessun passo lungo un raggio — quindi si parte da una qualità
+sensibilmente più alta a parità di dispositivo.
 
-**Camera** (`src/camera.ts`): orbitale, non più a volo libero. Il mondo ha
-un centro (l'origine, dove vive il frattale) e la camera lo guarda sempre —
-la posizione è interamente definita da coordinate sferiche attorno
-all'origine (`radius`, `azimuth`, `elevation`), niente quaternioni/roll.
-Due modi di muoversi: **orbitare** attorno al centro (azimut orizzontale +
-elevazione verticale, con l'elevazione bloccata a ~83° per non sorvolare i
-poli) e **avvicinarsi/allontanarsi** dal centro (`radius`, clampato tra 1.5
-e 9.0 unità). Stick/tastiera pilotano una velocità di orbita smussata
-dall'inerzia della camera; il trascinamento col mouse invece ruota per
-manipolazione diretta, senza inerzia propria (ci si aspetta che un drag
-risponda 1:1). Il FOV cresce leggermente con la velocità di orbita/zoom,
-anch'esso smussato.
+**Camera** (`src/camera.ts`): non c'è più nessuna camera 3D. `MapCamera`
+tiene un centro 2D limitato (`centerX`, `centerY`, clampato a `MAP_EXTENT`)
+e un `zoomLevel` continuo e **illimitato in entrambe le direzioni**: la sua
+parte intera è l'indice del livello, la frazionaria la transizione verso il
+successivo. Stick/tastiera pilotano una velocità di scorrimento smussata
+dall'inerzia; il trascinamento col mouse scorre per manipolazione diretta,
+senza inerzia propria (ci si aspetta che un drag risponda 1:1, ed è anche
+il gesto naturale su una mappa).
 
 **Input**: `src/touchControls.ts`. Il target è Android, quindi il touch è
 lo schema *primario*: due controlli **sempre visibili**, ancorati agli
 angoli, con un highlight quando in uso (la prima versione, invisibile
 finché non tocchi, risultava confusa senza un riferimento fisso a
-schermo). A **sinistra** uno stick circolare per orbitare: asse
-orizzontale = azimut, asse verticale = elevazione — le "4 direzioni
-cardinali". A **destra** una **levetta verticale**, con un design
-deliberatamente diverso da uno stick (un binario allungato, non un disco,
-con un segno vuoto in alto e uno pieno in basso) per segnalare che governa
-un solo asse: avvicina/allontana dal centro. Entrambi sono "a molla":
+schermo). A **sinistra** uno stick circolare per scorrere la mappa nelle 4
+direzioni: il contenuto segue lo stick (spingendo in alto la mappa scorre
+verso l'alto dello schermo). A **destra** una **levetta verticale**, con un
+design deliberatamente diverso da uno stick (un binario allungato, non un
+disco, con un segno vuoto in alto e uno pieno in basso) per segnalare che
+governa un solo asse: scendere/salire di scala. Entrambi sono "a molla":
 tornano a riposo al rilascio. Il tocco iniziale è accettato in tutta la
 metà schermo corrispondente, non serve precisione sul controllo. Su
-desktop: `WASD` = orbita (le stesse 4 direzioni cardinali), `Space`/`Shift`
-= vicino/lontano, trascinamento col mouse o rotellina per orbitare/zoomare,
-`Ctrl` per accelerare — utili solo per un test rapido da laptop durante lo
-sviluppo.
+desktop: `WASD` = scorrimento, `Space`/`Shift` = scendi/sali di scala,
+trascinamento col mouse o rotellina, `Ctrl` per accelerare — utili solo per
+un test rapido da laptop durante lo sviluppo.
 
-**Dettaglio dinamico (LOD)**: il numero di iterazioni del Mandelbulb
-(`uMaxIter`, uniform invece di costante) cresce da 5 a 10 mano a mano che
-`camera.radius` si avvicina al centro (`fractalDetail()` in `main.ts` — con
-la camera orbitale il raggio *è* già la distanza esatta dal centro, non
-serve ricalcolarla). Da lontano la forma resta liscia e semplice
-(economica), avvicinandosi emergono via via le increspature più fini —
-altrimenti il frattale sembra una texture statica indipendentemente da
-quanto ci si avvicina.
+**Dettaglio dinamico**: le curve di livello sono multi-ottava, ciascuna
+antialiasata in spazio schermo con `fwidth()` e sfumata via automaticamente
+quando il suo passo diventerebbe sub-pixel. Le linee più fini si
+materializzano quindi solo quando la scala è abbastanza grande da poterle
+davvero risolvere — è il comportamento "il dettaglio aumenta scendendo"
+applicato al tratto, oltre che alla comparsa di mappe sempre nuove. Le
+isolinee si infittiscono verso il bordo dell'insieme, dove vive tutto il
+dettaglio frattale, invece di restare uniformi anche nelle zone piatte al
+largo.
 
-**Livello 2 — evoluzione temporale + reazione alla camera** (in
-`shaders/raymarch.ts`): la potenza del Mandelbulb "respira" lentamente nel
-tempo (oscillazione sinusoidale calcolata in `main.ts`, periodo ~125s); il
-dominio del frattale ruota lentamente su sé stesso nel tempo via `uTime`,
-indipendentemente dall'input; la palette ha una deriva cromatica lenta
-(cosine palette); le superfici vicine alla posizione della camera si
-illuminano leggermente e l'esponente locale riceve una piccola oscillazione
-in più ("presence" reaction) — calcolata nel frame camera/mondo *non*
-ruotato, così la "zona che reagisce" segue davvero la posizione reale della
-camera invece di scivolare via mentre il frattale ruota.
+**Livello 2 — evoluzione temporale** (in `shaders/fractalMap.ts`): il
+parametro di Julia di *ogni* livello deriva lentamente nel tempo
+(oscillazione sinusoidale calcolata in `main.ts`, periodo ~125s, sommata
+allo scostamento per-livello, non un valore assoluto): la mappa è viva
+anche stando fermi, senza mai stravolgersi. La palette ha una deriva
+cromatica lenta (cosine palette). La rotazione per-livello è invece
+**fissa nel tempo**, non animata: una mappa che ruota da sola disorienta.
 
-**Stile visivo — wireframe, non superficie illuminata**: lo shading non è
-più Lambertiano/fotorealistico (era stato segnalato come "troppo
-simulato"), ma un disegno a linee: una griglia di contorno triplanare
-(basata sulla posizione nello spazio, non sull'orbit trap — che oscilla in
-modo troppo caotico sulle bozze fini e dava un effetto "rumore/statico"
-invece di linee pulite) scolpita sulla superficie, multi-ottava, con
-antialiasing via `fwidth()`. Ogni ottava di frequenza più fine sfuma e
-scompare quando la sua spaziatura scenderebbe sotto il pixel (aliasing), e
-torna visibile quando ci si avvicina abbastanza da poterla risolvere: le
-linee stesse si infittiscono avvicinandosi, non solo la geometria
-sottostante (LOD). Un riempimento molto tenue (5% del colore linea) più un
-bordo di silhouette netto danno comunque un minimo di lettura del volume,
-senza tornare a un rendering "pieno".
+**Stile visivo — carta topografica, non superficie illuminata**: lo shading
+non è Lambertiano/fotorealistico (era stato segnalato come "troppo
+simulato"), ma un disegno a linee. Le isolinee sono tracciate direttamente
+sul campo escape-time — un campo scalare liscio e continuo, che è ciò che
+permette curve pulite invece dell'effetto "rumore/statico" — multi-ottava e
+antialiasate via `fwidth()`. L'interno dell'insieme è una campitura appena
+percettibile (3% del colore linea), come la terraferma su una carta;
+volutamente bassissima, perché la correzione gamma finale amplifica molto
+anche valori lineari piccoli (0.05 lineare diventa ~0.24 a schermo, e
+appiattisce tutto il disegno in una tinta unita).
 
 **Livello 3 — audio generativo** (`src/audio.ts`): Web Audio API pura,
 nessun file precampionato. Tutto passa dallo stesso bus (un filtro
-condiviso, poi dry/wet verso un riverbero a convoluzione con impulse
-response generata proceduralmente) — drone e impulsi ritmici non sono due
-suoni separati sovrapposti, sono voci della stessa composizione, così si
+condiviso, poi il master) — drone e impulsi ritmici non sono due suoni
+separati sovrapposti, sono voci della stessa composizione, così si
 combinano davvero in un'unica musica. Due segnali pilotano tutto, già
-disponibili dalla camera: il raggio orbitale (`radiusT`, 0 = immersi nella
-nube, 1 = lontano) apre/chiude il filtro e cambia il registro del drone —
-da lontano suono aperto e chiaro, immergendosi si scurisce e si fa più
-risonante; l'intensità di movimento (`camera.motionIntensity`, orbita +
-zoom combinati) governa la densità degli impulsi ritmici (pizzicati su
-scala pentatonica) — fermi quasi silenzio, muovendosi la trama si
-infittisce. L'`AudioContext` parte al primo gesto utente (tap/click/tasto),
-non prima, per rispettare le policy di autoplay dei browser.
+disponibili dalla navigazione: la posizione dentro il livello corrente
+(`1 - frac`: il drone si apre man mano che si scende dentro ogni mappa e
+riparte al livello successivo) e l'intensità di movimento
+(`camera.motionIntensity`, pan + zoom combinati), che governa la densità
+degli impulsi ritmici (pizzicati su scala pentatonica) — fermi quasi
+silenzio, muovendosi la trama si infittisce. L'`AudioContext` parte al
+primo gesto utente (tap/click/tasto), non prima, per rispettare le policy
+di autoplay dei browser, e va in `suspend()` uscendo col pulsante X.
 
-> Corretto dopo un primo giro di test: volume troppo basso e un fruscio
-> intermittente. Il fruscio veniva dall'impulse response del riverbero,
-> generata come rumore bianco puro (tutte le frequenze a pari energia) —
-> ogni pizzicato/accordo che l'attraversava si sentiva "sibilante". Ora il
-> rumore passa da un leaky integrator prima di essere scritto nel buffer
-> (lo scurisce verso un rosa/marrone, riverbero diffuso invece che
-> sibilante) e c'è un lowpass dedicato sul ritorno del riverbero. I livelli
-> individuali sono più alti (drone, pizzicati, accordi) e un
-> `DynamicsCompressorNode` sul bus finale li tiene sotto controllo senza
-> rischiare distorsione quando più suoni si sovrappongono.
+> Corretto dopo due giri di test. Primo: volume troppo basso e un fruscio
+> intermittente — i livelli individuali sono stati alzati con un
+> `DynamicsCompressorNode` sul bus finale a tenerli sotto controllo.
+> Secondo: eco, ovattamento crescente scendendo e disturbi saltuari. Non
+> c'era (né c'è mai stata) alcuna spazializzazione 3D — nessun
+> `PannerNode`/`AudioListener`, il bus è mono e condiviso — quindi il
+> problema era altrove: il **riverbero a convoluzione** è il nodo più
+> costoso della catena, e su un telefono reale, in concorrenza col
+> rendering, era il sospetto principale sia per i disturbi (buffer audio
+> che non arrivano in tempo) sia per l'eco che si accumulava sopra
+> pizzicati sempre più frequenti. Rimosso del tutto. Il filtro è ora fisso
+> (prima il suo floor a 260Hz veniva raggiunto quasi sempre, dato che la
+> scala scende esponenzialmente: il suono restava ovattato al massimo per
+> gran parte della discesa) e l'automazione dei parametri continui è
+> limitata a 10Hz invece che a ogni frame, per ridurre il traffico verso
+> il thread audio.
 
-**Affondamento infinito e continuo** (`shaders/raymarch.ts`, `main.ts`,
-`camera.ts`): scendendo verso il centro non si "tocca il fondo" — la scena
-è sempre l'**unione di 3 frattali annidati** (`NUM_LAYERS`): quello in cui
-si è attualmente, e i 2 successivi, già visibili crescere al suo interno
-mentre ci si avvicina, con potenza/tinta/rotazione proprie (derivate
-deterministicamente dall'indice di profondità via hash, nessuna tabella da
-mantenere — il livello 0, il punto di partenza, resta però sempre identico
-a se stesso). Il raggio della camera si muove in **scala logaritmica**
-(moltiplicativa, non +/- costante): è l'unico modo per cui l'affondamento
-resti "continuo" e uniforme attraverso molti ordini di grandezza — uno
-zoom lineare, vicino al centro, sembrerebbe schizzare via o restare fermo.
-Nessuno scatto, nessun reset: `depthLayerBase` (quanti fattori di scala il
-raggio ha già attraversato) si ricalcola ogni frame dal raggio corrente,
-non è uno stato a parte. Livelli già superati o troppo lontani non vengono
-mai calcolati — il costo resta piatto (sempre esattamente 3 copie) a
-qualunque profondità, non si accumula nulla.
+**Scala infinita in entrambe le direzioni**: scendendo non si "tocca il
+fondo" e salendo non si esce — `zoomLevel` è illimitato, e con esso
+l'indice dei livelli (anche negativo: la hash somma +4096 così anche gli
+indici negativi cadono nel ramo positivo). Ogni transizione fa comparire
+una mappa nuova dal fondo e ne congeda una in cima, sempre 3 in vista. Il
+meccanismo e il motivo per cui non degrada mai sono descritti sopra, in
+**Mappe piane sovrapposte**.
 
-> Bug corretto durante lo sviluppo: la copia "livello corrente" (k=0) va
-> ri-ancorata alla profondità assoluta (`s = pow(SCALE, uDepthLayerBase)`),
-> non può ripartire da scala 1 a ogni frame — altrimenti resta sempre alla
-> dimensione originale mentre il raggio (che si riduce con la stessa legge)
-> le sfila via sotto, e oltre una certa profondità la telecamera non trova
-> più nulla (schermo vuoto). Verificato con una discesa continua di 16s+
-> senza interruzioni.
+> Verificato con Playwright: ~25s di discesa continua (≈14 livelli, oltre
+> 3·10⁶× di zoom) restano perfettamente nitidi, e ~35s di risalita
+> attraversano lo zero fino a indici negativi generando altrettante mappe
+> nuove — senza errori e senza degrado.
 
-Il costo di 3 copie simultanee (~3× le iterazioni per step rispetto a
-prima) è compensato abbassando i tetti di dettaglio (`LOD_MAX_ITER`
-10→7) e il budget di step adattivo (`quality.ts`, `RAY_STEPS_MAX` 95→70) —
-il `QualityManager` (vedi sopra) resta comunque il meccanismo che tiene
-tutto entro le risorse disponibili in tempo reale.
-
-Resta anche l'effetto "enclosure": quando l'hit è fortissimamente
-ravvicinato su un pixel (circondati da geometria, non solo vicini a una
-parete) il colore vira verso un violaceo più scuro e denso, così "essere
-dentro" si legge diverso da "essere vicino a una superficie".
+Lo zoom si muove in **scala logaritmica** (moltiplicativa, non +/-
+costante): è l'unico modo per cui la discesa resti uniforme attraverso
+molti ordini di grandezza — uno zoom lineare, a fondo scala, sembrerebbe
+schizzare via o restare fermo. È lo stesso motivo per cui lo zoom di una
+mappa o di una fotocamera è sempre moltiplicativo.
 
 **Nuclei e persistenza** (livello 4, non ancora implementato): punti
 generati deterministicamente (seed fisso + hash), verificati contro la
@@ -172,18 +182,17 @@ loro configurazione "di riferimento". Stato risolto/non risolto salvato in
 così sopravvive tra sessioni e — impacchettato in Capacitor — resta legato
 all'installazione Android.
 
-**Build Android** (livello 5, non ancora implementato): **Capacitor**
-(non Cordova) come wrapper WebView attorno alla build statica di Vite —
-scelto perché è la soluzione più sottile e attualmente mantenuta per
-portare un sito/app WebGL su Android con attrito minimo: nessun motore di
-gioco nativo da imparare, il progetto Android generato è un normale
-progetto Gradle che una GitHub Actions può compilare, e le performance di
-un raymarching shader in una WebView Android moderna (Chromium/System
-WebView, WebGL2 supportato) sono adeguate per questo tipo di scena a
-triangolo singolo. Un motore nativo (Unity, GLES puro) darebbe più
-controllo/performance ma con costo di sviluppo molto più alto, ingiustifi-
-cato visto che l'unico target è Android e l'iterazione rapida in browser è
-prioritaria in questa fase.
+**Build Android**: **Capacitor** (non Cordova) come wrapper WebView attorno
+alla build statica di Vite — scelto perché è la soluzione più sottile e
+attualmente mantenuta per portare un sito/app WebGL su Android con attrito
+minimo: nessun motore di gioco nativo da imparare, il progetto Android
+generato è un normale progetto Gradle che una GitHub Actions può
+compilare, e le performance di un fragment shader in una WebView Android
+moderna (Chromium/System WebView, WebGL2 supportato) sono adeguate per
+questo tipo di scena a triangolo singolo. Un motore nativo (Unity, GLES
+puro) darebbe più controllo/performance ma con costo di sviluppo molto più
+alto, ingiustificato visto che l'unico target è Android e l'iterazione
+rapida in browser è prioritaria in questa fase.
 
 **CI/Build Android** (`.github/workflows/frattale-android.yml`): builda il
 sito (`npm run build`), `npx cap sync android`, poi `./gradlew
@@ -217,13 +226,12 @@ tocca `frattale/**`, o a mano da Actions (`workflow_dispatch`).
 
 ## Stato di avanzamento
 
-- [x] **Livello 1** — rendering frattale statico navigabile, camera libera
-      6DOF con inerzia, FOV dinamico, fog/desaturazione in lontananza.
-- [x] **Livello 2** — potenza/rotazione/palette che evolvono lentamente nel
-      tempo, superfici vicine alla camera che si illuminano/deformano
-      leggermente, dettaglio (iterazioni) crescente avvicinandosi.
+- [x] **Livello 1** — rendering frattale navigabile a mappa piana (pan +
+      zoom), con inerzia e vignettatura.
+- [x] **Livello 2** — parametri/palette che evolvono lentamente nel tempo,
+      dettaglio (isolinee e mappe nuove) crescente scendendo.
 - [x] **Livello 3** — audio generativo reattivo (drone + impulsi ritmici
-      su un bus condiviso, pilotati da raggio/velocità della camera).
+      su un bus condiviso, pilotati da profondità/velocità di navigazione).
 - [ ] Livello 4 — nuclei, meccanica di risoluzione, persistenza
 - [x] **Livello 5** — Capacitor + CI Android, APK con nome/package fissi,
       release `latest` con link diretto stabile
@@ -257,8 +265,8 @@ npm run build     # build statica in dist/
 npm run preview   # serve la build di produzione
 ```
 
-Controlli: stick sinistro/`WASD` per orbitare intorno al centro, levetta
-destra/`Space`+`Shift` per avvicinarsi o allontanarsi, trascinamento del
+Controlli: stick sinistro/`WASD` per scorrere la mappa, levetta
+destra/`Space`+`Shift` per scendere o salire di scala, trascinamento del
 mouse o rotellina su desktop.
 
 ### Build Android locale

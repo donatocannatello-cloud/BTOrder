@@ -1,27 +1,29 @@
-// Qualita' adattiva: la leva reale per alleggerire un raymarcher non e' il
-// formato di output (e' comunque un calcolo per-pixel, non esiste un
-// equivalente "vettoriale"), ma quanti pixel e quanti step di sphere-
-// tracing si calcolano per frame. Si misura il tempo-frame reale e si
-// riduce risoluzione interna e budget di step quando il dispositivo fatica
-// (tipicamente un telefono Android di fascia media), per poi risalire se
-// il framerate lo permette. Cambi piccoli e poco frequenti, per evitare
-// che la qualita' "pompi" avanti e indietro in modo visibile.
+// Qualita' adattiva: la leva reale per alleggerire un frattale calcolato
+// per-pixel non e' il formato di output (non esiste un equivalente
+// "vettoriale"), ma quanti pixel e quante iterazioni si calcolano per
+// frame. Si misura il tempo-frame reale e si riducono risoluzione interna
+// e budget di iterazioni quando il dispositivo fatica (tipicamente un
+// telefono Android di fascia media), per poi risalire se il framerate lo
+// permette. Cambi piccoli e poco frequenti, per evitare che la qualita'
+// "pompi" avanti e indietro in modo visibile.
+//
+// Le mappe piane escape-time costano molto meno del raymarching 3D che
+// c'era prima (nessun passo lungo un raggio: una sola valutazione per
+// livello per pixel), quindi si parte da una qualita' sensibilmente piu'
+// alta a parita' di dispositivo.
 
 export interface QualityState {
   renderScale: number; // moltiplica la risoluzione del canvas (oltre al DPR)
-  raySteps: number; // budget di step di sphere-tracing per pixel
+  maxIter: number; // budget di iterazioni escape-time per livello, per pixel
 }
 
-const RENDER_SCALE_MIN = 0.5;
+const RENDER_SCALE_MIN = 0.6;
 const RENDER_SCALE_MAX = 1.0;
 const RENDER_SCALE_STEP = 0.08;
 
-// Ridotti rispetto a prima: la scena ora unisce sempre 3 frattali
-// annidati (l'affondamento infinito, vedi shaders/raymarch.ts), quindi
-// ogni step di raymarching costa circa 3 volte tanto.
-const RAY_STEPS_MIN = 40;
-const RAY_STEPS_MAX = 70;
-const RAY_STEPS_STEP = 8;
+const MAX_ITER_MIN = 60;
+const MAX_ITER_MAX = 220;
+const MAX_ITER_STEP = 20;
 
 const TARGET_FPS_LOW = 30; // sotto: degrada
 const TARGET_FPS_HIGH = 55; // sopra (con margine): puo' risalire
@@ -30,7 +32,7 @@ const ADJUST_INTERVAL_MS = 900;
 const WINDOW_SIZE = 30;
 
 export class QualityManager {
-  private state: QualityState = { renderScale: 0.7, raySteps: 58 };
+  private state: QualityState = { renderScale: 0.9, maxIter: 140 };
   private frameTimes: number[] = [];
   private lastAdjust = 0;
 
@@ -51,18 +53,19 @@ export class QualityManager {
     const fps = 1000 / avgMs;
 
     if (fps < TARGET_FPS_LOW) {
-      // Prima si abbassa la risoluzione (il taglio piu' economico e meno
-      // visibile su un frattale gia' pieno di dettaglio fine), poi gli step.
-      if (this.state.renderScale > RENDER_SCALE_MIN) {
+      // Prima si tagliano le iterazioni (le curve di livello piu' lontane
+      // dal bordo dell'insieme restano comunque leggibili), poi la
+      // risoluzione, che e' il taglio piu' visibile su un disegno a linee.
+      if (this.state.maxIter > MAX_ITER_MIN) {
+        this.state.maxIter = Math.max(MAX_ITER_MIN, this.state.maxIter - MAX_ITER_STEP);
+      } else if (this.state.renderScale > RENDER_SCALE_MIN) {
         this.state.renderScale = Math.max(RENDER_SCALE_MIN, this.state.renderScale - RENDER_SCALE_STEP);
-      } else if (this.state.raySteps > RAY_STEPS_MIN) {
-        this.state.raySteps = Math.max(RAY_STEPS_MIN, this.state.raySteps - RAY_STEPS_STEP);
       }
     } else if (fps > TARGET_FPS_HIGH) {
-      if (this.state.raySteps < RAY_STEPS_MAX) {
-        this.state.raySteps = Math.min(RAY_STEPS_MAX, this.state.raySteps + RAY_STEPS_STEP);
-      } else if (this.state.renderScale < RENDER_SCALE_MAX) {
+      if (this.state.renderScale < RENDER_SCALE_MAX) {
         this.state.renderScale = Math.min(RENDER_SCALE_MAX, this.state.renderScale + RENDER_SCALE_STEP);
+      } else if (this.state.maxIter < MAX_ITER_MAX) {
+        this.state.maxIter = Math.min(MAX_ITER_MAX, this.state.maxIter + MAX_ITER_STEP);
       }
     }
 
