@@ -3,6 +3,7 @@ import { Renderer } from "./renderer";
 import { TouchControls } from "./touchControls";
 import { QualityManager } from "./quality";
 import { AudioEngine } from "./audio";
+import { Nuclei } from "./nuclei";
 
 const canvas = document.getElementById("gl") as HTMLCanvasElement;
 const indicatorLayer = document.getElementById("touch-layer") as HTMLElement;
@@ -11,6 +12,7 @@ const camera = new MapCamera();
 const touchControls = new TouchControls(canvas, indicatorLayer);
 const quality = new QualityManager();
 const audio = new AudioEngine();
+const nuclei = new Nuclei();
 
 // ---- schermata iniziale + schermo intero + uscita -------------------------
 // L'app gira sempre a schermo intero: la schermata iniziale serve sia da
@@ -197,6 +199,12 @@ function frame(now: number) {
     audio.layerTransition();
   }
 
+  // I nuclei: il nucleo attivo e' quello del livello piu' vicino in scala.
+  const nucleus = nuclei.update(dt, camera.centerX, camera.centerY, camera.zoomLevel);
+  if (nuclei.justResolved) audio.resolveNucleus(nucleus.level);
+  // Una volta risolto il battito si spegne: il premio e' il silenzio.
+  audio.setTuning(nucleus.solved ? 0 : nucleus.closeness);
+
   // Per l'audio: 1 all'inizio di un livello, 0 quando lo si sta lasciando --
   // il drone si apre man mano che si scende dentro ogni mappa e riparte al
   // livello successivo.
@@ -211,6 +219,11 @@ function frame(now: number) {
     maxIter: q.maxIter,
     time,
     breath: Math.sin(time * BREATH_FREQ) * BREATH_AMPLITUDE,
+    nucleusUvX: nucleus.uvX,
+    nucleusUvY: nucleus.uvY,
+    nucleusGlow: nucleus.closeness,
+    nucleusSolved: nucleus.solved ? 1 : 0,
+    nucleusBloom: nucleus.bloom,
   });
 
   requestAnimationFrame(frame);

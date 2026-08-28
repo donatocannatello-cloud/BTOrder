@@ -66,6 +66,26 @@ const UPDATE_INTERVAL_MS = 100;
 const OCTAVE_MIN = -1;
 const OCTAVE_MAX = 2;
 
+// --- Accordatura dei nuclei -------------------------------------------
+// Due sinusoidi vicinissime battono a |differenza| Hz. Il pilota si
+// scosta dalla nota di riferimento in proporzione a *quanto si e'
+// lontani* dal nucleo: lontani, un battito veloce; avvicinandosi
+// rallenta; in accordo le due frequenze coincidono e il battito sparisce,
+// lasciando un tono puro. E' l'esperienza fisica di accordare una corda,
+// e non richiede nessun numero a schermo per essere letta.
+const TUNE_ROOT = 220; // A3: registro chiaro, sopra il bordone
+const TUNE_MAX_DETUNE = 0.012; // ~2.6 Hz di battito alla massima distanza
+const TUNE_LEVEL = 0.05;
+// Sotto questa soglia il nucleo e' muto: un segnale sempre presente
+// sarebbe un assillo, non un indizio.
+const TUNE_FADE_IN = 0.12;
+
+// Ogni nucleo risolto lascia una voce in piu' nel bordone: la musica
+// cresce con la collezione. Limitate, altrimenti dopo qualche decina di
+// nuclei il pezzo diventa un muro.
+const RESOLVED_RATIOS = [1.5, 2, 2.5, 3, 4];
+const RESOLVED_LEVEL = 0.026;
+
 export class AudioEngine {
   private ctx: AudioContext;
   private master: GainNode;
@@ -73,9 +93,15 @@ export class AudioEngine {
   private started = false;
   private lastPulse = 0;
   private lastUpdate = 0;
+  private lastTune = 0;
   private octaveShift = 0;
   private droneGains: GainNode[] = [];
   private droneOscillators: OscillatorNode[] = [];
+  private tuneRef!: OscillatorNode;
+  private tunePilot!: OscillatorNode;
+  private tuneGain!: GainNode;
+  private resolvedGains: GainNode[] = [];
+  private resolvedOscillators: OscillatorNode[] = [];
 
   constructor() {
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -116,6 +142,23 @@ export class AudioEngine {
       this.droneGains.push(gain);
       this.droneOscillators.push(osc);
     }
+
+    // Coppia di accordatura: sempre in funzione, ma a volume zero finche'
+    // non ci si avvicina a un nucleo. Tenerle accese evita il click e la
+    // latenza di creare oscillatori al volo ogni volta.
+    this.tuneGain = this.ctx.createGain();
+    this.tuneGain.gain.value = 0;
+    this.tuneGain.connect(this.filter);
+    this.tuneRef = this.ctx.createOscillator();
+    this.tuneRef.type = "sine";
+    this.tuneRef.frequency.value = TUNE_ROOT;
+    this.tuneRef.connect(this.tuneGain);
+    this.tuneRef.start();
+    this.tunePilot = this.ctx.createOscillator();
+    this.tunePilot.type = "sine";
+    this.tunePilot.frequency.value = TUNE_ROOT * (1 + TUNE_MAX_DETUNE);
+    this.tunePilot.connect(this.tuneGain);
+    this.tunePilot.start();
   }
 
   /** Da chiamare dentro un gesto utente (tap/click/tasto), per rispettare
@@ -177,6 +220,78 @@ export class AudioEngine {
   }
 
   /**
+   * Vicinanza a un nucleo, 0..1. Governa lo scostamento fra le due
+   * sinusoidi di accordatura: lontani battono veloce, in accordo
+   * coincidono e restano un tono solo.
+   */
+  setTuning(closeness: number) {
+    if (!this.started) return;
+    // Limitata come gli altri parametri continui: chiamata ad ogni frame
+    // manderebbe 60 comandi di automazione al secondo al thread audio,
+    // che e' esattamente il traffico gia' identificato come causa di
+    // micro-disturbi su un telefono sotto carico. Le rampe qui sotto
+    // hanno costanti di tempo da 0.08-0.25s: 10Hz e' piu' che sufficiente.
+    const nowMs = performance.now();
+    if (nowMs - this.lastTune < UPDATE_INTERVAL_MS) return;
+    this.lastTune = nowMs;
+
+    const t = this.ctx.currentTime;
+    const c = Math.max(0, Math.min(1, closeness));
+    const f0 = TUNE_ROOT * this.droneOctaveMultiplier;
+    this.tuneRef.frequency.setTargetAtTime(f0, t, 0.08);
+    this.tunePilot.frequency.setTargetAtTime(f0 * (1 + (1 - c) * TUNE_MAX_DETUNE), t, 0.08);
+    // Entra solo da vicino, e si spegne del tutto una volta risolto il
+    // nucleo (il chiamante passa 0): il premio e' il silenzio del
+    // battito, non un tono che resta li' a ronzare.
+    const level = c < TUNE_FADE_IN ? 0 : TUNE_LEVEL * Math.min(1, (c - TUNE_FADE_IN) / 0.35);
+    this.tuneGain.gain.setTargetAtTime(level, t, 0.25);
+  }
+
+  /**
+   * Nucleo risolto: un accordo breve, e una voce in piu' che resta nel
+   * bordone per sempre -- la musica cresce con la collezione.
+   */
+  resolveNucleus(index: number) {
+    if (!this.started) return;
+    const t = this.ctx.currentTime;
+    const octave = this.droneOctaveMultiplier;
+
+    if (this.resolvedGains.length < RESOLVED_RATIOS.length) {
+      const ratio = RESOLVED_RATIOS[this.resolvedGains.length];
+      const osc = this.ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = DRONE_ROOT * ratio * octave;
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.setTargetAtTime(RESOLVED_LEVEL, t, 1.2); // entra piano, senza annunciarsi
+      osc.connect(gain);
+      gain.connect(this.filter);
+      osc.start();
+      this.resolvedGains.push(gain);
+      this.resolvedOscillators.push(osc);
+    }
+
+    // Accordo ascendente: il contrario dell'arpeggio discendente che
+    // segna il passaggio di livello, cosi' i due eventi non si confondono.
+    const notes = [329.6, 440, 659.3];
+    notes.forEach((note, i) => {
+      const at = t + i * 0.11;
+      const osc = this.ctx.createOscillator();
+      osc.type = "triangle";
+      osc.frequency.value = note * octave;
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0, at);
+      gain.gain.linearRampToValueAtTime(0.16, at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, at + 1.1);
+      osc.connect(gain);
+      gain.connect(this.filter);
+      osc.start(at);
+      osc.stop(at + 1.15);
+    });
+    void index;
+  }
+
+  /**
    * Accento sonoro al passaggio di livello: tutta la musica si sposta di
    * un'ottava, in su o in giu' a caso, e un breve arpeggio discendente
    * segna la soglia attraversata.
@@ -195,6 +310,11 @@ export class AudioEngine {
     const droneOctave = this.droneOctaveMultiplier;
     this.droneOscillators.forEach((osc, i) => {
       osc.frequency.setTargetAtTime(DRONE_ROOT * DRONE_RATIOS[i] * droneOctave, t, 0.8);
+    });
+    // Le voci guadagnate coi nuclei seguono lo stesso spostamento, altrimenti
+    // dopo un paio di livelli suonerebbero contro il resto.
+    this.resolvedOscillators.forEach((osc, i) => {
+      osc.frequency.setTargetAtTime(DRONE_ROOT * RESOLVED_RATIOS[i] * droneOctave, t, 0.8);
     });
 
     const notes = [523.3, 440, 349.2];

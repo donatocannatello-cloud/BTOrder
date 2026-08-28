@@ -21,6 +21,10 @@ uniform float uLayerBase;  // indice assoluto (intero, anche negativo) del livel
 uniform int uMaxIter;      // budget di iterazioni, regolato dal quality manager
 uniform float uTime;
 uniform float uBreath;     // lenta oscillazione: la mappa "respira" anche da ferma
+uniform vec2 uNucleusUv;   // posizione del nucleo attivo, in coordinate schermo
+uniform float uNucleusGlow;   // 0..1, vicinanza: quanto si sta per accordarlo
+uniform float uNucleusSolved; // 1 se gia' risolto
+uniform float uNucleusBloom;  // 1..0, fioritura al momento della risoluzione
 
 out vec4 fragColor;
 
@@ -234,6 +238,33 @@ void main() {
     // A shadeLayer serve la posizione NELLA finestra (0 = il piu' vicino),
     // non k, che ora puo' essere negativo.
     color += shadeLayer(p, L, i) * w;
+  }
+
+  // --- Nucleo ----------------------------------------------------------
+  // Si disegna solo quando si e' gia' vicini: la ricerca la guida
+  // l'orecchio, l'occhio arriva a confermare. Ambra contro il viola della
+  // mappa, cosi' non lo si confonde con una piega del frattale.
+  if (uNucleusGlow > 0.002 || uNucleusSolved > 0.5) {
+    float r = length(uv - uNucleusUv);
+    vec3 tone = vec3(0.98, 0.84, 0.55);
+
+    // Alone stretto: dice "e' qui" senza diventare una macchia. Largo
+    // com'era prima leggeva come una sbavatura sul vetro, non come una
+    // presenza in un punto preciso.
+    color += tone * exp(-r * r * 120.0) * uNucleusGlow * 0.45;
+
+    // Anello che si stringe avvicinandosi, da mezzo schermo a un punto:
+    // e' la lettura visiva della stessa cosa che il battito dice a
+    // orecchio. Piu' marcato dell'alone, altrimenti ci si perde dentro.
+    float ringR = mix(0.5, 0.05, uNucleusGlow);
+    color += tone * exp(-pow((r - ringR) * 20.0, 2.0)) * uNucleusGlow * 0.6;
+
+    // Risolto: un punto che resta acceso, per sempre.
+    color += tone * exp(-r * r * 300.0) * uNucleusSolved * 0.9;
+
+    // Fioritura: un anello che si allarga e svanisce, una volta sola.
+    float bloomR = (1.0 - uNucleusBloom) * 0.9;
+    color += tone * exp(-pow((r - bloomR) * 11.0, 2.0)) * uNucleusBloom * 0.75;
   }
 
   color *= EXPOSURE;

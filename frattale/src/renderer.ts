@@ -33,7 +33,10 @@ export class Renderer {
     }
     this.program = program;
 
-    const names = ["uResolution", "uCenter", "uFrac", "uLayerBase", "uMaxIter", "uTime", "uBreath"];
+    const names = [
+      "uResolution", "uCenter", "uFrac", "uLayerBase", "uMaxIter", "uTime", "uBreath",
+      "uNucleusUv", "uNucleusGlow", "uNucleusSolved", "uNucleusBloom",
+    ];
     this.uniforms = {};
     for (const name of names) {
       this.uniforms[name] = gl.getUniformLocation(program, name);
@@ -58,6 +61,11 @@ export class Renderer {
     maxIter: number;
     time: number;
     breath: number;
+    nucleusUvX: number;
+    nucleusUvY: number;
+    nucleusGlow: number;
+    nucleusSolved: number;
+    nucleusBloom: number;
   }) {
     const gl = this.gl;
     gl.useProgram(this.program);
@@ -68,6 +76,10 @@ export class Renderer {
     gl.uniform1i(this.uniforms.uMaxIter, opts.maxIter);
     gl.uniform1f(this.uniforms.uTime, opts.time);
     gl.uniform1f(this.uniforms.uBreath, opts.breath);
+    gl.uniform2f(this.uniforms.uNucleusUv, opts.nucleusUvX, opts.nucleusUvY);
+    gl.uniform1f(this.uniforms.uNucleusGlow, opts.nucleusGlow);
+    gl.uniform1f(this.uniforms.uNucleusSolved, opts.nucleusSolved);
+    gl.uniform1f(this.uniforms.uNucleusBloom, opts.nucleusBloom);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 }

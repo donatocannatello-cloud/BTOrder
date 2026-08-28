@@ -326,13 +326,45 @@ molti ordini di grandezza — uno zoom lineare, a fondo scala, sembrerebbe
 schizzare via o restare fermo. È lo stesso motivo per cui lo zoom di una
 mappa o di una fotocamera è sempre moltiplicativo.
 
-**Nuclei e persistenza** (livello 4, non ancora implementato): punti
-generati deterministicamente (seed fisso + hash), verificati contro la
-distance function per restare vicino/dentro la superficie frattale nella
-loro configurazione "di riferimento". Stato risolto/non risolto salvato in
-`localStorage` con schema versionato (`{version, solvedIds: string[]}`),
-così sopravvive tra sessioni e — impacchettato in Capacitor — resta legato
-all'installazione Android.
+**Livello 4 — i nuclei** (`src/nuclei.ts`): la meccanica di gioco. Ogni
+livello frattale ne nasconde uno, generato deterministicamente da una hash
+del suo indice — nessuna tabella da mantenere, e lo stesso livello ha
+sempre lo stesso nucleo su qualunque dispositivo.
+
+Non si vedono, si **sentono**. Avvicinandosi — sia scorrendo sul piano sia
+con la scala, che è il terzo asse della ricerca — due sinusoidi vicinissime
+cominciano a battere: il battimento rallenta man mano che ci si centra e si
+ferma quando si è in accordo, lasciando un tono puro. È l'esperienza fisica
+di accordare una corda contro una nota di riferimento, e non richiede
+nessun numero a schermo per essere letta. Solo da vicino il nucleo si
+mostra anche all'occhio, con un anello che si stringe: l'orecchio guida, la
+vista conferma. Restare fermi in accordo per 1,2 s lo risolve; il premio è
+il **silenzio del battito**, più una voce che resta per sempre nel bordone
+— la musica cresce con la collezione (limitata a 5 voci, oltre le quali il
+pezzo diventerebbe un muro).
+
+Non c'è modo di sbagliare: nessun tempo, nessun fallimento, nessun comando
+in più da imparare. L'unico verbo del gioco resta "essere in un posto a una
+certa scala".
+
+> **Perché il nucleo vive nello spazio di navigazione e non in quello dello
+> shader.** Sarebbe stato naturale definirlo nelle coordinate ripiegate che
+> lo shader campiona, ma per proiettarlo sullo schermo servirebbe replicare
+> in JS la sua `hash11` e `layerOffset` — e quelle girano in **float32**
+> mentre JS lavora in float64. Una catena di `fract()` amplifica qualunque
+> differenza di precisione, quindi le due posizioni divergerebbero.
+> Definendo il nucleo nello spazio che la camera controlla (lo stesso di
+> `centerX/centerY`) il problema non si pone: la posizione sullo schermo si
+> ricava da soli centro e zoom, con `uv = (nucleo − centro) · SCALE^(zoom −
+> livello)`, e lo shader la riceve già pronta come uniform. La distanza va
+> presa modulo il periodo dello specchio, perché lo spazio di navigazione è
+> periodico.
+
+Stato risolto salvato in `localStorage` con schema versionato
+(`{v, solved: number[]}`), così sopravvive tra sessioni e — impacchettato
+in Capacitor — resta legato all'installazione Android. Se `localStorage` è
+negato (finestra privata, impostazioni restrittive) il gioco resta
+giocabile, semplicemente non ricorda.
 
 **Build Android**: **Capacitor** (non Cordova) come wrapper WebView attorno
 alla build statica di Vite — scelto perché è la soluzione più sottile e
@@ -384,7 +416,8 @@ tocca `frattale/**`, o a mano da Actions (`workflow_dispatch`).
       dettaglio (isolinee e mappe nuove) crescente scendendo.
 - [x] **Livello 3** — audio generativo reattivo (drone + impulsi ritmici
       su un bus condiviso, pilotati da profondità/velocità di navigazione).
-- [ ] Livello 4 — nuclei, meccanica di risoluzione, persistenza
+- [x] **Livello 4** — nuclei da accordare a orecchio, risoluzione tenendo
+      la posizione, persistenza in `localStorage`
 - [x] **Livello 5** — Capacitor + CI Android, APK con nome/package fissi,
       release `latest` con link diretto stabile
 
