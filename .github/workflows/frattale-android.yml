@@ -59,7 +59,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: latest
-          name: "Frattale — build più recente"
+          name: "Discesa Frattale — build più recente"
           body: |
             Build automatica dal commit ${{ github.sha }} (run #${{ github.run_number }}).
             Questa release viene sovrascritta a ogni push su `frattale/`: il link all'APK sotto resta sempre lo stesso.

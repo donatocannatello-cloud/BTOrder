@@ -1,4 +1,4 @@
-# Frattale
+# Discesa Frattale
 
 Esploratore solitario dentro un universo frattale generato via shader,
 senza HUD né testo: tutto passa da immagine, suono e movimento. Vedi la
@@ -148,11 +148,26 @@ volutamente bassissima, perché la correzione gamma finale amplifica molto
 anche valori lineari piccoli (0.05 lineare diventa ~0.24 a schermo, e
 appiattisce tutto il disegno in una tinta unita).
 
-**Schermata iniziale e schermo intero**: l'ingresso mostra solo il titolo
-sopra la mappa già in movimento — niente istruzioni scritte e niente
-controlli, che comparirebbero sovrapposti al titolo senza avere ancora
-nulla da comandare. Stick e levetta entrano in dissolvenza insieme al
-pulsante di uscita, quando si entra davvero.
+**Identità e schermata iniziale**: il gioco si chiama **Discesa
+Frattale**. L'ingresso mostra solo il titolo sopra la mappa già in
+movimento — niente istruzioni scritte e niente controlli, che
+comparirebbero sovrapposti al titolo senza avere ancora nulla da
+comandare. Stick e levetta entrano in dissolvenza insieme al pulsante di
+uscita, quando si entra davvero.
+
+L'icona e lo splash nativo sono **generati dal frattale stesso**
+(`scratchpad` non versionato, sorgente WebGL): è l'insieme di Julia del
+livello 0 — lo stesso `c = -0.7269 + 0.1889i` che si vede aprendo l'app —
+ruotato di 45° per riempire il quadrato, campito pieno e con poche curve
+di livello larghe. Le isolinee fitte del gioco sono belle a schermo
+intero ma a 48 px diventerebbero poltiglia grigia, quindi l'icona tiene
+la silhouette e getta via il dettaglio fine. Tre inquadrature diverse
+dalla stessa sorgente: più stretta per l'icona quadrata legacy, media per
+quella tonda (il cerchio taglia le punte diagonali), più larga per il
+*foreground* adattivo, che deve stare nei 72dp su 108 che Android
+garantisce visibili sotto qualunque maschera. Lo splash nativo era quello
+bianco di default di Capacitor, che faceva lampeggiare bianco prima di
+un'app tutta nera: ora è il marchio su fondo `#0a0a12`.
 
 Lo schermo intero è **nativo**, non web (`android/.../MainActivity.java`):
 la `requestFullscreen()` che il codice web chiama entrando agisce su un
