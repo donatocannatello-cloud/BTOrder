@@ -1,7 +1,8 @@
 // Controlli touch, sempre visibili. A sinistra uno stick circolare per
-// scorrere la mappa (le "4 direzioni cardinali"): il contenuto segue lo
-// stick, spingendo in alto la mappa scorre verso l'alto dello schermo.
-// A destra una levetta verticale, con un design deliberatamente diverso
+// spostarsi sulla mappa (le "4 direzioni cardinali"): guida il punto di
+// vista, non il contenuto -- spingendo in alto ci si sposta verso l'alto e
+// il disegno scorre verso il basso, come guidare su una mappa invece di
+// trascinarla. A destra una levetta verticale, con un design deliberatamente diverso
 // (un binario, non un disco) per segnalare che governa un solo asse:
 // scendere/salire di scala, cioe' lo zoom.
 //
@@ -84,9 +85,9 @@ export class TouchControls {
     const clamped = Math.min(len, STICK_RADIUS);
     const nx = len > 0 ? dx / len : 0;
     const ny = len > 0 ? dy / len : 0;
-    // Convenzione confermata sul dispositivo reale: spingendo lo stick in
-    // alto il contenuto sale verso l'alto dello schermo (e simmetricamente
-    // sull'orizzontale). ny e' positivo verso il basso, da qui il segno.
+    // Lo stick esprime la direzione in cui ci si vuole spostare sulla
+    // mappa; e' camera.ts a tradurla in movimento del punto di vista.
+    // ny e' positivo verso il basso dello schermo, da qui il segno.
     this.panXValue = nx * (clamped / STICK_RADIUS);
     this.panYValue = -ny * (clamped / STICK_RADIUS);
     this.stickKnob.style.transform = `translate(${nx * clamped}px, ${ny * clamped}px)`;

@@ -49,7 +49,7 @@ pixel: il costo resta piatto a qualunque profondità.
 > avanzare (o arretrare) all'infinito senza scatti e **senza dover
 > ri-ancorare il centro**. Il passo di pan è proporzionale alla sola scala
 > frazionaria (`SCALE^-frac`, quindi tra `1/SCALE` e `1`), mai a quella
-> assoluta, e il centro è clampato al raggio della mappa: le coordinate non
+> assoluta, e il centro è ripiegato a specchio: le coordinate non
 > crescono mai, e la precisione in virgola mobile non si degrada per quanto
 > a fondo si scenda. È il difetto che affliggeva l'impianto raymarching
 > precedente, dove le coordinate si rimpicciolivano fino a sfaldare
@@ -71,21 +71,45 @@ nessun passo lungo un raggio — quindi si parte da una qualità
 sensibilmente più alta a parità di dispositivo.
 
 **Camera** (`src/camera.ts`): non c'è più nessuna camera 3D. `MapCamera`
-tiene un centro 2D limitato (`centerX`, `centerY`, clampato a `MAP_EXTENT`)
-e un `zoomLevel` continuo e **illimitato in entrambe le direzioni**: la sua
-parte intera è l'indice del livello, la frazionaria la transizione verso il
-successivo. Stick/tastiera pilotano una velocità di scorrimento smussata
-dall'inerzia; il trascinamento col mouse scorre per manipolazione diretta,
-senza inerzia propria (ci si aspetta che un drag risponda 1:1, ed è anche
-il gesto naturale su una mappa).
+tiene un centro 2D e un `zoomLevel` continuo, entrambi **illimitati**: la
+parte intera dello zoom è l'indice del livello, la frazionaria la
+transizione verso il successivo. Stick/tastiera pilotano una velocità di
+scorrimento smussata dall'inerzia; il trascinamento col mouse scorre per
+manipolazione diretta, senza inerzia propria (ci si aspetta che un drag
+risponda 1:1).
+
+Stick e trascinamento hanno **versi opposti, di proposito**: lo stick guida
+il *punto di vista* (spingi a destra → ti sposti a destra e il disegno
+scorre a sinistra, come guidare su una mappa), il trascinamento invece
+*afferra il foglio* (trascini a destra → la mappa segue il cursore). Sono
+due gesti diversi e ci si aspetta due comportamenti diversi.
+
+**Mondo senza bordi, per riflessione**: non c'è nessun limite allo
+scorrimento, in nessuna direzione. Il mondo non è però infinito "per
+davvero": fuori dal suo raggio di interesse un insieme di Julia degenera in
+vuoto uniforme, quindi lasciar scorrere via darebbe deserto, e un wrap col
+modulo darebbe una cucitura netta e visibile ad ogni giro. La terza via è
+un **ripiegamento a specchio** (`mirrorFold` nello shader): un'onda
+triangolare che è l'identità sul riquadro fondamentale `[-H, H]` e poi
+riflette ad ogni bordo, con periodo `4H`. Essendo continua (nessun salto di
+valore sul bordo) il disegno prosegue senza strappi, come in una sala degli
+specchi.
+
+> Il ripiegamento è anche ciò che tiene lo scorrimento *illimitato* senza
+> perdere precisione: `MapCamera` riporta il centro dentro un periodo ad
+> ogni frame, trasformazione esattamente invisibile dato che lo shader
+> ripiega con lo stesso periodo. Verificato numericamente: identità su
+> `[-H, H]`, continuità senza salti su 40 unità, wrap invisibile a meno di
+> 1e-14, e valori sempre dentro `[-1.5, 1.5]` anche campionando a ±10⁶.
 
 **Input**: `src/touchControls.ts`. Il target è Android, quindi il touch è
 lo schema *primario*: due controlli **sempre visibili**, ancorati agli
 angoli, con un highlight quando in uso (la prima versione, invisibile
 finché non tocchi, risultava confusa senza un riferimento fisso a
-schermo). A **sinistra** uno stick circolare per scorrere la mappa nelle 4
-direzioni: il contenuto segue lo stick (spingendo in alto la mappa scorre
-verso l'alto dello schermo). A **destra** una **levetta verticale**, con un
+schermo). A **sinistra** uno stick circolare per spostarsi sulla mappa
+nelle 4 direzioni: guida il punto di vista, quindi spingendo in alto ci si
+sposta verso l'alto e il disegno scorre verso il basso. A **destra** una
+**levetta verticale**, con un
 design deliberatamente diverso da uno stick (un binario allungato, non un
 disco, con un segno vuoto in alto e uno pieno in basso) per segnalare che
 governa un solo asse: scendere/salire di scala. Entrambi sono "a molla":
@@ -161,6 +185,17 @@ degli impulsi ritmici (pizzicati su scala pentatonica) — fermi quasi
 silenzio, muovendosi la trama si infittisce. L'`AudioContext` parte al
 primo gesto utente (tap/click/tasto), non prima, per rispettare le policy
 di autoplay dei browser, e va in `suspend()` uscendo col pulsante X.
+
+A questi due segnali continui si aggiunge un **evento discreto**: ad ogni
+passaggio di livello tutta la musica si sposta di un'ottava, in su o in giù
+a caso — stessi suoni e stesse note, solo un registro diverso, così la
+soglia si sente come un cambio di scena e non come un brano nuovo. È una
+passeggiata casuale *limitata* (`[-1, +2]` ottave), non un salto libero:
+senza limiti bastano pochi livelli per finire nel subsonico o sopra il
+taglio del filtro, e la musica sparirebbe. Arrivati a un estremo si rimbalza
+nell'altra direzione, così ogni passaggio si sente comunque muovere. Ai
+quattro registri corrispondono droni da 28 a 882 Hz e pizzicati da 55 a
+2093 Hz: tutto sotto il taglio del filtro a 2400 Hz, quindi sempre udibile.
 
 > Corretto dopo due giri di test. Primo: volume troppo basso e un fruscio
 > intermittente — i livelli individuali sono stati alzati con un

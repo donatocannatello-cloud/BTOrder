@@ -43,6 +43,28 @@ out vec4 fragColor;
 const float SCALE = 2.2;
 const int NUM_LAYERS = 3;
 
+// Il mondo non ha bordi: oltre il riquadro fondamentale [-H, H] la mappa
+// prosegue *riflessa*, all'infinito, in tutte le direzioni. Fuori dal suo
+// raggio di interesse un insieme di Julia degenera in vuoto uniforme,
+// quindi scorrere davvero via darebbe deserto; un wrap col modulo darebbe
+// invece una cucitura netta ad ogni giro. Il ripiegamento a specchio e' la
+// terza via: e' continuo (nessun salto di valore sul bordo), quindi il
+// disegno prosegue senza strappi, come in una sala degli specchi.
+const float MIRROR_HALF = 1.5;
+
+// Onda triangolare: identita' su [-H, H], poi riflette ad ogni bordo.
+// Periodo 4H -- una riflessione a destra e una a sinistra per tornare in
+// fase. Deve combaciare con MIRROR_HALF/MIRROR_PERIOD in camera.ts, che
+// riporta il centro dentro un periodo per non far crescere mai le
+// coordinate.
+float mirrorFold(float x) {
+  float h = MIRROR_HALF;
+  return h - abs(2.0 * h - mod(x + h, 4.0 * h));
+}
+vec2 mirrorFold(vec2 p) {
+  return vec2(mirrorFold(p.x), mirrorFold(p.y));
+}
+
 float hash11(float p) {
   // +4096 cosi' anche gli indici negativi (si puo' salire all'infinito,
   // non solo scendere) cadono nel ramo positivo della hash.
@@ -172,7 +194,7 @@ void main() {
     float w = layerWeight(k, uFrac);
     if (w <= 0.002) continue;
     float L = uLayerBase + float(k);
-    vec2 p = uCenter + layerOffset(L) + uv * pow(SCALE, float(k) - uFrac);
+    vec2 p = mirrorFold(uCenter + layerOffset(L) + uv * pow(SCALE, float(k) - uFrac));
     color += shadeLayer(p, L, k) * w;
   }
 

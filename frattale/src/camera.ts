@@ -36,8 +36,28 @@ export interface MapInput {
 /** Deve combaciare con SCALE nello shader. */
 export const SCALE = 2.2;
 
-/** Raggio entro cui si puo' scorrere dentro una singola mappa. */
-export const MAP_EXTENT = 1.35;
+// Il mondo non ha piu' bordi: oltre il riquadro fondamentale la mappa si
+// *specchia*, all'infinito, in tutte le direzioni. E' l'unico modo per
+// avere uno scorrimento illimitato senza inventare struttura dove il
+// frattale non ne ha: fuori dal suo raggio di interesse un insieme di
+// Julia degenera in vuoto uniforme, quindi lasciar scorrere davvero via
+// darebbe deserto, e un semplice wrap (modulo) darebbe una cucitura netta
+// e visibile ad ogni giro. Il ripiegamento a specchio invece e' continuo:
+// il disegno prosegue riflesso, come una sala degli specchi.
+//
+// Il ripiegamento vero avviene nello shader (mirrorFold); qui serve solo
+// il periodo, per poter riportare il centro dentro un giro e non farlo
+// crescere mai. MIRROR_HALF deve combaciare con lo shader.
+export const MIRROR_HALF = 1.5;
+/** Il triangolo di riflessione si ripete ogni 4 semilati. */
+const MIRROR_PERIOD = 4 * MIRROR_HALF;
+
+/** Riporta v in [-period/2, period/2): il ripiegamento e' periodico, quindi
+ * e' una trasformazione invisibile che tiene le coordinate limitate per
+ * sempre, per quanto a lungo si scorra. */
+function wrapSigned(v: number, period: number) {
+  return v - period * Math.floor(v / period + 0.5);
+}
 
 const ZOOM_SPEED = 0.55; // livelli al secondo a levetta tutta spinta
 const PAN_SPEED = 0.85; // unita' di schermo al secondo a stick tutto spinto
@@ -84,20 +104,21 @@ export class MapCamera {
     const dx = (this.velPanX * dt + input.dragX) * screenToLayer;
     const dy = (this.velPanY * dt + input.dragY) * screenToLayer;
 
-    // Lo stick "porta con se'" il contenuto: spingendo in alto la mappa
-    // scorre verso l'alto dello schermo, quindi il centro va nel verso
-    // opposto (il campione a uv fisso viene da piu' in basso).
-    this.centerX -= dx;
-    this.centerY -= dy;
+    // Lo stick muove il *punto di vista*, non il contenuto: spingendo a
+    // destra ci si sposta verso destra sulla mappa e il disegno scorre
+    // verso sinistra, come quando ci si muove su una mappa invece di
+    // trascinarla.
+    this.centerX += dx;
+    this.centerY += dy;
 
-    // La singola mappa e' finita (oltre il bordo il frattale non ha piu'
-    // struttura da mostrare): a essere infinito e' l'asse dello zoom, non
-    // lo scorrimento. Clamp radiale per non uscire dalla zona interessante.
-    const r = Math.hypot(this.centerX, this.centerY);
-    if (r > MAP_EXTENT) {
-      this.centerX = (this.centerX / r) * MAP_EXTENT;
-      this.centerY = (this.centerY / r) * MAP_EXTENT;
-    }
+    // Nessun bordo: si scorre a oltranza in qualsiasi direzione. Il centro
+    // viene solo riportato dentro un periodo del ripiegamento a specchio --
+    // trasformazione invisibile, dato che lo shader ripiega con lo stesso
+    // periodo, ma che impedisce alle coordinate di crescere e alla
+    // precisione in virgola mobile di degradarsi anche dopo ore di
+    // scorrimento nella stessa direzione.
+    this.centerX = wrapSigned(this.centerX, MIRROR_PERIOD);
+    this.centerY = wrapSigned(this.centerY, MIRROR_PERIOD);
 
     const panSpeed = Math.hypot(this.velPanX, this.velPanY) / PAN_SPEED;
     const zoomSpeed = Math.abs(this.velZoom) / ZOOM_SPEED;

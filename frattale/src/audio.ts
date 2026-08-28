@@ -7,21 +7,26 @@
 // Deliberatamente senza spazializzazione 3D (niente PannerNode/
 // AudioListener) e senza riverbero a convoluzione: un ConvolverNode e' il
 // nodo piu' costoso in CPU di questa catena, e su un telefono reale, in
-// concorrenza con il raymarching del frattale, la sua elaborazione era la
+// concorrenza col rendering del frattale, la sua elaborazione era la
 // causa piu' probabile sia dei "disturbi" intermittenti (buffer audio che
 // non fanno in tempo) sia della sensazione di eco/ovattamento -- la coda
 // del riverbero si accumulava sopra pizzicati e accordi sempre piu'
 // frequenti scendendo. Rimosso del tutto: piu' leggero e piu' pulito.
 //
-// Due soli segnali pilotano tutto, entrambi gia' disponibili dalla camera:
-//  - raggio orbitale (quanto si e' vicini/dentro il centro) -> quanto il
-//    drone e' presente/risonante: da lontano piu' discreto, immergendosi
-//    nella nube piu' pieno -- il timbro pero' resta sempre chiaro, non si
-//    scurisce con la profondita'
-//  - intensita' di movimento (orbita + zoom combinati) -> densita' degli
+// Due soli segnali continui pilotano tutto, entrambi gia' disponibili
+// dalla navigazione:
+//  - avanzamento dentro il livello corrente -> quanto il drone e'
+//    presente/risonante: si apre man mano che si scende dentro una mappa e
+//    riparte al livello successivo -- il timbro pero' resta sempre chiaro,
+//    non si scurisce con la profondita'
+//  - intensita' di movimento (pan + zoom combinati) -> densita' degli
 //    impulsi ritmici: fermi non c'e' quasi percussione, muovendosi la
 //    trama si infittisce. L'impressione voluta e' che il giocatore stia
 //    "componendo" muovendosi, non ascoltando una traccia di sottofondo.
+//
+// A questi si aggiunge un evento discreto: ad ogni passaggio di livello
+// tutto si trasposta di un'ottava, in su o in giu' a caso (vedi
+// layerTransition).
 
 const DRONE_ROOT = 55; // A1
 const DRONE_RATIOS = [1, 1.5, 2, 2.996, 4.008]; // radice, quinta, ottava, +quinta/ottave leggermente stonate per battimenti
@@ -35,6 +40,16 @@ const PLUCK_NOTES = [220, 261.6, 329.6, 392, 440, 523.3]; // pentatonica su A, p
 // mentre il raymarching gia' occupa la CPU.
 const UPDATE_INTERVAL_MS = 100;
 
+// Ad ogni nuovo livello la musica si sposta di un'ottava, in su o in giu'
+// a caso: stessi suoni e stesse note, solo un registro diverso, cosi' il
+// passaggio si sente come un cambio di scena e non come un brano nuovo.
+// E' una passeggiata casuale limitata, non un salto libero: senza limiti
+// bastano pochi livelli per finire nel subsonico o oltre il taglio del
+// filtro, e la musica sparirebbe. Arrivati a un estremo si rimbalza
+// nell'altra direzione, quindi il registro resta sempre udibile.
+const OCTAVE_MIN = -1;
+const OCTAVE_MAX = 2;
+
 export class AudioEngine {
   private ctx: AudioContext;
   private master: GainNode;
@@ -42,6 +57,7 @@ export class AudioEngine {
   private started = false;
   private lastPulse = 0;
   private lastUpdate = 0;
+  private octaveShift = 0;
   private droneGains: GainNode[] = [];
   private droneOscillators: OscillatorNode[] = [];
 
@@ -127,19 +143,30 @@ export class AudioEngine {
     }
   }
 
+  /** Fattore di trasposizione corrente: sempre una potenza di due, quindi
+   * le note restano esattamente le stesse, solo di ottava diversa. */
+  private get octaveMultiplier() {
+    return Math.pow(2, this.octaveShift);
+  }
+
   /**
-   * Accento sonoro al passaggio di livello: la radice del drone scende di
-   * un semitono per livello (avvolta ogni 7 livelli, cosi' non esce mai
-   * dal registro udibile anche scendendo all'infinito) e un breve
-   * arpeggio discendente segna il momento della soglia attraversata.
+   * Accento sonoro al passaggio di livello: tutta la musica si sposta di
+   * un'ottava, in su o in giu' a caso, e un breve arpeggio discendente
+   * segna la soglia attraversata.
    */
-  layerTransition(depthLayer: number) {
+  layerTransition() {
     if (!this.started) return;
+
+    const step = Math.random() < 0.5 ? -1 : 1;
+    const next = this.octaveShift + step;
+    // Fuori dai limiti si rimbalza invece di restare fermi: cosi' ogni
+    // passaggio di livello si sente comunque muovere, anche agli estremi.
+    this.octaveShift = next < OCTAVE_MIN || next > OCTAVE_MAX ? this.octaveShift - step : next;
+    const octave = this.octaveMultiplier;
+
     const t = this.ctx.currentTime;
-    const semitones = depthLayer % 7;
-    const rootMultiplier = Math.pow(2, -semitones / 12);
     this.droneOscillators.forEach((osc, i) => {
-      osc.frequency.setTargetAtTime(DRONE_ROOT * DRONE_RATIOS[i] * rootMultiplier, t, 0.8);
+      osc.frequency.setTargetAtTime(DRONE_ROOT * DRONE_RATIOS[i] * octave, t, 0.8);
     });
 
     const notes = [523.3, 440, 349.2];
@@ -147,7 +174,7 @@ export class AudioEngine {
       const at = t + i * 0.09;
       const osc = this.ctx.createOscillator();
       osc.type = "triangle";
-      osc.frequency.value = note;
+      osc.frequency.value = note * octave;
       const gain = this.ctx.createGain();
       gain.gain.setValueAtTime(0, at);
       gain.gain.linearRampToValueAtTime(0.2, at + 0.015);
@@ -164,7 +191,8 @@ export class AudioEngine {
     const note = PLUCK_NOTES[Math.floor(Math.random() * PLUCK_NOTES.length)];
     const osc = this.ctx.createOscillator();
     osc.type = "triangle";
-    osc.frequency.value = note * (0.5 + radiusT * 0.5); // più cupo quando si è immersi
+    // Più cupo scendendo dentro il livello, e trasposto come tutto il resto.
+    osc.frequency.value = note * (0.5 + radiusT * 0.5) * this.octaveMultiplier;
 
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(0, t);

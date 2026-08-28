@@ -100,9 +100,13 @@ canvas.addEventListener("pointerup", (e) => {
 });
 canvas.addEventListener("pointermove", (e) => {
   if (e.pointerType === "touch" || !dragging) return;
-  // Trascinando, la mappa segue il dito/cursore: stesso verso del gesto.
-  dragXAccum += (e.clientX - lastX) * DRAG_SENSITIVITY;
-  dragYAccum += -(e.clientY - lastY) * DRAG_SENSITIVITY;
+  // Il trascinamento resta "afferra e tira": la mappa segue il cursore,
+  // quindi il punto di vista va nel verso opposto al gesto -- l'inverso
+  // dello stick, che invece guida il punto di vista. Sono due gesti
+  // diversi e ci si aspetta versi diversi: trascinare sposta il foglio,
+  // spingere uno stick sposta chi guarda.
+  dragXAccum += -(e.clientX - lastX) * DRAG_SENSITIVITY;
+  dragYAccum += (e.clientY - lastY) * DRAG_SENSITIVITY;
   lastX = e.clientX;
   lastY = e.clientY;
 });
@@ -185,7 +189,7 @@ function frame(now: number) {
   const frac = camera.layerFrac;
   if (layerBase !== lastLayerBase) {
     lastLayerBase = layerBase;
-    audio.layerTransition(layerBase);
+    audio.layerTransition();
   }
 
   // Per l'audio: 1 all'inizio di un livello, 0 quando lo si sta lasciando --
