@@ -43,6 +43,16 @@ out vec4 fragColor;
 const float SCALE = 2.2;
 const int NUM_LAYERS = 3;
 
+// Resa del tratto. Il disegno e' interamente auto-illuminato: non c'e'
+// nessuna luce nella scena, il colore *e'* l'emissione. Quindi "quanto
+// brilla" non e' un termine di illuminazione da aggiungere, e'
+// semplicemente l'esposizione applicata prima del tonemap.
+const float EXPOSURE = 1.15;
+const float LINE_GAIN = 2.6;    // quanto marcato e' il tratto
+const float SATURATION = 1.5;   // applicata DOPO il tonemap, vedi main()
+const float WASH = 0.05;        // alone di costa: solo un accenno, vedi shadeLayer
+const float FILL = 0.03;        // campitura dell'interno dell'insieme
+
 // Il mondo non ha bordi: oltre il riquadro fondamentale [-H, H] la mappa
 // prosegue *riflessa*, all'infinito, in tutte le direzioni. Fuori dal suo
 // raggio di interesse un insieme di Julia degenera in vuoto uniforme,
@@ -155,30 +165,39 @@ vec3 shadeLayer(vec2 p, float L, int k) {
 
   float hue = layerHue(L);
   vec3 tint = 0.5 + 0.5 * cos(uTime * 0.02 + hue + vec3(0.0, 2.1, 4.2));
-  vec3 lineColor = mix(vec3(0.62, 0.76, 1.0), vec3(0.86, 0.58, 1.0), tint.x);
+  vec3 lineColor = mix(vec3(0.40, 0.66, 1.0), vec3(0.82, 0.40, 1.0), tint.x);
   lineColor = mix(lineColor, lineColor * tint * 1.25, 0.35);
 
   // Interno dell'insieme: campitura appena percettibile, come la terraferma
   // su una carta. Volutamente bassissima -- la correzione gamma finale
   // amplifica molto anche valori lineari piccoli.
-  if (inside) return lineColor * 0.03;
+  if (inside) return lineColor * FILL;
 
   // Curve di livello multi-ottava: la trama topografica della mappa.
   float lines = 0.0;
   float freq = 0.9;
   for (int o = 0; o < 5; o++) {
-    lines = max(lines, contour(field, freq) * (1.0 - float(o) * 0.13));
+    lines = max(lines, contour(field, freq) * (1.0 - float(o) * 0.10));
     freq *= 2.0;
   }
 
   // Costa: dove la fuga e' lenta si e' vicini al bordo dell'insieme. E'
-  // li' che vive tutto il dettaglio frattale, quindi e' il tratto piu'
-  // marcato della carta -- e le curve di livello si infittiscono verso
-  // di esso invece di restare uniformi anche nelle zone piatte al largo.
+  // li' che vive tutto il dettaglio frattale, quindi il tratto si
+  // infittisce verso di esso invece di restare uniforme anche nelle zone
+  // piatte al largo.
   float nearSet = smoothstep(0.06, 0.55, field / float(uMaxIter));
   float shore = smoothstep(0.55, 0.95, field / float(uMaxIter));
 
-  vec3 color = lineColor * (lines * (0.45 + nearSet * 0.95) + shore * 0.7);
+  // Il tratto e' l'unica cosa che deve saltare all'occhio, quindi prende
+  // tutto il guadagno...
+  vec3 color = lineColor * lines * (0.7 + nearSet * 1.3) * LINE_GAIN;
+
+  // ...mentre l'alone di costa resta un accenno. E' la parte piatta del
+  // disegno: alzarla non rende il wireframe piu' visibile, lo rende meno,
+  // perche' schiarisce il fondo *fra* le linee e ne divora il contrasto.
+  // La correzione gamma finale amplifica molto i valori bassi (0.05
+  // lineare diventa gia' ~0.25 a schermo), quindi qui basta pochissimo.
+  color += lineColor * shore * WASH;
 
   // I livelli piu' profondi (ancora "sotto") leggono un po' piu' tenui,
   // cosi' la pila si percepisce come sovrapposizione e non come un unico
@@ -198,12 +217,24 @@ void main() {
     color += shadeLayer(p, L, k) * w;
   }
 
+  color *= EXPOSURE;
+
   // Vignettatura, coerente con quella della schermata iniziale.
   float vig = smoothstep(1.5, 0.25, length(uv));
   color *= mix(0.72, 1.0, vig);
 
   color = color / (1.0 + color);
   color = pow(color, vec3(1.0 / 2.2));
+
+  // La saturazione va applicata QUI, dopo il tonemap, non prima. Il
+  // tonemap di Reinhard comprime ogni canale verso 1: piu' si alza
+  // l'esposizione, piu' i tre canali si avvicinano fra loro e il colore
+  // sbianca. Saturare a monte verrebbe quindi in gran parte annullato
+  // proprio dove il tratto e' piu' luminoso, cioe' dove il colore conta.
+  // In spazio display invece la tinta si recupera senza rinunciare alla
+  // luminosita'.
+  float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+  color = clamp(mix(vec3(luma), color, SATURATION), 0.0, 1.0);
 
   fragColor = vec4(color, 1.0);
 }

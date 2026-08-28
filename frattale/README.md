@@ -143,10 +143,30 @@ simulato"), ma un disegno a linee. Le isolinee sono tracciate direttamente
 sul campo escape-time — un campo scalare liscio e continuo, che è ciò che
 permette curve pulite invece dell'effetto "rumore/statico" — multi-ottava e
 antialiasate via `fwidth()`. L'interno dell'insieme è una campitura appena
-percettibile (3% del colore linea), come la terraferma su una carta;
-volutamente bassissima, perché la correzione gamma finale amplifica molto
-anche valori lineari piccoli (0.05 lineare diventa ~0.24 a schermo, e
+percettibile (`FILL`, 3% del colore linea), come la terraferma su una
+carta; volutamente bassissima, perché la correzione gamma finale amplifica
+molto anche valori lineari piccoli (0.05 lineare diventa ~0.24 a schermo, e
 appiattisce tutto il disegno in una tinta unita).
+
+Quattro costanti in cima allo shader governano la resa: `EXPOSURE`,
+`LINE_GAIN`, `SATURATION`, `WASH`. Due scelte non ovvie:
+
+- **La saturazione si applica *dopo* il tonemap, non prima.** Il tonemap di
+  Reinhard (`c/(1+c)`) comprime ogni canale verso 1: più si alza
+  l'esposizione, più i tre canali si avvicinano fra loro e il colore
+  sbianca. Saturare a monte verrebbe quindi in gran parte annullato proprio
+  dove il tratto è più luminoso, cioè dove il colore conta. In spazio
+  display la tinta si recupera senza rinunciare alla luminosità.
+- **Alzare l'alone di costa (`WASH`) rende il wireframe *meno* visibile,
+  non più.** È la parte piatta del disegno: schiarisce il fondo *fra* le
+  linee e ne divora il contrasto. Un primo tentativo che alzava
+  l'esposizione globale ha prodotto esattamente questo, un lavaggio
+  magenta uniforme. Il guadagno va tutto sul tratto (`LINE_GAIN`), e
+  l'alone tenuto a un accenno.
+
+> Misurato su ritagli confrontabili, separando il fondo (mediana) dal
+> tratto (95° percentile): **tratto 1,68× più luminoso**, **contrasto
+> tratto/fondo 1,22×**, **saturazione 1,50×**.
 
 **Identità e schermata iniziale**: il gioco si chiama **Discesa
 Frattale**. L'ingresso mostra solo il titolo sopra la mappa già in
