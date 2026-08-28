@@ -51,17 +51,14 @@ function exit() {
   }
 }
 
-// Il pulsante e' dentro #entry, quindi il pointerdown qui sotto lo
-// coprirebbe gia' per bolla; serve comunque un click esplicito perche' un
-// <button> col fuoco si attiva con Invio/Spazio, che generano click ma
-// non pointerdown. enter() e' idempotente, quindi il doppio giro e'
-// innocuo. Il tocco resta accettato su tutta la schermata: il pulsante
-// dice cosa fare, non restringe dove si puo' toccare.
+// Si entra *solo* dal pulsante: niente tocco su tutta la schermata e
+// niente "un tasto qualsiasi". L'overlay #entry copre comunque lo
+// schermo e intercetta i tocchi, quindi finche' si e' qui non si puo'
+// muovere per sbaglio nulla sotto -- semplicemente non avviano piu' il
+// gioco. Escape resta l'unico tasto collegato, e serve a uscire.
 playBtn.addEventListener("click", enter);
-entry.addEventListener("pointerdown", enter);
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") exit();
-  else enter();
 });
 exitBtn.addEventListener("click", exit);
 

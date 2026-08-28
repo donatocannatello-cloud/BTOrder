@@ -202,9 +202,13 @@ gioco, che comparirebbero sovrapposti al titolo senza avere ancora nulla
 da comandare. Stick e levetta entrano in dissolvenza insieme al pulsante
 di uscita, quando si entra davvero. Il respiro lento stava sul titolo,
 quando era il titolo stesso a fare da invito a toccare; ora che c'è un
-comando esplicito è il pulsante ad averlo, e il titolo resta fermo. Il
-tocco continua però ad essere accettato su tutta la schermata: il
-pulsante dice cosa fare, non restringe dove si può toccare.
+comando esplicito è il pulsante ad averlo, e il titolo resta fermo.
+
+Si entra **solo dal pulsante**: né un tocco sul resto della schermata né
+un tasto qualsiasi avviano il gioco. L'overlay `#entry` copre comunque lo
+schermo e intercetta i tocchi, quindi finché si è lì non si può muovere
+nulla per sbaglio sotto — semplicemente non avvia più. `Escape` resta
+l'unico tasto collegato, e serve a uscire.
 
 L'icona e lo splash nativo sono **generati dal frattale stesso**
 (`scratchpad` non versionato, sorgente WebGL): è l'insieme di Julia del
