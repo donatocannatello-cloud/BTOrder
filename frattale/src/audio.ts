@@ -30,6 +30,22 @@
 
 const DRONE_ROOT = 55; // A1
 const DRONE_RATIOS = [1, 1.5, 2, 2.996, 4.008]; // radice, quinta, ottava, +quinta/ottave leggermente stonate per battimenti
+
+// Peso di ciascun parziale: le armoniche alte vanno via via molto piu'
+// piano, come in qualunque timbro naturale. Prima ricevevano tutte
+// esattamente lo stesso guadagno -- una quarta armonica forte quanto la
+// fondamentale e' precisamente cio' che fa "uuuuu" da organo invece di un
+// bordone che sta sotto senza farsi notare.
+const DRONE_WEIGHTS = [1.0, 0.42, 0.26, 0.13, 0.07];
+
+// Il bordone e' un letto, non una voce: livello basso e sostanzialmente
+// fermo. Prima cresceva del 92% lungo ogni livello per poi scattare
+// indietro alla soglia successiva: un crescendo lento ripetuto all'
+// infinito, che e' la ricetta esatta per un suono che "aumenta fino a
+// diventare fastidioso". Ora l'unica modulazione e' un filo di presenza
+// in piu' quando ci si muove, che non si accumula mai.
+const DRONE_BASE = 0.052;
+const DRONE_MOTION = 0.018;
 const PLUCK_NOTES = [220, 261.6, 329.6, 392, 440, 523.3]; // pentatonica su A, per gli impulsi ritmici
 
 // I parametri (filtro, livelli drone) non hanno bisogno di risoluzione a
@@ -88,12 +104,12 @@ export class AudioEngine {
     this.filter.Q.value = 0.6;
     this.filter.connect(this.master);
 
-    for (const ratio of DRONE_RATIOS) {
+    for (const [i, ratio] of DRONE_RATIOS.entries()) {
       const osc = this.ctx.createOscillator();
       osc.type = "sine";
       osc.frequency.value = DRONE_ROOT * ratio;
       const gain = this.ctx.createGain();
-      gain.gain.value = 0.09;
+      gain.gain.value = DRONE_BASE * DRONE_WEIGHTS[i];
       osc.connect(gain);
       gain.connect(this.filter);
       osc.start();
@@ -137,16 +153,27 @@ export class AudioEngine {
     this.lastUpdate = nowMs;
 
     const t = this.ctx.currentTime;
-    const targetDroneLevel = 0.065 + (1 - radiusT) * 0.06; // più risonante/presente da vicino
-    for (const gain of this.droneGains) {
-      gain.gain.setTargetAtTime(targetDroneLevel, t, 0.6);
-    }
+    const level = DRONE_BASE + motionIntensity * DRONE_MOTION;
+    this.droneGains.forEach((gain, i) => {
+      gain.gain.setTargetAtTime(level * DRONE_WEIGHTS[i], t, 0.6);
+    });
   }
 
   /** Fattore di trasposizione corrente: sempre una potenza di due, quindi
    * le note restano esattamente le stesse, solo di ottava diversa. */
   private get octaveMultiplier() {
     return Math.pow(2, this.octaveShift);
+  }
+
+  /** Il bordone segue lo spostamento d'ottava solo verso il *basso*: e' un
+   * letto armonico e deve restare sotto. Salendo di due ottave i suoi
+   * parziali finirebbero fra 220 e 880 Hz, in piena zona di massima
+   * sensibilita' dell'orecchio, e da bordone diventerebbe la voce piu'
+   * forte del pezzo. Pizzicati e arpeggio prendono invece l'escursione
+   * completa: sono transitori, e li' un registro alto e' brillante
+   * invece che affaticante -- il cambio di livello resta udibile. */
+  private get droneOctaveMultiplier() {
+    return Math.pow(2, Math.min(this.octaveShift, 0));
   }
 
   /**
@@ -165,8 +192,9 @@ export class AudioEngine {
     const octave = this.octaveMultiplier;
 
     const t = this.ctx.currentTime;
+    const droneOctave = this.droneOctaveMultiplier;
     this.droneOscillators.forEach((osc, i) => {
-      osc.frequency.setTargetAtTime(DRONE_ROOT * DRONE_RATIOS[i] * octave, t, 0.8);
+      osc.frequency.setTargetAtTime(DRONE_ROOT * DRONE_RATIOS[i] * droneOctave, t, 0.8);
     });
 
     const notes = [523.3, 440, 349.2];

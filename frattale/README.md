@@ -208,9 +208,32 @@ soglia si sente come un cambio di scena e non come un brano nuovo. È una
 passeggiata casuale *limitata* (`[-1, +2]` ottave), non un salto libero:
 senza limiti bastano pochi livelli per finire nel subsonico o sopra il
 taglio del filtro, e la musica sparirebbe. Arrivati a un estremo si rimbalza
-nell'altra direzione, così ogni passaggio si sente comunque muovere. Ai
-quattro registri corrispondono droni da 28 a 882 Hz e pizzicati da 55 a
-2093 Hz: tutto sotto il taglio del filtro a 2400 Hz, quindi sempre udibile.
+nell'altra direzione, così ogni passaggio si sente comunque muovere.
+
+**Il bordone è un letto, non una voce.** Tre difetti lo rendevano un
+"uuuuu" che cresceva fino a stancare, e vanno tenuti distinti:
+
+1. *Tutti e cinque i parziali avevano esattamente lo stesso guadagno* — una
+   quarta armonica forte quanto la fondamentale, cosa che nessun timbro
+   naturale fa: è precisamente ciò che produce il timbro da organo. Ora c'è
+   un rolloff (`DRONE_WEIGHTS`, dal 100% al 7%).
+2. *Il livello cresceva del 92% lungo ogni livello e poi scattava indietro*
+   alla soglia successiva — un crescendo lento ripetuto all'infinito, la
+   ricetta esatta per un suono che "aumenta fino a diventare fastidioso".
+   Ora l'unica modulazione è un filo di presenza in più quando ci si muove,
+   che non si accumula mai.
+3. *Lo spostamento d'ottava lo trascinava in alto*: a `+2` i suoi parziali
+   finivano fra 220 e 880 Hz, in piena zona di massima sensibilità
+   dell'orecchio. A parità di manopola quello lo rendeva **3,6× più forte
+   all'orecchio** del registro base. Ora il bordone segue lo spostamento
+   solo verso il *basso*; pizzicati e arpeggio prendono l'escursione
+   completa, e siccome sono transitori lì un registro alto è brillante
+   invece che affaticante — il cambio di livello resta udibile.
+
+> Misurato rendendo l'audio offline con `OfflineAudioContext` e pesando le
+> ampiezze in curva A, non solo sommandole: **−63% di RMS** al picco,
+> **−91% di livello percepito**, e **−97%** rispetto al caso peggiore
+> di prima (fine livello a `+2` ottave).
 
 > Corretto dopo due giri di test. Primo: volume troppo basso e un fruscio
 > intermittente — i livelli individuali sono stati alzati con un
