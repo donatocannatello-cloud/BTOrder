@@ -28,20 +28,34 @@ ciascun livello derivano da una hash del suo indice assoluto: ogni mappa è
 visibilmente diversa dalle altre, ma il livello 0 è fissato così il punto
 di partenza non cambia mai.
 
-I tre livelli condividono un unico sistema di coordinate 2D ma sono
+I livelli condividono un unico sistema di coordinate 2D ma sono
 campionati a scale diverse:
 
 ```
 p_k = uCenter + offset(L) + uv * SCALE^(k - uFrac)
 ```
 
-dove `k` ∈ {0,1,2} è l'indice relativo, `L = uLayerBase + k` quello
-assoluto e `uFrac` la parte frazionaria dello zoom. Il livello `k=0` è
-quello "a fuoco", `k=1` e `k=2` sono le mappe più fini che si stanno già
-intravedendo sotto; una dissolvenza incrociata (`layerWeight()`) porta a
-zero l'uscente e l'entrante esattamente sui bordi della transizione, quindi
-lo scambio di indice non si vede mai. Solo 3 livelli vengono valutati per
-pixel: il costo resta piatto a qualunque profondità.
+dove `k` va da `K_MIN` (−1) a `K_MIN + NUM_LAYERS − 1` (+2),
+`L = uLayerBase + k` è l'indice assoluto e `uFrac` la parte frazionaria
+dello zoom. Il livello a `−1` è quello che si sta già superando,
+ingrandito e in dissolvenza; `0` e `1` sono quelli a fuoco; `+2` è la
+mappa fine che si intravede appena dal fondo. Una dissolvenza incrociata
+(`layerWeight()`) porta a zero l'uscente e l'entrante esattamente sui
+bordi della transizione, quindi lo scambio di indice non si vede mai.
+Solo `NUM_LAYERS` livelli vengono valutati per pixel: il costo resta
+piatto a qualunque profondità.
+
+> **Perché la finestra parte da −1 e non da 0.** Con `k ≥ 0` il livello
+> che si sta superando veniva spento dopo essersi ingrandito appena
+> `SCALE` volte (2,2×): spariva mentre era ancora chiaramente lontano.
+> Partendo da −1 resta acceso un gradino in più e arriva a `SCALE²`
+> (4,8×) prima di andarsene. Il quarto livello costa il **+12%** di tempo
+> di rendering (misurato con `readPixels` a forzare la sincronizzazione
+> con la GPU — una misura basata su `requestAnimationFrame` dava +50%,
+> ma era un artefatto della quantizzazione del vsync). Per compensarlo il
+> tetto delle iterazioni in `quality.ts` è sceso da 220 a 160: ciò che
+> conta è il prodotto livelli × iterazioni, e 4×160 costa il **15% in
+> meno** di quanto costasse 3×220.
 
 > **Perché lo zoom è davvero infinito.** Poiché `SCALE^(1-1) == SCALE^0`,
 > il fattore di scala del livello entrante coincide *esattamente* con
@@ -169,11 +183,15 @@ Quattro costanti in cima allo shader governano la resa: `EXPOSURE`,
 > tratto/fondo 1,22×**, **saturazione 1,50×**.
 
 **Identità e schermata iniziale**: il gioco si chiama **Discesa
-Frattale**. L'ingresso mostra solo il titolo sopra la mappa già in
-movimento — niente istruzioni scritte e niente controlli, che
-comparirebbero sovrapposti al titolo senza avere ancora nulla da
-comandare. Stick e levetta entrano in dissolvenza insieme al pulsante di
-uscita, quando si entra davvero.
+Frattale**. L'ingresso mostra il titolo e un pulsante di avvio sopra la
+mappa già in movimento — niente istruzioni scritte e niente controlli di
+gioco, che comparirebbero sovrapposti al titolo senza avere ancora nulla
+da comandare. Stick e levetta entrano in dissolvenza insieme al pulsante
+di uscita, quando si entra davvero. Il respiro lento stava sul titolo,
+quando era il titolo stesso a fare da invito a toccare; ora che c'è un
+comando esplicito è il pulsante ad averlo, e il titolo resta fermo. Il
+tocco continua però ad essere accettato su tutta la schermata: il
+pulsante dice cosa fare, non restringe dove si può toccare.
 
 L'icona e lo splash nativo sono **generati dal frattale stesso**
 (`scratchpad` non versionato, sorgente WebGL): è l'insieme di Julia del

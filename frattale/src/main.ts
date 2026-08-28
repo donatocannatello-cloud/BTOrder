@@ -20,6 +20,7 @@ const audio = new AudioEngine();
 // collegato.
 const entry = document.getElementById("entry") as HTMLElement;
 const exitBtn = document.getElementById("exit-btn") as HTMLElement;
+const playBtn = document.getElementById("play-btn") as HTMLElement;
 const buildIdEl = document.getElementById("build-id") as HTMLElement;
 buildIdEl.textContent = `build ${__BUILD_ID__}`;
 let entered = false;
@@ -50,6 +51,13 @@ function exit() {
   }
 }
 
+// Il pulsante e' dentro #entry, quindi il pointerdown qui sotto lo
+// coprirebbe gia' per bolla; serve comunque un click esplicito perche' un
+// <button> col fuoco si attiva con Invio/Spazio, che generano click ma
+// non pointerdown. enter() e' idempotente, quindi il doppio giro e'
+// innocuo. Il tocco resta accettato su tutta la schermata: il pulsante
+// dice cosa fare, non restringe dove si puo' toccare.
+playBtn.addEventListener("click", enter);
 entry.addEventListener("pointerdown", enter);
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") exit();

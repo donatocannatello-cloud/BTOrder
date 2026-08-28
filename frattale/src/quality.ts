@@ -21,8 +21,16 @@ const RENDER_SCALE_MIN = 0.6;
 const RENDER_SCALE_MAX = 1.0;
 const RENDER_SCALE_STEP = 0.08;
 
+// Il tetto e' sceso da 220 a 160 quando la finestra dei livelli e'
+// passata da 3 a 4: cio' che conta per il costo e' il prodotto
+// livelli x iterazioni, e 4x160 (640) e' vicino ai 3x220 (660) di prima.
+// Senza questo aggiustamento il quarto livello costava il 50% di tempo
+// -frame in piu', e su un telefono medio il quality manager lo avrebbe
+// ripagato tagliando la risoluzione -- cioe' proprio la nitidezza del
+// tratto. 160 iterazioni restano abbondanti per questi insiemi di Julia
+// alle magnificazioni in gioco.
 const MAX_ITER_MIN = 60;
-const MAX_ITER_MAX = 220;
+const MAX_ITER_MAX = 160;
 const MAX_ITER_STEP = 20;
 
 const TARGET_FPS_LOW = 30; // sotto: degrada
@@ -32,7 +40,7 @@ const ADJUST_INTERVAL_MS = 900;
 const WINDOW_SIZE = 30;
 
 export class QualityManager {
-  private state: QualityState = { renderScale: 0.9, maxIter: 140 };
+  private state: QualityState = { renderScale: 0.9, maxIter: 120 };
   private frameTimes: number[] = [];
   private lastAdjust = 0;
 

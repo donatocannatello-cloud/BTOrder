@@ -115,7 +115,42 @@
         color: var(--ink);
         text-wrap: balance;
         text-shadow: 0 2px 20px rgba(0, 0, 0, 0.7);
+      }
+      /* Pulsante di avvio. Il respiro lento stava sul titolo, quando era
+         il titolo stesso a fare da invito a toccare; ora che c'e' un
+         comando esplicito e' lui a doverlo attirare, e il titolo puo'
+         restare fermo. */
+      #play-btn {
+        width: 76px;
+        height: 76px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(233, 229, 242, 0.45);
+        background: rgba(233, 229, 242, 0.07);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        padding: 0;
+        transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
         animation: pulse 3.6s ease-in-out infinite;
+      }
+      #play-btn:hover,
+      #play-btn:focus-visible {
+        border-color: rgba(233, 229, 242, 0.85);
+        background: rgba(233, 229, 242, 0.14);
+        outline: none;
+      }
+      #play-btn:active {
+        transform: scale(0.94);
+      }
+      #play-btn svg {
+        /* Il triangolo e' otticamente sbilanciato a sinistra dentro un
+           cerchio: qualche pixel di spinta lo rimette al centro percepito. */
+        margin-left: 5px;
+        width: 26px;
+        height: 26px;
+        fill: var(--ink);
+        opacity: 0.9;
       }
       /* Id di build, solo nella schermata iniziale (sparisce col resto di
          #entry entrando): per verificare a colpo d'occhio che l'APK appena
@@ -141,7 +176,7 @@
       }
 
       @media (prefers-reduced-motion: reduce) {
-        #entry-title {
+        #play-btn {
           animation: none;
         }
       }
@@ -262,6 +297,9 @@
     <div id="entry">
       <div id="entry-inner">
         <div id="entry-title">Discesa Frattale</div>
+        <button id="play-btn" type="button" aria-label="Avvia">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+        </button>
       </div>
       <div id="build-id"></div>
     </div>

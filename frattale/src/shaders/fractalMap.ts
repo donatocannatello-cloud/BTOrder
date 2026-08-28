@@ -31,17 +31,25 @@ out vec4 fragColor;
 //
 //   p_k = uCenter + offset(L) + uv * SCALE^(k - uFrac)
 //
-// Il livello k=0 e' quello "a fuoco", k=1 e k=2 sono le mappe piu' fini che
-// si stanno gia' intravedendo sotto. Scendendo, uFrac cresce: il livello 0
-// si ingrandisce fino a sparire, il livello 1 prende il suo posto e un
-// livello 3 nuovo entra dal fondo. Poiche' SCALE^(1-1) == SCALE^0, il
-// fattore di scala del livello entrante coincide esattamente con quello del
-// livello uscente nel momento dello scambio: l'indice puo' avanzare (o
-// arretrare) all'infinito senza nessuno scatto e senza ri-ancorare il
-// centro. Solo 3 livelli vengono valutati per pixel: il costo resta piatto
-// a qualunque profondita'.
+// La finestra va da k = K_MIN (-1) a k = K_MIN + NUM_LAYERS - 1 (+2):
+// il livello a -1 e' quello che si sta gia' superando, ingrandito e in
+// dissolvenza; 0 e 1 sono quelli a fuoco; +2 e' la mappa fine che si
+// intravede appena dal fondo. Scendendo, uFrac cresce e ogni livello
+// scala di un gradino. Poiche' SCALE^(k-1) valutato a frac=1 coincide
+// esattamente con SCALE^(k-1) valutato a frac=0 dopo lo scambio, l'indice
+// puo' avanzare (o arretrare) all'infinito senza nessuno scatto e senza
+// ri-ancorare il centro. Solo NUM_LAYERS livelli vengono valutati per
+// pixel: il costo resta piatto a qualunque profondita'.
 const float SCALE = 2.2;
-const int NUM_LAYERS = 3;
+const int NUM_LAYERS = 4;
+
+// La finestra dei livelli parte un gradino *oltre* quello a fuoco. Con
+// k >= 0 il livello che si sta superando veniva spento dopo essersi
+// ingrandito appena SCALE volte (2.2x): spariva quando era ancora
+// chiaramente lontano. Partendo da -1 resta acceso per un gradino in
+// piu' e arriva a SCALE^2 (4.8x) prima di andarsene, quindi si avvicina
+// molto di piu' prima di spegnersi.
+const int K_MIN = -1;
 
 // Resa del tratto. Il disegno e' interamente auto-illuminato: non c'e'
 // nessuna luce nella scena, il colore *e'* l'emissione. Quindi "quanto
@@ -154,12 +162,15 @@ float contour(float field, float freq) {
 // e quello entrante arrivano a zero esattamente sui bordi della
 // transizione, quindi lo scambio di indice non si vede mai.
 float layerWeight(int k, float frac) {
-  if (k == 0) return 1.0 - smoothstep(0.5, 1.0, frac);
-  if (k == 1) return 1.0;
-  return smoothstep(0.0, 0.5, frac);
+  // Uscente: ormai grandissimo, si spegne solo lungo l'ultimo gradino.
+  if (k == K_MIN) return 1.0 - smoothstep(0.0, 1.0, frac);
+  // Entrante: arriva dal fondo, ancora minuscolo.
+  if (k == K_MIN + NUM_LAYERS - 1) return smoothstep(0.0, 1.0, frac);
+  // I due centrali restano sempre a piena intensita'.
+  return 1.0;
 }
 
-vec3 shadeLayer(vec2 p, float L, int k) {
+vec3 shadeLayer(vec2 p, float L, int depth) {
   bool inside;
   float field = layerField(p, L, inside);
 
@@ -201,20 +212,24 @@ vec3 shadeLayer(vec2 p, float L, int k) {
 
   // I livelli piu' profondi (ancora "sotto") leggono un po' piu' tenui,
   // cosi' la pila si percepisce come sovrapposizione e non come un unico
-  // disegno appiattito.
-  return color * (1.0 - float(k) * 0.16);
+  // disegno appiattito. 'depth' e' la posizione nella finestra, 0 = il
+  // piu' vicino.
+  return color * (1.0 - float(depth) * 0.13);
 }
 
 void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * uResolution) / uResolution.y * 2.0;
 
   vec3 color = vec3(0.0);
-  for (int k = 0; k < NUM_LAYERS; k++) {
+  for (int i = 0; i < NUM_LAYERS; i++) {
+    int k = K_MIN + i;
     float w = layerWeight(k, uFrac);
     if (w <= 0.002) continue;
     float L = uLayerBase + float(k);
     vec2 p = mirrorFold(uCenter + layerOffset(L) + uv * pow(SCALE, float(k) - uFrac));
-    color += shadeLayer(p, L, k) * w;
+    // A shadeLayer serve la posizione NELLA finestra (0 = il piu' vicino),
+    // non k, che ora puo' essere negativo.
+    color += shadeLayer(p, L, i) * w;
   }
 
   color *= EXPOSURE;
