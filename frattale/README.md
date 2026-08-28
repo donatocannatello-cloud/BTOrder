@@ -124,6 +124,30 @@ volutamente bassissima, perché la correzione gamma finale amplifica molto
 anche valori lineari piccoli (0.05 lineare diventa ~0.24 a schermo, e
 appiattisce tutto il disegno in una tinta unita).
 
+**Schermata iniziale e schermo intero**: l'ingresso mostra solo il titolo
+sopra la mappa già in movimento — niente istruzioni scritte e niente
+controlli, che comparirebbero sovrapposti al titolo senza avere ancora
+nulla da comandare. Stick e levetta entrano in dissolvenza insieme al
+pulsante di uscita, quando si entra davvero.
+
+Lo schermo intero è **nativo**, non web (`android/.../MainActivity.java`):
+la `requestFullscreen()` che il codice web chiama entrando agisce su un
+elemento del documento, non sulla finestra dell'activity, quindi dentro
+una WebView di Capacitor barra di stato e barra di navigazione restavano
+comunque visibili. L'activity le nasconde con
+`WindowInsetsControllerCompat`, in modo permanente (anche sulla schermata
+iniziale: non c'è nessun momento in cui serva la UI di sistema) e
+ri-applicato in `onWindowFocusChanged`, altrimenti l'immersivo durerebbe
+solo fino al primo swipe dal bordo o al primo rientro da un'altra app. Il
+comportamento scelto è `BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE`: uno swipe
+le mostra in overlay **senza ridimensionare la WebView** — un resize del
+canvas a metà navigazione costringerebbe a riallocare il framebuffer WebGL
+e a ricalcolare la scala di rendering, con uno scatto visibile. Sui
+telefoni con notch la finestra disegna fino ai bordi corti
+(`LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`), mentre il layout web tiene i
+comandi al sicuro dall'intaglio con `env(safe-area-inset-*)`, che la
+WebView popola grazie a `viewport-fit=cover`.
+
 **Livello 3 — audio generativo** (`src/audio.ts`): Web Audio API pura,
 nessun file precampionato. Tutto passa dallo stesso bus (un filtro
 condiviso, poi il master) — drone e impulsi ritmici non sono due suoni

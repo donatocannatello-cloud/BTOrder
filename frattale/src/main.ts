@@ -29,6 +29,7 @@ function enter() {
   entered = true;
   entry.classList.add("hidden");
   exitBtn.classList.add("show");
+  indicatorLayer.classList.add("show");
   audio.resume();
   const root = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
   const req = root.requestFullscreen || root.webkitRequestFullscreen;
@@ -40,6 +41,7 @@ function exit() {
   entered = false;
   entry.classList.remove("hidden");
   exitBtn.classList.remove("show");
+  indicatorLayer.classList.remove("show");
   audio.suspend();
   const doc = document as Document & { webkitExitFullscreen?: () => Promise<void>; webkitFullscreenElement?: Element };
   const exitFs = document.exitFullscreen || doc.webkitExitFullscreen;

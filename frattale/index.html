@@ -117,16 +117,6 @@
         text-shadow: 0 2px 20px rgba(0, 0, 0, 0.7);
         animation: pulse 3.6s ease-in-out infinite;
       }
-      #entry-sub {
-        font-family: ui-monospace, Menlo, monospace;
-        font-size: 0.7rem;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        color: var(--ink);
-        opacity: 0.75;
-        line-height: 1.9;
-        text-shadow: 0 1px 10px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9);
-      }
       /* Id di build, solo nella schermata iniziale (sparisce col resto di
          #entry entrando): per verificare a colpo d'occhio che l'APK appena
          installato sia davvero l'ultima build. */
@@ -155,11 +145,10 @@
           animation: none;
         }
       }
-      /* Controlli touch, sempre visibili. Stick a sinistra = orbita
-         intorno al centro (2 assi). Levetta a destra = avvicina/allontana
-         dal centro (1 solo asse): forma deliberatamente diversa da uno
-         stick, per segnalare che governa una cosa sola. Si illuminano
-         leggermente quando in uso. */
+      /* Controlli touch. Stick a sinistra = scorrimento della mappa (2
+         assi). Levetta a destra = scendi/sali di scala (1 solo asse):
+         forma deliberatamente diversa da uno stick, per segnalare che
+         governa una cosa sola. Si illuminano leggermente quando in uso. */
       #touch-layer {
         position: fixed;
         inset: 0;
@@ -167,6 +156,14 @@
         /* Sopra la vignetta (z-index 1): i comandi devono restare leggibili
            anche se la vignetta scurisce ai bordi, dove vivono. */
         z-index: 2;
+        /* Nascosti sulla schermata iniziale: li' non c'e' ancora niente da
+           comandare, e affollavano il titolo. Compaiono entrando, con la
+           stessa dissolvenza del pulsante di uscita. */
+        opacity: 0;
+        transition: opacity 0.5s ease;
+      }
+      #touch-layer.show {
+        opacity: 1;
       }
 
       .stick-base {
@@ -265,10 +262,6 @@
     <div id="entry">
       <div id="entry-inner">
         <div id="entry-title">entra nel frattale</div>
-        <div id="entry-sub">
-          stick sinistro: scorri&nbsp;&nbsp;·&nbsp;&nbsp;levetta destra: scendi / sali<br />
-          (su desktop: WASD + trascina)
-        </div>
       </div>
       <div id="build-id"></div>
     </div>
