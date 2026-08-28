@@ -41,15 +41,19 @@ out vec4 fragColor;
 // ri-ancorare il centro. Solo NUM_LAYERS livelli vengono valutati per
 // pixel: il costo resta piatto a qualunque profondita'.
 const float SCALE = 2.2;
-const int NUM_LAYERS = 4;
+const int NUM_LAYERS = 5;
 
-// La finestra dei livelli parte un gradino *oltre* quello a fuoco. Con
-// k >= 0 il livello che si sta superando veniva spento dopo essersi
-// ingrandito appena SCALE volte (2.2x): spariva quando era ancora
-// chiaramente lontano. Partendo da -1 resta acceso per un gradino in
-// piu' e arriva a SCALE^2 (4.8x) prima di andarsene, quindi si avvicina
-// molto di piu' prima di spegnersi.
-const int K_MIN = -1;
+// La finestra e' spostata tutta verso il *vicino*: k va da -3 a +1.
+//
+// Non basta tenere acceso piu' a lungo il livello che si sta superando:
+// conta quali livelli portano il peso. Con la finestra a [-1,+2] i due a
+// piena intensita' restavano 0 e 1, la cui scala oscilla fra 0.45 e 2.2 --
+// il frattale dominante non diventava mai grande, e quello a -1, pur
+// arrivando a 4.8x, era in dissolvenza e contribuiva poco. Con [-3,+1] i
+// livelli a piena intensita' sono -2, -1 e 0, e l'uscente arriva a
+// SCALE^4 = 23x prima di spegnersi: quasi cinque volte l'ingrandimento
+// di prima, a parita' di costo grazie all'hatch piu' rado.
+const int K_MIN = -3;
 
 // Resa del tratto. Il disegno e' interamente auto-illuminato: non c'e'
 // nessuna luce nella scena, il colore *e'* l'emissione. Quindi "quanto
@@ -187,7 +191,7 @@ vec3 shadeLayer(vec2 p, float L, int depth) {
   // Curve di livello multi-ottava: la trama topografica della mappa.
   float lines = 0.0;
   float freq = 0.9;
-  for (int o = 0; o < 5; o++) {
+  for (int o = 0; o < 3; o++) {
     lines = max(lines, contour(field, freq) * (1.0 - float(o) * 0.10));
     freq *= 2.0;
   }
@@ -214,7 +218,7 @@ vec3 shadeLayer(vec2 p, float L, int depth) {
   // cosi' la pila si percepisce come sovrapposizione e non come un unico
   // disegno appiattito. 'depth' e' la posizione nella finestra, 0 = il
   // piu' vicino.
-  return color * (1.0 - float(depth) * 0.13);
+  return color * (1.0 - float(depth) * 0.11);
 }
 
 void main() {

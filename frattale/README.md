@@ -35,27 +35,40 @@ campionati a scale diverse:
 p_k = uCenter + offset(L) + uv * SCALE^(k - uFrac)
 ```
 
-dove `k` va da `K_MIN` (−1) a `K_MIN + NUM_LAYERS − 1` (+2),
+dove `k` va da `K_MIN` (−3) a `K_MIN + NUM_LAYERS − 1` (+1),
 `L = uLayerBase + k` è l'indice assoluto e `uFrac` la parte frazionaria
-dello zoom. Il livello a `−1` è quello che si sta già superando,
-ingrandito e in dissolvenza; `0` e `1` sono quelli a fuoco; `+2` è la
-mappa fine che si intravede appena dal fondo. Una dissolvenza incrociata
-(`layerWeight()`) porta a zero l'uscente e l'entrante esattamente sui
-bordi della transizione, quindi lo scambio di indice non si vede mai.
-Solo `NUM_LAYERS` livelli vengono valutati per pixel: il costo resta
-piatto a qualunque profondità.
+dello zoom. Il livello a `−3` è quello che si sta già superando,
+enormemente ingrandito e in dissolvenza; `−2`, `−1` e `0` sono quelli a
+piena intensità; `+1` è la mappa fine che si intravede appena dal fondo.
+Una dissolvenza incrociata (`layerWeight()`) porta a zero l'uscente e
+l'entrante esattamente sui bordi della transizione, quindi lo scambio di
+indice non si vede mai. Solo `NUM_LAYERS` livelli vengono valutati per
+pixel: il costo resta piatto a qualunque profondità.
 
-> **Perché la finestra parte da −1 e non da 0.** Con `k ≥ 0` il livello
-> che si sta superando veniva spento dopo essersi ingrandito appena
-> `SCALE` volte (2,2×): spariva mentre era ancora chiaramente lontano.
-> Partendo da −1 resta acceso un gradino in più e arriva a `SCALE²`
-> (4,8×) prima di andarsene. Il quarto livello costa il **+12%** di tempo
-> di rendering (misurato con `readPixels` a forzare la sincronizzazione
-> con la GPU — una misura basata su `requestAnimationFrame` dava +50%,
-> ma era un artefatto della quantizzazione del vsync). Per compensarlo il
-> tetto delle iterazioni in `quality.ts` è sceso da 220 a 160: ciò che
-> conta è il prodotto livelli × iterazioni, e 4×160 costa il **15% in
-> meno** di quanto costasse 3×220.
+> **Perché la finestra è spostata tutta verso il vicino.** Non basta
+> tenere acceso più a lungo il livello che si sta superando: conta
+> **quali livelli portano il peso**. Un primo tentativo spostò la
+> finestra da `[0,+2]` a `[−1,+2]`, ma i due livelli a piena intensità
+> restavano `0` e `1`, la cui scala oscilla fra 0,45 e 2,2 — il frattale
+> dominante non diventava mai grande, e quello a `−1`, pur arrivando a
+> 4,8×, era in dissolvenza e contribuiva poco: l'effetto era quasi
+> indistinguibile da prima. Con `[−3,+1]` i livelli a piena intensità
+> diventano `−2`, `−1` e `0`, e l'uscente arriva a `SCALE⁴` = **23×**
+> prima di spegnersi.
+>
+> Il costo è rientrato **abbassando la densità del tratto** (`hatch`) da 5
+> ottave a 3 — le due più fini erano quasi sempre sotto la soglia di
+> risoluzione, dove `contour()` le sfuma via da sola, quindi rendevano
+> poco ma si pagavano su ogni livello — e il tetto delle iterazioni in
+> `quality.ts` da 220 a 130. Ciò che conta è il prodotto livelli ×
+> iterazioni: 5×130 costa **332 ms** contro i **360 ms** di 3×220, quindi
+> l'ingrandimento è dieci volte maggiore *e* il rendering più leggero di
+> prima.
+>
+> Le misure vanno prese con `readPixels` a forzare la sincronizzazione con
+> la GPU: una misura basata su `requestAnimationFrame` è quantizzata dal
+> vsync (33,3 e 50,0 ms sono esattamente 30 e 20 fps) e faceva sembrare
+> +12% un +50%.
 
 > **Perché lo zoom è davvero infinito.** Poiché `SCALE^(1-1) == SCALE^0`,
 > il fattore di scala del livello entrante coincide *esattamente* con
