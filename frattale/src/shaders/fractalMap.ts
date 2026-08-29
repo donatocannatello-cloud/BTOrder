@@ -166,6 +166,31 @@ float contour(float field, float freq) {
   return (1.0 - clamp(g, 0.0, 1.0)) * fade;
 }
 
+// Rotazione di un punto attorno all'origine -- usata dal mirino del
+// nucleo, non dalle mappe (quelle usano layerRot, fissa nel tempo).
+vec2 rotate(vec2 p, float a) {
+  float c = cos(a), s = sin(a);
+  return vec2(p.x * c - p.y * s, p.x * s + p.y * c);
+}
+
+// Distanza (Chebyshev) dal perimetro di un rombo di "raggio" r: zero sul
+// bordo, negativa dentro. E' un quadrato ruotato di 45 gradi, la stessa
+// famiglia di forma degli hash esagonali/quadrati che il frattale non usa
+// mai per caso -- qui serve a marcare il nucleo con una geometria netta
+// invece di un alone morbido.
+float sdDiamond(vec2 p, float r) {
+  return abs(p.x) + abs(p.y) - r;
+}
+
+// Tratto sottile antialiasato attorno a una distanza con segno, stesso
+// approccio di contour(): la larghezza e' in spazio schermo tramite
+// fwidth(), quindi la linea non sparisce mai sotto il pixel ne' diventa
+// un bordo sfocato a caso.
+float stroke(float d, float halfWidth) {
+  float aa = fwidth(d) + 1e-5;
+  return clamp(1.0 - (abs(d) - halfWidth) / aa, 0.0, 1.0);
+}
+
 // Peso di ciascun livello nella dissolvenza incrociata. Il livello uscente
 // e quello entrante arrivano a zero esattamente sui bordi della
 // transizione, quindi lo scambio di indice non si vede mai.
@@ -242,29 +267,43 @@ void main() {
 
   // --- Nucleo ----------------------------------------------------------
   // Si disegna solo quando si e' gia' vicini: la ricerca la guida
-  // l'orecchio, l'occhio arriva a confermare. Ambra contro il viola della
-  // mappa, cosi' non lo si confonde con una piega del frattale.
+  // l'orecchio, l'occhio arriva solo a confermare. Un mirino a tratto
+  // sottile, nello stesso linguaggio geometrico delle curve di livello del
+  // resto della mappa -- non un alone morbido, che si perdeva nel viola di
+  // fondo e non leggeva ne' come "vicino" ne' come "qualcosa".
   if (uNucleusGlow > 0.002 || uNucleusSolved > 0.5) {
-    float r = length(uv - uNucleusUv);
-    vec3 tone = vec3(0.98, 0.84, 0.55);
+    vec2 rel = uv - uNucleusUv;
+    float r = length(rel);
+    vec3 tone = vec3(1.0, 0.82, 0.4);
 
-    // Alone stretto: dice "e' qui" senza diventare una macchia. Largo
-    // com'era prima leggeva come una sbavatura sul vetro, non come una
-    // presenza in un punto preciso.
-    color += tone * exp(-r * r * 120.0) * uNucleusGlow * 0.45;
+    // Rombo che ruota lentamente e si stringe avvicinandosi, da meta'
+    // schermo a un punto: la lettura visiva dello stesso avvicinamento che
+    // il battito dice a orecchio. Il tratto e' netto (stroke, non exp),
+    // quindi resta leggibile anche in movimento invece di sfumare via.
+    float ringR = mix(0.55, 0.07, uNucleusGlow);
+    vec2 rp = rotate(rel, uTime * 0.35);
+    float ring = stroke(sdDiamond(rp, ringR), 0.006);
+    color += tone * ring * uNucleusGlow * 1.8;
 
-    // Anello che si stringe avvicinandosi, da mezzo schermo a un punto:
-    // e' la lettura visiva della stessa cosa che il battito dice a
-    // orecchio. Piu' marcato dell'alone, altrimenti ci si perde dentro.
-    float ringR = mix(0.5, 0.05, uNucleusGlow);
-    color += tone * exp(-pow((r - ringR) * 20.0, 2.0)) * uNucleusGlow * 0.6;
+    // Mirino: due tacche per asse invece di una croce piena -- il vuoto al
+    // centro e' cio' che lo fa leggere come reticolo geometrico e non come
+    // un semplice "+"decorativo.
+    float reach = ringR * 0.95;
+    float gap = reach * 0.4;
+    float onH = stroke(rel.y, 0.0035) * step(abs(rel.x), reach) * (1.0 - step(abs(rel.x), gap));
+    float onV = stroke(rel.x, 0.0035) * step(abs(rel.y), reach) * (1.0 - step(abs(rel.y), gap));
+    color += tone * (onH + onV) * uNucleusGlow * 1.4;
 
-    // Risolto: un punto che resta acceso, per sempre.
-    color += tone * exp(-r * r * 300.0) * uNucleusSolved * 0.9;
+    // Centro: un punto piccolo e netto quando si e' vicinissimi, fisso una
+    // volta risolto -- mai una macchia, solo un segno.
+    float core = smoothstep(0.05, 0.0, r);
+    color += tone * core * (uNucleusGlow * uNucleusGlow * 1.1 + uNucleusSolved * 1.6);
 
-    // Fioritura: un anello che si allarga e svanisce, una volta sola.
-    float bloomR = (1.0 - uNucleusBloom) * 0.9;
-    color += tone * exp(-pow((r - bloomR) * 11.0, 2.0)) * uNucleusBloom * 0.75;
+    // Fioritura alla risoluzione: lo stesso rombo che si allarga una sola
+    // volta e svanisce, invece dell'anello morbido di prima.
+    float bloomR = 0.05 + (1.0 - uNucleusBloom) * 0.85;
+    float bloom = stroke(sdDiamond(rp, bloomR), 0.008);
+    color += tone * bloom * uNucleusBloom * 2.2;
   }
 
   color *= EXPOSURE;

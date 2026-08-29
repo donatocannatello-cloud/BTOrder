@@ -74,11 +74,15 @@ const OCTAVE_MAX = 2;
 // lasciando un tono puro. E' l'esperienza fisica di accordare una corda,
 // e non richiede nessun numero a schermo per essere letta.
 const TUNE_ROOT = 220; // A3: registro chiaro, sopra il bordone
-const TUNE_MAX_DETUNE = 0.012; // ~2.6 Hz di battito alla massima distanza
-const TUNE_LEVEL = 0.05;
+const TUNE_MAX_DETUNE = 0.02; // ~4.4 Hz di battito alla massima distanza
+// Sopra il bordone (che sta a ~0.098 di gain totale sommando le 5
+// parziali) invece che sotto: prima, a parita' di volume, il battito si
+// perdeva quasi sempre nella trama del bordone e non si sentiva affatto.
+const TUNE_LEVEL = 0.11;
 // Sotto questa soglia il nucleo e' muto: un segnale sempre presente
-// sarebbe un assillo, non un indizio.
-const TUNE_FADE_IN = 0.12;
+// sarebbe un assillo, non un indizio. Abbassata rispetto a prima: doveva
+// arrivare troppo vicini perche' iniziasse a sentirsi qualcosa.
+const TUNE_FADE_IN = 0.05;
 
 // Ogni nucleo risolto lascia una voce in piu' nel bordone: la musica
 // cresce con la collezione. Limitate, altrimenti dopo qualche decina di
