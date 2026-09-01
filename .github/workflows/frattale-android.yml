@@ -1,0 +1,70 @@
+name: Frattale — build APK
+
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - "frattale/**"
+      - ".github/workflows/frattale-android.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frattale
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Installa dipendenze e builda il sito
+        run: |
+          npm ci
+          npm run build
+
+      - name: Sincronizza il progetto Android (Capacitor)
+        run: npx cap sync android
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Compila l'APK
+        working-directory: frattale/android
+        env:
+          # Numero di build sempre crescente: nome file e applicationId
+          # restano fissi (vedi build.gradle e capacitor.config.json), ma
+          # Android richiede comunque un versionCode via via più alto per
+          # accettare ogni aggiornamento.
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Rinomina l'APK a un nome fisso
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk frattale.apk
+
+      - name: Pubblica su una release "latest" (link sempre aggiornato)
+        uses: ncipollo/release-action@v1
+        with:
+          tag: latest
+          name: "Discesa Frattale — build più recente"
+          body: |
+            Build automatica dal commit ${{ github.sha }} (run #${{ github.run_number }}).
+            Questa release viene sovrascritta a ogni push su `frattale/`: il link all'APK sotto resta sempre lo stesso.
+          artifacts: frattale/frattale.apk
+          allowUpdates: true
+          replacesArtifacts: true
+          makeLatest: true
+          prerelease: true
