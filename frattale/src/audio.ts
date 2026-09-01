@@ -75,14 +75,19 @@ const OCTAVE_MAX = 2;
 // e non richiede nessun numero a schermo per essere letta.
 const TUNE_ROOT = 220; // A3: registro chiaro, sopra il bordone
 const TUNE_MAX_DETUNE = 0.02; // ~4.4 Hz di battito alla massima distanza
-// Sopra il bordone (che sta a ~0.098 di gain totale sommando le 5
-// parziali) invece che sotto: prima, a parita' di volume, il battito si
-// perdeva quasi sempre nella trama del bordone e non si sentiva affatto.
-const TUNE_LEVEL = 0.11;
+// Ben sopra il bordone (~0.098 di gain totale sommando le 5 parziali) e
+// sopra anche il picco dei pizzicati (0.18): due tentativi piu' timidi
+// (0.05, poi 0.11) restavano comunque mascherati nel mix reale. Deve
+// leggersi come l'evento piu' forte in scena quando si e' vicini, non
+// come un dettaglio che si scopre solo se si presta attenzione.
+const TUNE_LEVEL = 0.32;
 // Sotto questa soglia il nucleo e' muto: un segnale sempre presente
-// sarebbe un assillo, non un indizio. Abbassata rispetto a prima: doveva
-// arrivare troppo vicini perche' iniziasse a sentirsi qualcosa.
+// sarebbe un assillo, non un indizio.
 const TUNE_FADE_IN = 0.05;
+// Quanto e' ampio (in closeness) il tratto in cui il volume sale dalla
+// soglia sopra al pieno: piu' stretto di prima, cosi' l'ingresso si sente
+// come un affondo netto invece di una salita impercettibile.
+const TUNE_RAMP_WIDTH = 0.22;
 
 // Ogni nucleo risolto lascia una voce in piu' nel bordone: la musica
 // cresce con la collezione. Limitate, altrimenti dopo qualche decina di
@@ -153,13 +158,18 @@ export class AudioEngine {
     this.tuneGain = this.ctx.createGain();
     this.tuneGain.gain.value = 0;
     this.tuneGain.connect(this.filter);
+    // Triangolare, non sinusoidale come il resto del bordone: le armoniche
+    // in piu' la fanno bucare il mix a parita' di guadagno invece di
+    // sommarsi indistinta alle altre sinusoidi -- una sinusoide pura, per
+    // quanto alzata di volume, resta timbricamente "sorda" contro un
+    // bordone fatto anch'esso di sinusoidi.
     this.tuneRef = this.ctx.createOscillator();
-    this.tuneRef.type = "sine";
+    this.tuneRef.type = "triangle";
     this.tuneRef.frequency.value = TUNE_ROOT;
     this.tuneRef.connect(this.tuneGain);
     this.tuneRef.start();
     this.tunePilot = this.ctx.createOscillator();
-    this.tunePilot.type = "sine";
+    this.tunePilot.type = "triangle";
     this.tunePilot.frequency.value = TUNE_ROOT * (1 + TUNE_MAX_DETUNE);
     this.tunePilot.connect(this.tuneGain);
     this.tunePilot.start();
@@ -247,7 +257,7 @@ export class AudioEngine {
     // Entra solo da vicino, e si spegne del tutto una volta risolto il
     // nucleo (il chiamante passa 0): il premio e' il silenzio del
     // battito, non un tono che resta li' a ronzare.
-    const level = c < TUNE_FADE_IN ? 0 : TUNE_LEVEL * Math.min(1, (c - TUNE_FADE_IN) / 0.35);
+    const level = c < TUNE_FADE_IN ? 0 : TUNE_LEVEL * Math.min(1, (c - TUNE_FADE_IN) / TUNE_RAMP_WIDTH);
     this.tuneGain.gain.setTargetAtTime(level, t, 0.25);
   }
 
