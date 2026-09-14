@@ -1,0 +1,5 @@
+[
+  { "Name": "Claude", "Url": "https://claude.ai" },
+  { "Name": "ChatGPT", "Url": "https://chatgpt.com" },
+  { "Name": "Gemini", "Url": "https://gemini.google.com" }
+]
