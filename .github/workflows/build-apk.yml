@@ -18,7 +18,11 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
+      - name: Prepara Android SDK (platform-tools, platform 34, build-tools 34)
+        run: |
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -maxdepth 2 -name sdkmanager | sort -V | tail -1)
+          yes | "$SDKMANAGER" --licenses > /dev/null
+          "$SDKMANAGER" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Rendi eseguibile gradlew
         run: chmod +x gradlew
