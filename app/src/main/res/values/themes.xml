@@ -1,4 +1,4 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Tema base della piattaforma: la UI è interamente realizzata con Jetpack Compose -->
-    <style name="Theme.ChiamateBT" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.BTOrder" parent="android:Theme.Material.Light.NoActionBar" />
 </resources>

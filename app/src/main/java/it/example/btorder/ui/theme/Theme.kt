@@ -1,4 +1,4 @@
-package it.example.chiamatebt.ui.theme
+package it.example.btorder.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -11,18 +11,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val SchemaScuro = darkColorScheme(
-    primary = BluSecondario,
-    secondary = BluPrimario
+    primary = VerdeSecondario,
+    secondary = VerdePrimario
 )
 
 private val SchemaChiaro = lightColorScheme(
-    primary = BluPrimario,
-    secondary = BluSecondario,
+    primary = VerdePrimario,
+    secondary = VerdeSecondario,
     background = GrigioSfondo
 )
 
 @Composable
-fun ChiamateBTTheme(
+fun BTOrderTheme(
     usaColoriDinamici: Boolean = true,
     contenuto: @Composable () -> Unit
 ) {
