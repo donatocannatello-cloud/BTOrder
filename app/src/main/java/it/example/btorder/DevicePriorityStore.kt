@@ -53,6 +53,9 @@ object DevicePriorityStore {
     fun osservaServizioAttivo(context: Context): Flow<Boolean> =
         context.dataStorePriorita.data.map { it[CHIAVE_SERVIZIO_ATTIVO] ?: false }
 
+    suspend fun leggiServizioAttivoUnaVolta(context: Context): Boolean =
+        osservaServizioAttivo(context).first()
+
     suspend fun impostaServizioAttivo(context: Context, attivo: Boolean) {
         context.dataStorePriorita.edit { preferenze ->
             preferenze[CHIAVE_SERVIZIO_ATTIVO] = attivo

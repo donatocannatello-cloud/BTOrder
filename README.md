@@ -161,9 +161,24 @@ all'avvio, valgono per l'intera schermata):
   `PowerManager.SCREEN_DIM_WAKE_LOCK`: è una scelta deliberata, perché senza
   root/MDM è l'unico modo per un Service in background di tenere lo schermo
   acceso in risposta a un evento esterno come una connessione Bluetooth.
-- I due servizi in foreground (chiamate e automazioni auto) vanno avviati
-  manualmente dai rispettivi pulsanti; solo il monitoraggio delle
-  automazioni auto può ripartire da solo al boot, se abilitato.
+- I due servizi in foreground vanno avviati manualmente dai rispettivi
+  pulsanti la prima volta, ma dopo ripartono entrambi da soli: le
+  automazioni auto solo se "Avvia automaticamente all'accensione" è
+  attivo, l'instradamento chiamate sempre se era acceso al momento dello
+  spegnimento (nessun'opzione da attivare, si ricorda da solo). Entrambi
+  vengono anche riavviati (in modo innocuo se già attivi) ogni volta che si
+  riapre l'app, così un Service terminato da Android per motivi propri non
+  lascia il pulsante "Ferma" bloccato su un monitoraggio che in realtà non
+  gira più.
+- Se manca il permesso `READ_PHONE_STATE`, il servizio di instradamento
+  chiamate si ferma da solo all'avvio (senza poterlo, non può nemmeno
+  sapere quando una chiamata inizia): l'app mostra un avviso dedicato con
+  un pulsante alle impostazioni, e sincronizza lo stato "attivo" salvato a
+  spento così il pulsante non resta bloccato su "Ferma".
+- La notifica del servizio di instradamento chiamate riporta l'esito
+  dell'ultimo tentativo (dispositivo usato, oppure il motivo per cui non è
+  stato possibile instradare l'audio): è pensata per capire cosa succede
+  davvero durante una chiamata senza dover leggere i log del telefono.
 
 ## Come compilare
 

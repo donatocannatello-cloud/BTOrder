@@ -34,6 +34,7 @@ class CallRoutingService : Service() {
 
     private lateinit var telephonyManager: TelephonyManager
     private lateinit var audioManager: AudioManager
+    private lateinit var notificationManager: NotificationManager
 
     /** true tra l'OFFHOOK e il successivo IDLE: usato per sapere se vale la pena reagire
      *  a un nuovo dispositivo audio che compare durante la chiamata. Scritta sul thread
@@ -76,9 +77,10 @@ class CallRoutingService : Service() {
         super.onCreate()
         telephonyManager = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
         audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+        notificationManager = getSystemService(NotificationManager::class.java)
 
         creaCanaleNotifica()
-        startForeground(ID_NOTIFICA, costruisciNotifica())
+        startForeground(ID_NOTIFICA, costruisciNotifica("In ascolto per instradare l'audio delle chiamate"))
         registraAscoltatoreChiamate()
         audioManager.registerAudioDeviceCallback(ascoltatoreNuoviDispositivi, null)
     }
@@ -102,7 +104,21 @@ class CallRoutingService : Service() {
 
     private fun registraAscoltatoreChiamate() {
         if (!haPermessoStatoChiamata()) {
-            // Senza il permesso il servizio non può svolgere il suo compito: si ferma subito.
+            // Senza il permesso il servizio non può svolgere il suo compito: si ferma subito, ma
+            // prima sincronizza lo stato "attivo" salvato (altrimenti il pulsante in app resta
+            // bloccato su "Ferma", come se il servizio funzionasse, mentre in realtà è già morto)
+            // e lascia una notifica non legata al Service, così l'utente capisce perché.
+            ambitoCoroutine.launch { DevicePriorityStore.impostaServizioAttivo(applicationContext, false) }
+            notificationManager.notify(
+                ID_NOTIFICA_AVVISO,
+                NotificationCompat.Builder(this, CANALE_NOTIFICA)
+                    .setContentTitle("BTOrder - Instradamento chiamate fermo")
+                    .setContentText("Manca il permesso \"Telefono\": aprilo dall'app e riavvia il monitoraggio")
+                    .setSmallIcon(R.drawable.ic_notifica)
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setAutoCancel(true)
+                    .build()
+            )
             stopSelf()
             return
         }
@@ -112,20 +128,60 @@ class CallRoutingService : Service() {
     /**
      * Legge l'ordine salvato e applica il primo dispositivo disponibile, riprovando per
      * qualche secondo se il dispositivo in cima alla classifica non compare subito tra quelli
-     * effettivamente disponibili (vedi nota su [ascoltatoreNuoviDispositivi]).
+     * effettivamente disponibili (vedi nota su [ascoltatoreNuoviDispositivi]). L'esito di ogni
+     * tentativo viene scritto nella notifica del servizio: è l'unico modo per l'utente (e per
+     * chi lo assiste) di capire cosa è successo davvero durante l'ultima chiamata, senza dover
+     * leggere i log del telefono.
      */
     private fun instradaAudioChiamata() {
         ambitoCoroutine.launch {
             val ordineSalvato = DevicePriorityStore.leggiOrdineUnaVolta(applicationContext)
-            if (ordineSalvato.isEmpty()) return@launch
+            if (ordineSalvato.isEmpty()) {
+                aggiornaNotifica("Nessun dispositivo in classifica: apri l'app e trascina almeno una voce")
+                return@launch
+            }
 
             repeat(TENTATIVI_INSTRADAMENTO) { tentativo ->
                 if (!chiamataInCorso) return@launch
-                val applicato = DispositiviAudio.applicaPrimoDispositivoDisponibile(audioManager, ordineSalvato)
-                if (applicato) return@launch
-                if (tentativo < TENTATIVI_INSTRADAMENTO - 1) delay(INTERVALLO_TENTATIVO_MS)
+                when (val esito = DispositiviAudio.applicaPrimoDispositivoDisponibile(audioManager, ordineSalvato)) {
+                    is DispositiviAudio.EsitoInstradamento.Applicato -> {
+                        aggiornaNotifica("Ultima chiamata instradata su: ${etichettaDispositivo(esito.id)}")
+                        return@launch
+                    }
+                    is DispositiviAudio.EsitoInstradamento.ImpostazioneRifiutata -> {
+                        aggiornaNotifica(
+                            "Ultima chiamata: Android ha rifiutato di usare ${etichettaDispositivo(esito.id)}"
+                        )
+                        return@launch
+                    }
+                    DispositiviAudio.EsitoInstradamento.NessunDispositivoDisponibile,
+                    DispositiviAudio.EsitoInstradamento.NessunoInClassificaDisponibile -> {
+                        if (tentativo == TENTATIVI_INSTRADAMENTO - 1) {
+                            aggiornaNotifica(
+                                if (esito is DispositiviAudio.EsitoInstradamento.NessunDispositivoDisponibile) {
+                                    "Ultima chiamata: il sistema non riportava alcun dispositivo audio disponibile"
+                                } else {
+                                    "Ultima chiamata: nessuno dei dispositivi in classifica era disponibile"
+                                }
+                            )
+                        } else {
+                            delay(INTERVALLO_TENTATIVO_MS)
+                        }
+                    }
+                }
             }
         }
+    }
+
+    private fun etichettaDispositivo(id: String): String = when (id) {
+        ID_AURICOLARE_TELEFONO -> "Auricolare del telefono"
+        ID_VIVAVOCE_TELEFONO -> "Vivavoce del telefono"
+        ID_CUFFIE_USB -> "Cuffie USB"
+        else -> id
+    }
+
+    private fun aggiornaNotifica(testo: String) {
+        notificationManager.notify(ID_NOTIFICA, costruisciNotifica(testo))
     }
 
     private fun creaCanaleNotifica() {
@@ -139,10 +195,10 @@ class CallRoutingService : Service() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(canale)
     }
 
-    private fun costruisciNotifica() =
+    private fun costruisciNotifica(testo: String) =
         NotificationCompat.Builder(this, CANALE_NOTIFICA)
             .setContentTitle("BTOrder - Instradamento chiamate attivo")
-            .setContentText("In ascolto per instradare l'audio delle chiamate")
+            .setContentText(testo)
             .setSmallIcon(R.drawable.ic_notifica)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setOngoing(true)
@@ -151,6 +207,7 @@ class CallRoutingService : Service() {
     companion object {
         private const val CANALE_NOTIFICA = "canale_instradamento_chiamate"
         private const val ID_NOTIFICA = 2
+        private const val ID_NOTIFICA_AVVISO = 4
 
         /** Numero di tentativi ravvicinati subito dopo l'OFFHOOK. */
         private const val TENTATIVI_INSTRADAMENTO = 6

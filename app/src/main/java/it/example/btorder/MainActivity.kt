@@ -2,6 +2,7 @@ package it.example.btorder
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -81,6 +82,13 @@ private fun permessiRichiesti(): Array<String> = buildList {
     }
 }.toTypedArray()
 
+/** true se il permesso necessario a rilevare lo stato delle chiamate è concesso. */
+private fun haPermessoTelefono(context: Context): Boolean =
+    ContextCompat.checkSelfPermission(
+        context,
+        android.Manifest.permission.READ_PHONE_STATE
+    ) == PackageManager.PERMISSION_GRANTED
+
 /** Altezza fissa della parte "collassata" di ogni riga: usata anche per il calcolo del
  *  trascinamento, quindi resta invariata anche quando la riga sopra o sotto è espansa. */
 private val ALTEZZA_ELEMENTO = 72.dp
@@ -110,10 +118,25 @@ fun SchermataPrincipale() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    var permessoTelefonoConcesso by remember { mutableStateOf(haPermessoTelefono(context)) }
     val launcherPermessi = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) {}
+    ) { permessoTelefonoConcesso = haPermessoTelefono(context) }
     LaunchedEffect(Unit) { launcherPermessi.launch(permessiRichiesti()) }
+
+    // Se l'utente aveva lasciato un monitoraggio attivo (es. prima che il telefono venisse
+    // riavviato o che Android terminasse il Service per motivi propri), lo riavvia qui: se il
+    // Service è già in esecuzione, avviarlo di nuovo è un'operazione innocua (richiama solo
+    // onStartCommand). Senza questo, il pulsante può restare bloccato su "Ferma" mostrando un
+    // monitoraggio che in realtà non gira più da nessuna parte.
+    LaunchedEffect(Unit) {
+        if (DevicePriorityStore.leggiServizioAttivoUnaVolta(context)) {
+            ContextCompat.startForegroundService(context, Intent(context, CallRoutingService::class.java))
+        }
+        if (TrustedDeviceStore.leggiServizioAttivoUnaVolta(context)) {
+            ContextCompat.startForegroundService(context, Intent(context, ProximityAutomationService::class.java))
+        }
+    }
 
     var dispositiviAccoppiati by remember { mutableStateOf<List<DispositivoBluetooth>>(emptyList()) }
     var indirizziConnessi by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -201,6 +224,10 @@ fun SchermataPrincipale() {
         }
 
         item { AvvisoLimiteSblocco(context) }
+
+        if (!permessoTelefonoConcesso) {
+            item { AvvisoPermessoTelefono(context) }
+        }
 
         item {
             PannelloControlli(
@@ -379,6 +406,33 @@ private fun AvvisoLimiteSblocco(context: Context) {
             )
             TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS)) }) {
                 Text("Apri impostazioni di sicurezza")
+            }
+        }
+    }
+}
+
+@Composable
+private fun AvvisoPermessoTelefono(context: Context) {
+    Card {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = "Permesso \"Telefono\" mancante", style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = "Senza questo permesso BTOrder non può accorgersi di quando una chiamata " +
+                    "inizia o finisce: la priorità audio in chiamata non ha alcun effetto finché " +
+                    "non lo concedi. Se l'hai già negato una volta, Android potrebbe non " +
+                    "richiederlo più automaticamente: aprilo dalle impostazioni dell'app.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+            )
+            TextButton(onClick = {
+                context.startActivity(
+                    Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:${context.packageName}")
+                    )
+                )
+            }) {
+                Text("Apri impostazioni app")
             }
         }
     }

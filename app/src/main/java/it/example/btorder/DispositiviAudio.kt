@@ -25,6 +25,25 @@ enum class TipoVoceDispositivo {
 object DispositiviAudio {
 
     /**
+     * Esito di un tentativo di instradamento, abbastanza dettagliato da poter essere mostrato
+     * all'utente (nella notifica del Service) per capire perché l'audio non è finito dove ci si
+     * aspettava, senza dover leggere i log del dispositivo.
+     */
+    sealed class EsitoInstradamento {
+        /** Il dispositivo [id] è stato trovato disponibile ed è stato impostato con successo. */
+        data class Applicato(val id: String) : EsitoInstradamento()
+
+        /** Il sistema non riporta ALCUN dispositivo di comunicazione disponibile in questo momento. */
+        object NessunDispositivoDisponibile : EsitoInstradamento()
+
+        /** Nessuno dei dispositivi in classifica risulta tra quelli disponibili ora. */
+        object NessunoInClassificaDisponibile : EsitoInstradamento()
+
+        /** Il dispositivo [id] era disponibile ma Android ha rifiutato di impostarlo. */
+        data class ImpostazioneRifiutata(val id: String) : EsitoInstradamento()
+    }
+
+    /**
      * true se al momento risulta collegata una cuffia via USB (es. tramite adattatore
      * micro-USB): a differenza del Bluetooth non esiste un concetto di "accoppiamento"
      * persistente, quindi qui si può solo rilevare la presenza fisica attuale.
@@ -41,23 +60,25 @@ object DispositiviAudio {
      * questo momento ([AudioManager.getAvailableCommunicationDevices]), il
      * primo che compare in [ordinePriorita] e lo imposta come dispositivo di
      * comunicazione attivo per la chiamata in corso.
-     *
-     * @return true se un dispositivo è stato individuato e impostato con successo.
      */
     fun applicaPrimoDispositivoDisponibile(
         audioManager: AudioManager,
         ordinePriorita: List<String>
-    ): Boolean {
+    ): EsitoInstradamento {
         val disponibili = audioManager.availableCommunicationDevices
-        if (disponibili.isEmpty()) return false
+        if (disponibili.isEmpty()) return EsitoInstradamento.NessunDispositivoDisponibile
 
         for (id in ordinePriorita) {
             val dispositivoTrovato = disponibili.firstOrNull { it.idStabile() == id }
             if (dispositivoTrovato != null) {
-                return audioManager.setCommunicationDevice(dispositivoTrovato)
+                return if (audioManager.setCommunicationDevice(dispositivoTrovato)) {
+                    EsitoInstradamento.Applicato(id)
+                } else {
+                    EsitoInstradamento.ImpostazioneRifiutata(id)
+                }
             }
         }
-        return false
+        return EsitoInstradamento.NessunoInClassificaDisponibile
     }
 
     /** Ricava l'ID stabile (MAC per il Bluetooth, costante fissa per l'hardware integrato/USB). */

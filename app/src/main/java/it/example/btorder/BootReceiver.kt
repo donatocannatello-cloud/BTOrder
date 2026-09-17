@@ -9,8 +9,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * Riavvia automaticamente [ProximityAutomationService] dopo l'accensione del telefono, se
- * l'utente ha attivato l'apposita preferenza. Gli avvii di foreground service da un
+ * Riavvia automaticamente i Service che erano attivi prima dello spegnimento: le automazioni
+ * di prossimità se l'utente ha attivato l'apposita preferenza, e l'instradamento chiamate se
+ * era acceso al momento dello spegnimento. Gli avvii di foreground service da un
  * BroadcastReceiver per BOOT_COMPLETED sono tra le eccezioni consentite da Android alle
  * restrizioni sull'avvio di servizi dal background.
  */
@@ -27,6 +28,13 @@ class BootReceiver : BroadcastReceiver() {
                     ContextCompat.startForegroundService(
                         context,
                         Intent(context, ProximityAutomationService::class.java)
+                    )
+                }
+                val instradamentoAttivo = DevicePriorityStore.leggiServizioAttivoUnaVolta(context)
+                if (instradamentoAttivo) {
+                    ContextCompat.startForegroundService(
+                        context,
+                        Intent(context, CallRoutingService::class.java)
                     )
                 }
             } finally {
