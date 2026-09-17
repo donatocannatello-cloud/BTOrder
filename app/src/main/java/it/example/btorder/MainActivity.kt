@@ -89,6 +89,24 @@ private fun haPermessoTelefono(context: Context): Boolean =
         android.Manifest.permission.READ_PHONE_STATE
     ) == PackageManager.PERMISSION_GRANTED
 
+/**
+ * Avvia un Service in foreground catturando qualunque eccezione: le restrizioni sui foreground
+ * service (tipo dichiarato, permessi, limiti di avvio dal background) cambiano da versione a
+ * versione di Android e da produttore a produttore, e possono manifestarsi come eccezioni a
+ * runtime anche quando manifest e permessi sembrano a posto. Un avvio automatico (all'apertura
+ * dell'app, o dopo il boot) non deve MAI poter far chiudere l'intera app: se fallisce, fallisce
+ * in silenzio e l'utente può comunque riprovare manualmente dal pulsante in schermata.
+ *
+ * @return true se l'avvio non ha sollevato eccezioni.
+ */
+private fun avviaServizioInSicurezza(context: Context, intent: Intent): Boolean =
+    try {
+        ContextCompat.startForegroundService(context, intent)
+        true
+    } catch (e: Exception) {
+        false
+    }
+
 /** Altezza fissa della parte "collassata" di ogni riga: usata anche per il calcolo del
  *  trascinamento, quindi resta invariata anche quando la riga sopra o sotto è espansa. */
 private val ALTEZZA_ELEMENTO = 72.dp
@@ -131,10 +149,12 @@ fun SchermataPrincipale() {
     // monitoraggio che in realtà non gira più da nessuna parte.
     LaunchedEffect(Unit) {
         if (DevicePriorityStore.leggiServizioAttivoUnaVolta(context)) {
-            ContextCompat.startForegroundService(context, Intent(context, CallRoutingService::class.java))
+            val riuscito = avviaServizioInSicurezza(context, Intent(context, CallRoutingService::class.java))
+            if (!riuscito) DevicePriorityStore.impostaServizioAttivo(context, false)
         }
         if (TrustedDeviceStore.leggiServizioAttivoUnaVolta(context)) {
-            ContextCompat.startForegroundService(context, Intent(context, ProximityAutomationService::class.java))
+            val riuscito = avviaServizioInSicurezza(context, Intent(context, ProximityAutomationService::class.java))
+            if (!riuscito) TrustedDeviceStore.impostaServizioAttivo(context, false)
         }
     }
 
@@ -238,13 +258,23 @@ fun SchermataPrincipale() {
                 onAggiornaElenco = { ricaricaDispositivi() },
                 onToggleServizioChiamate = {
                     val intent = Intent(context, CallRoutingService::class.java)
-                    if (servizioChiamateAttivo) context.stopService(intent) else ContextCompat.startForegroundService(context, intent)
-                    scope.launch { DevicePriorityStore.impostaServizioAttivo(context, !servizioChiamateAttivo) }
+                    if (servizioChiamateAttivo) {
+                        context.stopService(intent)
+                        scope.launch { DevicePriorityStore.impostaServizioAttivo(context, false) }
+                    } else {
+                        val riuscito = avviaServizioInSicurezza(context, intent)
+                        scope.launch { DevicePriorityStore.impostaServizioAttivo(context, riuscito) }
+                    }
                 },
                 onToggleServizioAutomazioni = {
                     val intent = Intent(context, ProximityAutomationService::class.java)
-                    if (servizioAutomazioniAttivo) context.stopService(intent) else ContextCompat.startForegroundService(context, intent)
-                    scope.launch { TrustedDeviceStore.impostaServizioAttivo(context, !servizioAutomazioniAttivo) }
+                    if (servizioAutomazioniAttivo) {
+                        context.stopService(intent)
+                        scope.launch { TrustedDeviceStore.impostaServizioAttivo(context, false) }
+                    } else {
+                        val riuscito = avviaServizioInSicurezza(context, intent)
+                        scope.launch { TrustedDeviceStore.impostaServizioAttivo(context, riuscito) }
+                    }
                 },
                 onToggleAvvioAutomatico = { attivo ->
                     scope.launch { TrustedDeviceStore.impostaAvvioAutomatico(context, attivo) }
