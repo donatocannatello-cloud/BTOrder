@@ -1,5 +1,7 @@
 package it.example.btorder
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -136,6 +138,8 @@ fun SchermataPrincipale() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    var ultimoCrash by remember { mutableStateOf(RegistroCrash.leggiUltima(context)) }
+
     var permessoTelefonoConcesso by remember { mutableStateOf(haPermessoTelefono(context)) }
     val launcherPermessi = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -241,6 +245,24 @@ fun SchermataPrincipale() {
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 4.dp)
             )
+        }
+
+        val crash = ultimoCrash
+        if (crash != null) {
+            item {
+                AvvisoUltimoCrash(
+                    traccia = crash.first,
+                    istante = crash.second,
+                    onCopia = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Traccia crash BTOrder", crash.first))
+                    },
+                    onChiudi = {
+                        RegistroCrash.cancella(context)
+                        ultimoCrash = null
+                    }
+                )
+            }
         }
 
         item { AvvisoLimiteSblocco(context) }
@@ -417,6 +439,38 @@ fun SchermataPrincipale() {
                 TextButton(onClick = { indirizzoDaEliminare = null }) { Text("Annulla") }
             }
         )
+    }
+}
+
+@Composable
+private fun AvvisoUltimoCrash(traccia: String, istante: Long, onCopia: () -> Unit, onChiudi: () -> Unit) {
+    val context = LocalContext.current
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "BTOrder si è chiuso inaspettatamente",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+            Text(
+                text = DateUtils.getRelativeDateTimeString(
+                    context, istante, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, 0
+                ).toString(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+            )
+            Text(
+                text = traccia,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onCopia) { Text("Copia") }
+                TextButton(onClick = onChiudi) { Text("Chiudi") }
+            }
+        }
     }
 }
 
