@@ -9,9 +9,11 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <!-- Necessari per eseguire i Service in foreground (instradamento chiamate e
-         automazioni di prossimità) -->
+         automazioni di prossimità): entrambi usano il tipo "connectedDevice", perché il tipo
+         "phoneCall" da Android 14 richiede che l'app sia il dialer di sistema o abbia il
+         permesso MANAGE_OWN_CALLS, requisiti che non hanno senso per un'app che si limita a
+         instradare l'audio senza gestire le chiamate stesse. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <!-- Necessario per mostrare le notifiche persistenti dei Service (API 33+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -64,7 +66,7 @@
         <service
             android:name=".CallRoutingService"
             android:exported="false"
-            android:foregroundServiceType="phoneCall" />
+            android:foregroundServiceType="connectedDevice" />
 
         <receiver
             android:name=".BootReceiver"

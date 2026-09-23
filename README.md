@@ -79,7 +79,10 @@ concrete e realizzabili con le API pubbliche di Android.
 ### Instradamento delle chiamate
 
 **`CallRoutingService.kt`** è un Service in foreground
-(`foregroundServiceType="phoneCall"`) che registra un
+(`foregroundServiceType="connectedDevice"` — non `"phoneCall"`, che da
+Android 14 richiede che l'app sia il dialer di sistema o abbia il permesso
+`MANAGE_OWN_CALLS`, requisiti senza senso per un'app che instrada solo
+l'audio) che registra un
 `TelephonyCallback.CallStateListener` (API 31+). Quando la chiamata passa
 allo stato `OFFHOOK`, legge l'ordine salvato e lo scorre finché non trova il
 primo ID presente anche tra `AudioManager.availableCommunicationDevices` (i
@@ -124,9 +127,9 @@ all'avvio, valgono per l'intera schermata):
 - `BLUETOOTH_CONNECT` — per leggere nome/indirizzo dei dispositivi accoppiati
 - `READ_PHONE_STATE` — per il `TelephonyCallback` (instradamento chiamate)
 - `MODIFY_AUDIO_SETTINGS` — per `setCommunicationDevice` (instradamento chiamate)
-- `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_PHONE_CALL`,
-  `FOREGROUND_SERVICE_CONNECTED_DEVICE` — permessi "normali" per i due
-  Service in foreground
+- `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_CONNECTED_DEVICE` — permessi
+  "normali" per i due Service in foreground (entrambi di tipo
+  `connectedDevice`)
 - `POST_NOTIFICATIONS` (solo API 33+) — per le notifiche dei servizi
 - `RECEIVE_BOOT_COMPLETED` — per il riavvio automatico al boot delle
   automazioni (opzionale)

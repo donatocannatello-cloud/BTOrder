@@ -76,9 +76,6 @@ private fun permessiRichiesti(): Array<String> = buildList {
     add(android.Manifest.permission.READ_PHONE_STATE)
     add(android.Manifest.permission.MODIFY_AUDIO_SETTINGS)
     add(android.Manifest.permission.FOREGROUND_SERVICE)
-    if (Build.VERSION.SDK_INT >= 34) {
-        add(android.Manifest.permission.FOREGROUND_SERVICE_PHONE_CALL)
-    }
     if (Build.VERSION.SDK_INT >= 33) {
         add(android.Manifest.permission.POST_NOTIFICATIONS)
     }
