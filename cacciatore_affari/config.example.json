@@ -76,6 +76,7 @@
   "percorsi": {
     "annunci": "data/annunci.json",
     "perizie": "data/perizie",
-    "log": "logs/cacciatore_affari.log"
+    "log": "logs/cacciatore_affari.log",
+    "report": "report/annunci.html"
   }
 }

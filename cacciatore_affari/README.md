@@ -41,6 +41,23 @@ python main.py --config /percorso/altro_config.json
 In alternativa a `--loop` puoi programmare `python main.py` con cron o con
 l'Utilità di pianificazione di Windows.
 
+## Vedere i risultati: pagina HTML
+
+Alla fine di ogni ciclo il bot aggiorna `report/annunci.html`, che si apre
+con un doppio clic. La pagina contiene:
+
+- una tabella ordinabile (clic sulle intestazioni), con i filtri per testo,
+  categoria, provincia, punteggio minimo, prezzo massimo e "solo ribassati";
+- una mappa degli annunci che hanno le coordinate. Richiede internet
+  (Leaflet + OpenStreetMap); la tabella funziona anche offline.
+
+Per rigenerarla e aprirla senza rifare la scansione:
+
+```bash
+python viewer.py              # genera e apre nel browser
+python viewer.py --no-open    # genera soltanto
+```
+
 ## Telegram
 
 1. Crea un bot con [@BotFather](https://t.me/BotFather) e copia il **token**.
@@ -68,7 +85,7 @@ un punteggio pari o superiore alla soglia. Dopo l'invio vengono marcati con
 | `telegram` | `token`, `chat_id`. |
 | `http` | User-Agent, pausa tra richieste (`min_delay`/`max_delay`, predefinito 3-5 s), retry, timeout, `rispetta_robots`. |
 | `fonti.pvp` | Impostazioni dell'adattatore PVP (vedi sotto). |
-| `percorsi` | File di dati, cartella perizie e file di log (relativi alla cartella del config). |
+| `percorsi` | File di dati, cartella perizie, file di log e pagina HTML `report` (relativi alla cartella del config). |
 
 ### Punteggio (0-100)
 
@@ -158,6 +175,7 @@ cacciatore_affari/
 ├── perizie.py         # download PDF + stub analizza_perizia() (futuro: Ollama)
 ├── http_client.py     # client HTTP con rate limiting, retry e robots.txt
 ├── geo.py             # regioni e province
+├── viewer.py          # pagina HTML con tabella e mappa
 ├── adapters/
 │   ├── base.py        # classe astratta Adapter
 │   └── pvp.py         # Portale Vendite Pubbliche
@@ -166,6 +184,7 @@ cacciatore_affari/
 │   ├── perizie/       # PDF delle perizie
 │   └── raw/           # risposte grezze per debug (opzionale)
 ├── logs/              # log a rotazione
+├── report/            # annunci.html (generato)
 └── tests/             # test pytest con dati finti
 ```
 

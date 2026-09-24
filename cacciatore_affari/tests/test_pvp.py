@@ -106,3 +106,13 @@ def test_ciclo_completo(tmp_path, monkeypatch):
     assert stats == {**stats, "nuovi": 0, "ribassati": 1}
     [a] = storage.load_annunci(tmp_path / "annunci.json")
     assert [s["prezzo_base"] for s in a["storico_prezzi"]] == [250000, 187500]
+
+
+def test_viewer_genera_html(tmp_path):
+    import viewer
+    html = viewer.genera_html([{"id": "pvp:1", "titolo": "Capannone </script><b>x", "prezzo_base": 1000}])
+    assert "</script><b>x" not in html  # i dati non possono chiudere il tag script
+    assert "pvp:1" in html and "__DATI__" not in html
+    storage.save_annunci(tmp_path / "a.json", [{"id": "pvp:1"}])
+    out = viewer.scrivi_report(tmp_path / "a.json", tmp_path / "r" / "annunci.html")
+    assert out.exists()

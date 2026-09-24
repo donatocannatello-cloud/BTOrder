@@ -24,6 +24,7 @@ from config import carica_config, filtri_categoria
 from http_client import PoliteClient
 from notifier import TelegramNotifier, da_notificare
 from perizie import scarica_perizia
+from viewer import scrivi_report
 
 log = logging.getLogger("cacciatore_affari")
 
@@ -122,6 +123,12 @@ def ciclo(cfg: dict, dry_run: bool = False) -> dict:
         log.warning("Token/chat_id Telegram non configurati: notifiche solo nel log")
     stats["notificati"] = notifier.notifica(candidati)
     storage.save_annunci(path_annunci, archivio)
+
+    if cfg["percorsi"].get("report"):
+        try:
+            log.info("Report HTML aggiornato: %s", scrivi_report(path_annunci, cfg["percorsi"]["report"]))
+        except OSError as e:
+            log.warning("Report HTML non generato: %s", e)
 
     log.info("=== Fine ciclo: %s (da notificare: %d, archivio: %d) ===",
              stats, len(candidati), len(archivio))

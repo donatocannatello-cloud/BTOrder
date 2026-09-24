@@ -31,12 +31,17 @@ def load(path: str | os.PathLike, default: Any = None) -> Any:
 
 def save(path: str | os.PathLike, data: Any) -> None:
     """Salva ``data`` come JSON in modo atomico (file temporaneo + os.replace)."""
+    save_text(path, json.dumps(data, ensure_ascii=False, indent=2))
+
+
+def save_text(path: str | os.PathLike, text: str) -> None:
+    """Scrive un file di testo in modo atomico (file temporaneo + os.replace)."""
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_name = tempfile.mkstemp(prefix=f".{p.name}.", suffix=".tmp", dir=p.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2, sort_keys=False)
+            f.write(text)
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp_name, p)

@@ -26,6 +26,7 @@ def carica_config(path: str | Path) -> dict:
     percorsi.setdefault("annunci", "data/annunci.json")
     percorsi.setdefault("perizie", "data/perizie")
     percorsi.setdefault("log", "logs/cacciatore_affari.log")
+    percorsi.setdefault("report", "report/annunci.html")
     for k, v in percorsi.items():
         percorsi[k] = str((base / v).resolve())
     for fonte in (cfg.get("fonti") or {}).values():
