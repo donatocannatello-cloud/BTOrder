@@ -32,6 +32,7 @@ Poi modifica `config.json` (vedi sotto) e inserisci token e chat_id Telegram.
 
 Fai doppio clic su **`AFFARI_MIEI.bat`**. Al primo avvio il file:
 
+- se nella cartella mancano i file del programma, li scarica da GitHub;
 - crea l'ambiente Python (`.venv`) e installa le dipendenze;
 - se manca `config.json`, lo prepara dal modello e lo apre nel Blocco note.
 
@@ -43,7 +44,10 @@ Poi mostra un menu:
 4. avvio continuo ogni N ore;
 5. modifica `config.json`;
 6. apri il log;
-7. esegui i test.
+7. esegui i test;
+8. aggiorna il programma da GitHub (`config.json`, dati e log restano intatti).
+
+Il `.bat` da solo basta: mettilo in una cartella vuota e avvialo.
 
 ## Avvio
 
