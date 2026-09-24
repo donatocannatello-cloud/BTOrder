@@ -39,6 +39,13 @@ jobs:
           java-version: "21"
 
       - uses: android-actions/setup-android@v3
+        with:
+          # Senza questo, l'azione prova a installare il pacchetto SDK
+          # legacy "tools" (sdkmanager tools), che Google ha rimosso dal
+          # repository: "Failed to find package 'tools'", step fallito.
+          # Le licenze restano comunque accettate; Gradle scarica da solo,
+          # al primo utilizzo, la platform/i build-tools che gli servono.
+          packages: ""
 
       - name: Compila l'APK
         working-directory: frattale/android
