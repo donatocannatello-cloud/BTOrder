@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Discesa Frattale</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        --void: #000;
+        --ink: #e9e5f2;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: var(--void);
+        overflow: hidden;
+        overscroll-behavior: none;
+      }
+      body {
+        color: var(--ink);
+      }
+      #gl {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        touch-action: none;
+        cursor: crosshair;
+      }
+
+      /* Uscita: l'app gira a schermo intero, quindi serve un modo esplicito
+         per tornare alla schermata iniziale (il tasto Indietro di sistema
+         non e' collegato a questo). */
+      #exit-btn {
+        position: fixed;
+        top: max(18px, env(safe-area-inset-top));
+        right: max(18px, env(safe-area-inset-right));
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(233, 229, 242, 0.3);
+        background: rgba(20, 18, 28, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease, border-color 0.15s ease, background 0.15s ease;
+        z-index: 4;
+      }
+      #exit-btn.show {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      #exit-btn:hover,
+      #exit-btn:active {
+        border-color: rgba(233, 229, 242, 0.6);
+        background: rgba(20, 18, 28, 0.55);
+      }
+      #exit-btn svg {
+        width: 16px;
+        height: 16px;
+        stroke: var(--ink);
+        stroke-width: 1.6;
+        opacity: 0.8;
+      }
+
+      /* Stessa vignettatura radiale della schermata iniziale, ma su un
+         livello persistente cosi' resta visibile anche durante il gioco
+         (prima spariva insieme all'overlay #entry non appena si entrava). */
+      #vignette {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(ellipse at 50% 45%, rgba(168, 136, 224, 0.1), var(--void) 70%);
+        z-index: 1;
+      }
+
+      #entry {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        transition: opacity 1.1s ease;
+        z-index: 3;
+      }
+      #entry.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #entry-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.4rem;
+        padding: 0 1.5rem;
+      }
+      #entry-title {
+        font-style: italic;
+        font-weight: 500;
+        font-size: clamp(2.2rem, 8vw, 3.4rem);
+        letter-spacing: 0.01em;
+        font-family: Georgia, "Times New Roman", serif;
+        color: var(--ink);
+        text-wrap: balance;
+        text-shadow: 0 2px 20px rgba(0, 0, 0, 0.7);
+      }
+      /* Pulsante di avvio. Il respiro lento stava sul titolo, quando era
+         il titolo stesso a fare da invito a toccare; ora che c'e' un
+         comando esplicito e' lui a doverlo attirare, e il titolo puo'
+         restare fermo. */
+      #play-btn {
+        width: 76px;
+        height: 76px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(233, 229, 242, 0.45);
+        background: rgba(233, 229, 242, 0.07);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        padding: 0;
+        transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+        animation: pulse 3.6s ease-in-out infinite;
+      }
+      #play-btn:hover,
+      #play-btn:focus-visible {
+        border-color: rgba(233, 229, 242, 0.85);
+        background: rgba(233, 229, 242, 0.14);
+        outline: none;
+      }
+      #play-btn:active {
+        transform: scale(0.94);
+      }
+      #play-btn svg {
+        /* Il triangolo e' otticamente sbilanciato a sinistra dentro un
+           cerchio: qualche pixel di spinta lo rimette al centro percepito. */
+        margin-left: 5px;
+        width: 26px;
+        height: 26px;
+        fill: var(--ink);
+        opacity: 0.9;
+      }
+      /* Id di build, solo nella schermata iniziale (sparisce col resto di
+         #entry entrando): per verificare a colpo d'occhio che l'APK appena
+         installato sia davvero l'ultima build. */
+      #build-id {
+        position: fixed;
+        left: max(14px, env(safe-area-inset-left));
+        bottom: max(10px, env(safe-area-inset-bottom));
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 0.6rem;
+        letter-spacing: 0.05em;
+        color: var(--ink);
+        opacity: 0.35;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.82;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #play-btn {
+          animation: none;
+        }
+      }
+      /* Controlli touch. Stick a sinistra = scorrimento della mappa (2
+         assi). Levetta a destra = scendi/sali di scala (1 solo asse):
+         forma deliberatamente diversa da uno stick, per segnalare che
+         governa una cosa sola. Si illuminano leggermente quando in uso. */
+      #touch-layer {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        /* Sopra la vignetta (z-index 1): i comandi devono restare leggibili
+           anche se la vignetta scurisce ai bordi, dove vivono. */
+        z-index: 2;
+        /* Nascosti sulla schermata iniziale: li' non c'e' ancora niente da
+           comandare, e affollavano il titolo. Compaiono entrando, con la
+           stessa dissolvenza del pulsante di uscita. */
+        opacity: 0;
+        transition: opacity 0.5s ease;
+      }
+      #touch-layer.show {
+        opacity: 1;
+      }
+
+      .stick-base {
+        position: absolute;
+        left: max(28px, env(safe-area-inset-left));
+        bottom: max(28px, env(safe-area-inset-bottom));
+        width: 104px;
+        height: 104px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(220, 210, 240, 0.3);
+        background: rgba(220, 210, 240, 0.05);
+        transition: border-color 0.15s ease, background 0.15s ease;
+      }
+      .stick-base.active {
+        border-color: rgba(220, 210, 240, 0.6);
+        background: rgba(220, 210, 240, 0.1);
+      }
+      .stick-knob {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 40px;
+        height: 40px;
+        margin: -20px 0 0 -20px;
+        border-radius: 50%;
+        background: rgba(220, 210, 240, 0.45);
+        transition: transform 0.05s linear;
+      }
+      .stick-base.active .stick-knob {
+        background: rgba(220, 210, 240, 0.7);
+      }
+
+      .lever-track {
+        position: absolute;
+        right: max(40px, env(safe-area-inset-right));
+        bottom: max(28px, env(safe-area-inset-bottom));
+        width: 48px;
+        height: 158px;
+        border-radius: 24px;
+        border: 1.5px solid rgba(220, 210, 240, 0.3);
+        background: rgba(220, 210, 240, 0.05);
+        transition: border-color 0.15s ease, background 0.15s ease;
+      }
+      .lever-track.active {
+        border-color: rgba(220, 210, 240, 0.6);
+        background: rgba(220, 210, 240, 0.1);
+      }
+      .lever-track::before {
+        /* segno "vicino" in alto */
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 14px;
+        width: 14px;
+        height: 14px;
+        margin-left: -7px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(220, 210, 240, 0.35);
+      }
+      .lever-track::after {
+        /* segno "lontano" in basso */
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: 14px;
+        width: 14px;
+        height: 14px;
+        margin-left: -7px;
+        border-radius: 50%;
+        background: rgba(220, 210, 240, 0.35);
+      }
+      .lever-handle {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 38px;
+        height: 38px;
+        margin: -19px 0 0 -19px;
+        border-radius: 12px;
+        background: rgba(220, 210, 240, 0.5);
+        transition: transform 0.05s linear;
+      }
+      .lever-track.active .lever-handle {
+        background: rgba(220, 210, 240, 0.75);
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="gl"></canvas>
+    <div id="touch-layer"></div>
+    <div id="vignette"></div>
+    <button id="exit-btn" aria-label="Esci">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M5 5L19 19M19 5L5 19" stroke-linecap="round" /></svg>
+    </button>
+
+    <div id="entry">
+      <div id="entry-inner">
+        <div id="entry-title">Discesa Frattale</div>
+        <button id="play-btn" type="button" aria-label="Avvia">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+        </button>
+      </div>
+      <div id="build-id"></div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
