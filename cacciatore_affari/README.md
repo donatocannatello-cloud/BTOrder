@@ -28,6 +28,23 @@ cp config.example.json config.json
 
 Poi modifica `config.json` (vedi sotto) e inserisci token e chat_id Telegram.
 
+## Avvio rapido su Windows
+
+Fai doppio clic su **`AFFARI_MIEI.bat`**. Al primo avvio il file:
+
+- crea l'ambiente Python (`.venv`) e installa le dipendenze;
+- se manca `config.json`, lo prepara dal modello e lo apre nel Blocco note.
+
+Poi mostra un menu:
+
+1. scansiona e apri il monitor;
+2. apri il monitor senza scansione;
+3. scansione di prova (nessun messaggio Telegram);
+4. avvio continuo ogni N ore;
+5. modifica `config.json`;
+6. apri il log;
+7. esegui i test.
+
 ## Avvio
 
 ```bash
@@ -165,6 +182,7 @@ Altre opzioni di `fonti.pvp`: `page_size`, `max_pagine`, `sort`,
 
 ```
 cacciatore_affari/
+├── AFFARI_MIEI.bat     # menu di avvio per Windows (doppio clic)
 ├── main.py            # ciclo completo e opzione --loop
 ├── config.py          # caricamento di config.json
 ├── storage.py         # unico punto di accesso ai file JSON (load/save/upsert atomici)
