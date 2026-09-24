@@ -1,0 +1,81 @@
+{
+  "regioni": ["Lombardia"],
+  "province": [],
+
+  "categorie": {
+    "capannoni": {
+      "abilitata": true,
+      "tipo_lotto": "IMMOBILI",
+      "parole_chiave": ["capannone", "capannoni", "opificio", "industriale", "artigianale", "produttivo", "laboratorio", "magazzino", "deposito"],
+      "parole_escluse": ["terreno agricolo", "box auto", "posto auto"],
+      "prezzo_max": 1500000,
+      "superficie_min": 200,
+      "soglia_punteggio": 60
+    },
+    "auto": {
+      "abilitata": false,
+      "tipo_lotto": "MOBILI",
+      "parole_chiave": ["autovettura", "automobile", "auto "],
+      "prezzo_max": 30000
+    },
+    "moto": {
+      "abilitata": false,
+      "tipo_lotto": "MOBILI",
+      "parole_chiave": ["motociclo", "moto ", "scooter"],
+      "prezzo_max": 10000
+    }
+  },
+
+  "soglia_punteggio": 60,
+
+  "scoring": {
+    "pesi": {"eur_mq": 0.5, "ribasso": 0.3, "tentativi": 0.2},
+    "rapporto_ottimo": 0.5,
+    "rapporto_pessimo": 1.5,
+    "ribasso_massimo": 0.6,
+    "tentativi_massimi": 4,
+    "ribasso_stimato_per_tentativo": 0.25,
+    "campioni_minimi_mediana": 3
+  },
+
+  "dedup": {
+    "tolleranza_superficie": 0.03,
+    "tolleranza_prezzo": 0.05
+  },
+
+  "telegram": {
+    "token": "",
+    "chat_id": ""
+  },
+
+  "http": {
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+    "min_delay": 3,
+    "max_delay": 5,
+    "max_retries": 4,
+    "backoff_base": 5,
+    "timeout": 30,
+    "rispetta_robots": true
+  },
+
+  "fonti": {
+    "pvp": {
+      "abilitata": true,
+      "base_url": "https://pvp.giustizia.it",
+      "page_size": 50,
+      "max_pagine": 40,
+      "sort": "dataVendita,asc",
+      "filtri_extra": {},
+      "mappa_campi": {},
+      "scarica_dettagli": true,
+      "scarica_perizie": false,
+      "salva_risposte_grezze": "data/raw"
+    }
+  },
+
+  "percorsi": {
+    "annunci": "data/annunci.json",
+    "perizie": "data/perizie",
+    "log": "logs/cacciatore_affari.log"
+  }
+}

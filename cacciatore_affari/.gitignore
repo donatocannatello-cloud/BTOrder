@@ -1,0 +1,11 @@
+config.json
+data/annunci.json
+data/raw/
+data/perizie/*
+!data/perizie/.gitkeep
+logs/*
+!logs/.gitkeep
+__pycache__/
+.pytest_cache/
+.venv/
+*.tmp
