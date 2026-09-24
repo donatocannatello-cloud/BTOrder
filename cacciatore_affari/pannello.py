@@ -22,6 +22,7 @@ import json
 import logging
 import secrets
 import shutil
+import socket
 import tempfile
 import threading
 import webbrowser
@@ -181,8 +182,19 @@ def aggiorna_programma(destinazione: Path = CARTELLA, url: str = ZIP_URL, client
 
 # --- server HTTP -----------------------------------------------------------------
 
+PORTA_PREDEFINITA = 8799
+
+
 class Pannello(ThreadingHTTPServer):
     daemon_threads = True
+    # HTTPServer abilita SO_REUSEADDR, che su Windows permette a due programmi
+    # di aprire la stessa porta: il browser finirebbe sull'altro programma.
+    allow_reuse_address = False
+
+    def server_bind(self):
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):  # solo Windows
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
 
     def __init__(self, indirizzo, controllore: Controllore):
         super().__init__(indirizzo, Gestore)
@@ -318,14 +330,29 @@ class Gestore(BaseHTTPRequestHandler):
         self._errore("pagina non trovata", 404)
 
 
-def crea_server(controllore: Controllore, porta: int) -> Pannello:
-    """Crea il server; se la porta è occupata prova le successive."""
-    for p in range(porta, porta + 20):
+def porta_occupata(porta: int) -> bool:
+    """True se un altro programma risponde già su questa porta (IPv4 o IPv6)."""
+    for host in ("127.0.0.1", "::1"):
         try:
-            return Pannello(("127.0.0.1", p), controllore)
+            with socket.create_connection((host, porta), timeout=0.3):
+                return True
         except OSError:
             continue
-    return Pannello(("127.0.0.1", 0), controllore)
+    return False
+
+
+def crea_server(controllore: Controllore, porta: int) -> Pannello:
+    """Crea il server sulla prima porta libera a partire da ``porta``."""
+    if porta:
+        for p in range(porta, porta + 20):
+            if porta_occupata(p):
+                log.info("Porta %d già usata da un altro programma, provo la successiva", p)
+                continue
+            try:
+                return Pannello(("127.0.0.1", p), controllore)
+            except OSError:
+                continue
+    return Pannello(("127.0.0.1", 0), controllore)  # porta scelta dal sistema
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -337,7 +364,7 @@ def main(argv: list[str] | None = None) -> int:
 
     cfg = carica_config(args.config)
     bot.setup_logging(cfg["percorsi"]["log"])
-    porta = args.porta or (cfg.get("pannello") or {}).get("porta", 8765)
+    porta = args.porta or (cfg.get("pannello") or {}).get("porta", PORTA_PREDEFINITA)
     server = crea_server(Controllore(Path(args.config)), porta)
     indirizzo = f"http://127.0.0.1:{server.server_address[1]}/"
     log.info("Pannello attivo su %s (chiudi questa finestra o usa 'Chiudi pannello' per uscire)", indirizzo)

@@ -43,7 +43,7 @@ Il `.bat` da solo basta: mettilo in una cartella vuota e avvialo.
 
 ### Pannello di controllo
 
-Il pannello è disponibile solo su questo computer (`http://127.0.0.1:8765`). Contiene:
+Il pannello è disponibile solo su questo computer (`http://127.0.0.1:8799`; se la porta è occupata da un altro programma usa la successiva libera e lo indica nella finestra nera). Contiene:
 
 - **Azioni**: scansiona ora, scansione di prova (senza Telegram), avvio
   continuo ogni N ore finché il pannello resta aperto, aggiornamento del programma da GitHub;

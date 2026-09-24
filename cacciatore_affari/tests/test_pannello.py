@@ -1,4 +1,5 @@
 import io
+import socket
 import json
 import threading
 import time
@@ -120,3 +121,19 @@ def test_aggiorna_programma_non_tocca_config(tmp_path):
     assert not (tmp_path / "AFFARI_MIEI.bat").exists()
     assert (tmp_path / "AFFARI_MIEI.bat.nuovo").read_text() == "x"  # installato dal .bat al riavvio
     assert not (tmp_path / ".venv" / "installato.ok").exists()
+
+
+def test_porta_occupata_viene_saltata(tmp_path):
+    altro = socket.socket()
+    altro.bind(("127.0.0.1", 0))
+    altro.listen()
+    occupata = altro.getsockname()[1]
+    try:
+        assert pannello.porta_occupata(occupata)
+        srv = pannello.crea_server(pannello.Controllore(tmp_path / "config.json"), occupata)
+        try:
+            assert srv.server_address[1] != occupata
+        finally:
+            srv.server_close()
+    finally:
+        altro.close()
