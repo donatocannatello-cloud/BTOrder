@@ -18,9 +18,9 @@ uniform vec2 uResolution;
 uniform vec2 uCenter;      // centro della mappa, coordinate locali del livello di base (limitato)
 uniform float uFrac;       // 0..1: quanto si e' dentro la transizione verso il livello successivo
 uniform float uLayerBase;  // indice assoluto (intero, anche negativo) del livello di base
-uniform int uMaxIter;      // budget di iterazioni, regolato dal quality manager
+uniform int uMaxIter;      // budget di dettaglio, regolato dal quality manager
 uniform float uTime;
-uniform float uBreath;     // lenta oscillazione: la mappa "respira" anche da ferma
+uniform float uBreath;     // lenta oscillazione: la scheda "respira" anche da ferma
 uniform vec2 uNucleusUv;   // posizione del nucleo attivo, in coordinate schermo
 uniform float uNucleusGlow;   // 0..1, vicinanza: quanto si sta per accordarlo
 uniform float uNucleusSolved; // 1 se gia' risolto
@@ -28,17 +28,27 @@ uniform float uNucleusBloom;  // 1..0, fioritura al momento della risoluzione
 
 out vec4 fragColor;
 
-// Mappe piane sovrapposte, non mondi sferici concentrici. Ogni livello e'
-// una mappa frattale piatta (insieme di Julia, campo escape-time) disegnata
-// a curve di livello, come una carta topografica. I livelli condividono un
-// unico sistema di coordinate 2D ma sono campionati a scale diverse:
+// Mappe piane sovrapposte, non mondi sferici concentrici -- non piu' pero'
+// insiemi di Julia: ogni livello e' ora un die di silicio visto al
+// microscopio, come una vera foto di un chip decapsulato. Il piano e'
+// diviso in blocchi (un floorplan), ognuno con la propria trama -- reticolo
+// dorato, array di via, bande argento di un banco di memoria, pad di
+// bonding -- scelta da una hash deterministica del blocco (vedi dieCell).
+// Piu' ottave della stessa griglia, a passi via via piu' fini (vedi
+// shadeLayer), danno alla scheda il dettaglio infinito che un frattale ha
+// di suo: e' un die dentro un die dentro un die. La logica di impilamento
+// fra livelli -- finestra K_MIN..K_MIN+NUM_LAYERS-1, dissolvenza incrociata,
+// ripiegamento a specchio, nucleo -- e' la stessa di prima: cambia solo
+// cosa viene disegnato per ogni livello, non come i livelli si susseguono
+// scendendo. I livelli condividono un unico sistema di coordinate 2D ma
+// sono campionati a scale diverse:
 //
 //   p_k = uCenter + offset(L) + uv * SCALE^(k - uFrac)
 //
-// La finestra va da k = K_MIN (-1) a k = K_MIN + NUM_LAYERS - 1 (+2):
-// il livello a -1 e' quello che si sta gia' superando, ingrandito e in
-// dissolvenza; 0 e 1 sono quelli a fuoco; +2 e' la mappa fine che si
-// intravede appena dal fondo. Scendendo, uFrac cresce e ogni livello
+// La finestra va da k = K_MIN (-3) a k = K_MIN + NUM_LAYERS - 1 (+1): il
+// livello a -3 e' quello che si sta gia' superando, ingrandito e in
+// dissolvenza; -2, -1 e 0 sono a piena intensita'; +1 e' la scheda fine che
+// si intravede appena dal fondo. Scendendo, uFrac cresce e ogni livello
 // scala di un gradino. Poiche' SCALE^(k-1) valutato a frac=1 coincide
 // esattamente con SCALE^(k-1) valutato a frac=0 dopo lo scambio, l'indice
 // puo' avanzare (o arretrare) all'infinito senza nessuno scatto e senza
@@ -46,36 +56,22 @@ out vec4 fragColor;
 // pixel: il costo resta piatto a qualunque profondita'.
 const float SCALE = 2.2;
 const int NUM_LAYERS = 5;
-
-// La finestra e' spostata tutta verso il *vicino*: k va da -3 a +1.
-//
-// Non basta tenere acceso piu' a lungo il livello che si sta superando:
-// conta quali livelli portano il peso. Con la finestra a [-1,+2] i due a
-// piena intensita' restavano 0 e 1, la cui scala oscilla fra 0.45 e 2.2 --
-// il frattale dominante non diventava mai grande, e quello a -1, pur
-// arrivando a 4.8x, era in dissolvenza e contribuiva poco. Con [-3,+1] i
-// livelli a piena intensita' sono -2, -1 e 0, e l'uscente arriva a
-// SCALE^4 = 23x prima di spegnersi: quasi cinque volte l'ingrandimento
-// di prima, a parita' di costo grazie all'hatch piu' rado.
 const int K_MIN = -3;
 
 // Resa del tratto. Il disegno e' interamente auto-illuminato: non c'e'
-// nessuna luce nella scena, il colore *e'* l'emissione. Quindi "quanto
-// brilla" non e' un termine di illuminazione da aggiungere, e'
-// semplicemente l'esposizione applicata prima del tonemap.
+// nessuna luce nella scena, il colore *e'* l'emissione.
 const float EXPOSURE = 1.15;
-const float LINE_GAIN = 2.6;    // quanto marcato e' il tratto
-const float SATURATION = 1.5;   // applicata DOPO il tonemap, vedi main()
-const float WASH = 0.05;        // alone di costa: solo un accenno, vedi shadeLayer
-const float FILL = 0.03;        // campitura dell'interno dell'insieme
+const float LINE_GAIN = 2.1;    // quanto marcato e' il tratto
+const float SATURATION = 1.35;  // applicata DOPO il tonemap, vedi main()
 
-// Il mondo non ha bordi: oltre il riquadro fondamentale [-H, H] la mappa
+// Il mondo non ha bordi: oltre il riquadro fondamentale [-H, H] la scheda
 // prosegue *riflessa*, all'infinito, in tutte le direzioni. Fuori dal suo
-// raggio di interesse un insieme di Julia degenera in vuoto uniforme,
-// quindi scorrere davvero via darebbe deserto; un wrap col modulo darebbe
-// invece una cucitura netta ad ogni giro. Il ripiegamento a specchio e' la
-// terza via: e' continuo (nessun salto di valore sul bordo), quindi il
-// disegno prosegue senza strappi, come in una sala degli specchi.
+// raggio di interesse una griglia di tracciati degenera in ripetizione
+// vuota, quindi scorrere davvero via darebbe deserto; un wrap col modulo
+// darebbe invece una cucitura netta ad ogni giro. Il ripiegamento a
+// specchio e' la terza via: e' continuo (nessun salto di valore sul
+// bordo), quindi il disegno prosegue senza strappi, come in una sala degli
+// specchi.
 const float MIRROR_HALF = 1.5;
 
 // Onda triangolare: identita' su [-H, H], poi riflette ad ogni bordo.
@@ -100,22 +96,18 @@ float hash11(float p) {
   return fract(p);
 }
 
-// Parametro dell'insieme di Julia del livello: preso su una corona di
-// raggio ~0.6-0.8, dove gli insiemi sono ancora connessi ma gia' molto
-// frastagliati -- ogni livello e' quindi una mappa visibilmente diversa.
-// Il livello 0 e' fissato, cosi' il punto di partenza non cambia mai.
-vec2 layerJuliaC(float L) {
-  if (abs(L) < 0.5) return vec2(-0.7269, 0.1889);
-  float a = hash11(L * 12.9898 + 3.1) * 6.2832;
-  float r = 0.60 + hash11(L * 7.31 + 9.7) * 0.19;
-  return vec2(cos(a), sin(a)) * r;
+// Seme, rotazione e scostamento della scheda di ogni livello -- stessa
+// idea di prima (un frattale diverso per livello), solo che ora
+// parametrizzano una griglia di tracciati invece della costante di un
+// insieme di Julia. Il livello 0 e' fissato, cosi' il punto di partenza
+// non cambia mai.
+float layerSeed(float L) {
+  return abs(L) < 0.5 ? 0.0 : hash11(L * 12.9898 + 3.1) * 1000.0;
 }
-
 float layerHue(float L) {
   return abs(L) < 0.5 ? 0.0 : hash11(L * 5.13 + 1.7) * 6.2832;
 }
-
-// Rotazione fissa (non nel tempo: una mappa che ruota disorienta) e
+// Rotazione fissa (non nel tempo: una scheda che ruota disorienta) e
 // scostamento del centro, cosi' i livelli non risultano tutti allineati.
 float layerRot(float L) {
   return abs(L) < 0.5 ? 0.0 : hash11(L * 3.77 + 5.9) * 6.2832;
@@ -124,71 +116,84 @@ vec2 layerOffset(float L) {
   if (abs(L) < 0.5) return vec2(0.0);
   return (vec2(hash11(L * 9.41 + 2.3), hash11(L * 6.17 + 8.5)) - 0.5) * 0.5;
 }
-
-// Campo escape-time dell'insieme di Julia del livello: conteggio di fuga
-// "smooth" (continuo, non a gradini), che e' cio' che rende possibile
-// tracciarci sopra curve di livello pulite. 'inside' segnala i punti che
-// non fuggono mai (l'interno dell'insieme).
-float layerField(vec2 p, float L, out bool inside) {
-  vec2 jc = layerJuliaC(L);
-  // Respiro lento: il parametro deriva appena, cosi' la mappa e' viva
-  // anche stando fermi, senza mai stravolgersi.
-  jc += vec2(cos(uTime * 0.05 + L), sin(uTime * 0.041 + L)) * (0.005 + uBreath * 0.003);
-
-  float a = layerRot(L);
-  float ca = cos(a), sa = sin(a);
-  vec2 z = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
-
-  float n = 0.0;
-  for (int i = 0; i < uMaxIter; i++) {
-    z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + jc;
-    float r2 = dot(z, z);
-    if (r2 > 256.0) {
-      inside = false;
-      return n - log2(max(0.5 * log2(r2), 1e-6));
-    }
-    n += 1.0;
-  }
-  inside = true;
-  return n;
+// Passo di base della griglia (ottava piu' grossa, vedi shadeLayer): varia
+// appena per livello, cosi' ogni scheda ha una densita' leggermente
+// diversa dalle altre invece di essere tutte identiche.
+float layerPitch(float L) {
+  float j = abs(L) < 0.5 ? 0.5 : hash11(L * 8.21 + 4.4);
+  return 0.30 * (0.8 + 0.4 * j);
 }
 
-// Una curva di livello del campo, antialiasata in spazio schermo con
-// fwidth() e sfumata via automaticamente quando il suo passo diventa
-// sub-pixel: le linee piu' fini si materializzano solo quando la scala e'
-// abbastanza grande da poterle davvero risolvere, che e' esattamente il
-// comportamento "il dettaglio aumenta scendendo" applicato al tratto.
-float contour(float field, float freq) {
-  float v = field * freq;
-  float w = fwidth(v) + 1e-5;
-  float fade = clamp(1.0 - w * 1.1, 0.0, 1.0);
-  float g = abs(fract(v - 0.5) - 0.5) / w;
-  return (1.0 - clamp(g, 0.0, 1.0)) * fade;
+// Tratto sottile antialiasato attorno a una distanza con segno: la
+// larghezza e' in spazio schermo tramite fwidth(), quindi la linea non
+// sparisce mai sotto il pixel. L'antialiasing e' pero' limitato a non piu'
+// di ~1.4 mezze-larghezze: senza questo tetto, appena un'ottava della
+// griglia di tracciati si avvicina alla soglia in cui sparisce (vedi
+// shadeLayer), fwidth() cresce piu' in fretta della larghezza del tratto e
+// la linea si scioglie in una sfumatura lattiginosa invece di restare
+// netta finche' non e' il momento di sparire del tutto.
+float stroke(float d, float halfWidth) {
+  float aa = min(fwidth(d), halfWidth * 1.4) + 1e-5;
+  return clamp(1.0 - (abs(d) - halfWidth) / aa, 0.0, 1.0);
 }
-
 // Rotazione di un punto attorno all'origine -- usata dal mirino del
-// nucleo, non dalle mappe (quelle usano layerRot, fissa nel tempo).
+// nucleo, non dalle schede (quelle usano layerRot, fissa nel tempo).
 vec2 rotate(vec2 p, float a) {
   float c = cos(a), s = sin(a);
   return vec2(p.x * c - p.y * s, p.x * s + p.y * c);
 }
-
 // Distanza (Chebyshev) dal perimetro di un rombo di "raggio" r: zero sul
-// bordo, negativa dentro. E' un quadrato ruotato di 45 gradi, la stessa
-// famiglia di forma degli hash esagonali/quadrati che il frattale non usa
-// mai per caso -- qui serve a marcare il nucleo con una geometria netta
-// invece di un alone morbido.
+// bordo, negativa dentro. Un quadrato ruotato di 45 gradi -- serve a
+// marcare il nucleo con una geometria netta invece di un alone morbido.
 float sdDiamond(vec2 p, float r) {
   return abs(p.x) + abs(p.y) - r;
 }
 
-// Tratto sottile antialiasato attorno a una distanza con segno, stesso
-// approccio di contour(): la larghezza e' in spazio schermo tramite
-// fwidth(), quindi la linea non sparisce mai sotto il pixel ne' diventa
-// un bordo sfocato a caso.
-float stroke(float d, float halfWidth) {
-  float aa = fwidth(d) + 1e-5;
-  return clamp(1.0 - (abs(d) - halfWidth) / aa, 0.0, 1.0);
+// Numero di celle per lato di un "blocco" del floorplan: piu' celle
+// condividono lo stesso tipo di trama, cosi' il disegno si legge come un
+// die di silicio -- zone rettangolari di macro-blocchi diversi (reticolo,
+// via, bande di memoria, pad di bonding) -- e non come rumore cella per
+// cella.
+const float BLOCK_CELLS = 5.0;
+
+// Una cella del floorplan: la sua trama dipende dal *blocco* a cui
+// appartiene (un gruppo di BLOCK_CELLS x BLOCK_CELLS celle, con lo stesso
+// tipo), la variazione minuta (quale cella e' vuota, dove cade un pad)
+// dalla cella stessa. Ritorna (copertura 0..1 gia' antialiasata, indice di
+// colore: 0 oro, 1 argento).
+vec2 dieCell(vec2 lp, vec2 id, float seed) {
+  vec2 blockId = floor(id / BLOCK_CELLS);
+  float rt = hash11(blockId.x * 41.9 + blockId.y * 19.7 + seed);
+  float cellR = hash11(id.x * 57.13 + id.y * 131.71 + seed + 91.0);
+
+  if (rt < 0.24) {
+    // Reticolo: un fondo dorato diffuso diviso da un fitto disegno di
+    // celle -- la trama piu' presente della foto di riferimento.
+    float borderDist = min(abs(abs(lp.x) - 0.5), abs(abs(lp.y) - 0.5));
+    return vec2(stroke(borderDist, 0.05) * 0.75 + 0.22, 0.0);
+  } else if (rt < 0.46) {
+    // Via: pad pieni e fitti, come l'array di piccoli quadrati dorati.
+    float cov = cellR < 0.78 ? stroke(length(lp), 0.16) : 0.0;
+    return vec2(cov, 0.0);
+  } else if (rt < 0.64) {
+    // Bande verticali: la trama a righe di un array di memoria, in
+    // argento anziche' oro per staccare dal resto.
+    float cov = cellR < 0.88 ? stroke(lp.x, 0.11) : 0.0;
+    return vec2(cov, 1.0);
+  } else if (rt < 0.82) {
+    float cov = cellR < 0.88 ? stroke(lp.y, 0.11) : 0.0;
+    return vec2(cov, 1.0);
+  } else if (rt < 0.93) {
+    // Quiete: quasi vuota, un accenno ogni tanto -- senza un minimo di
+    // respiro tutta la scheda si legge come rumore, non come circuito.
+    float cov = cellR < 0.10 ? stroke(length(lp), 0.10) : 0.0;
+    return vec2(cov, 0.0);
+  } else {
+    // Pad di bonding: anelli radi e piu' grandi, come i punti di
+    // saldatura in fila sul bordo della foto.
+    float cov = cellR < 0.32 ? stroke(length(lp) - 0.30, 0.05) : 0.0;
+    return vec2(cov, 1.0);
+  }
 }
 
 // Peso di ciascun livello nella dissolvenza incrociata. Il livello uscente
@@ -203,45 +208,79 @@ float layerWeight(int k, float frac) {
   return 1.0;
 }
 
+// Una singola griglia di tracciati a passo fisso, per quanto fitta, non ha
+// il dettaglio infinito di un frattale: zoomando dentro un solo livello si
+// finirebbe presto a vedere solo il bordo enorme e sfocato di una cella
+// sola. La soluzione e' la stessa gia' usata per le curve di livello --
+// piu' ottave della stessa griglia a passi via via piu' fini, ciascuna
+// sfumata via con fwidth() quando il suo passo diventa sub-pixel -- cosi'
+// c'e' sempre un'ottava a fuoco a qualunque profondita' di zoom, non solo
+// al cambio di livello. E' questo, non il pattern in se', a rendere la
+// "discesa" ancora infinita.
+const int OCTAVES = 4;
+const float OCTAVE_RATIO = 3.1; // non una potenza di 2: evita l'allineamento (moire) fra ottave
+
 vec3 shadeLayer(vec2 p, float L, int depth) {
-  bool inside;
-  float field = layerField(p, L, inside);
+  float seed = layerSeed(L);
+  // Deriva lentissima della rotazione: la scheda e' viva anche da ferma,
+  // ma di un soffio -- non deve mai leggersi come un disorientamento.
+  float a = layerRot(L) + uBreath * 0.01;
+  float ca = cos(a), sa = sin(a);
+  vec2 rp = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
 
-  float hue = layerHue(L);
-  vec3 tint = 0.5 + 0.5 * cos(uTime * 0.02 + hue + vec3(0.0, 2.1, 4.2));
-  vec3 lineColor = mix(vec3(0.40, 0.66, 1.0), vec3(0.82, 0.40, 1.0), tint.x);
-  lineColor = mix(lineColor, lineColor * tint * 1.25, 0.35);
+  // Palette da die di silicio al microscopio: oro/rame caldo per reticolo
+  // e via, argento freddo per le bande di memoria. Un lieve scarto per
+  // livello (via layerHue) li tiene comunque distinguibili fra loro, senza
+  // uscire mai dalla famiglia oro/argento.
+  float warmth = layerHue(L) / 6.2832;
+  vec3 gold = mix(vec3(1.0, 0.72, 0.30), vec3(1.0, 0.56, 0.22), warmth * 0.5);
+  vec3 silver = mix(vec3(0.80, 0.83, 0.88), vec3(0.70, 0.78, 0.82), warmth);
 
-  // Interno dell'insieme: campitura appena percettibile, come la terraferma
-  // su una carta. Volutamente bassissima -- la correzione gamma finale
-  // amplifica molto anche valori lineari piccoli.
-  if (inside) return lineColor * FILL;
+  // Sotto un certo budget di dettaglio (dispositivo sotto carico) si
+  // rinuncia alle ottave piu' fini prima: sono anche le piu' costose,
+  // dato che coprono piu' celle per pixel.
+  int octaves = uMaxIter > 105 ? OCTAVES : uMaxIter > 80 ? 3 : 2;
 
-  // Curve di livello multi-ottava: la trama topografica della mappa.
-  float lines = 0.0;
-  float freq = 0.9;
-  for (int o = 0; o < 3; o++) {
-    lines = max(lines, contour(field, freq) * (1.0 - float(o) * 0.10));
-    freq *= 2.0;
+  float pitch = layerPitch(L);
+  vec3 color = vec3(0.0);
+  for (int o = 0; o < OCTAVES; o++) {
+    if (o >= octaves) break;
+    // Scostamento diverso per ogni ottava, cosi' non condividono la stessa
+    // fase e non si sovrappongono sempre negli stessi punti.
+    vec2 gp = rp + vec2(0.61, 0.27) * float(o) * 0.41;
+    vec2 q = gp / pitch;
+
+    // Quando una cella copre meno di un pixel la griglia non e' piu'
+    // risolvibile: sparisce dolcemente invece di aliasare a scatti.
+    float cellsPerPixel = fwidth(q.x) + fwidth(q.y);
+    float fadeOut = clamp(1.0 - cellsPerPixel * 0.9, 0.0, 1.0);
+    // ...ma un'ottava riempita (reticolo, via, pad) sparisce anche
+    // nell'altro senso: zoomando *dentro* una sola sua cella, senza che
+    // nessun bordo sia piu' in vista, altrimenti resterebbe una singola
+    // campitura piena a schermo intero -- che il tonemap scioglie in una
+    // macchia chiara. Il testimone passa all'ottava piu' fine, che a
+    // quella profondita' mostra ancora molte celle.
+    float fadeIn = smoothstep(0.0, 0.05, cellsPerPixel);
+    float fade = fadeOut * fadeIn;
+    if (fade > 0.004) {
+      vec2 id = floor(q);
+      vec2 lp = q - id - 0.5;
+      vec2 res = dieCell(lp, id, seed + float(o) * 733.1);
+
+      // Leggero sfarfallio per cella, non un impulso che viaggia: i pad e
+      // le vie di un die non "scorrono" come un segnale, respirano appena.
+      float phase = hash11(id.x * 13.1 + id.y * 7.7 + seed + float(o) * 733.1 + 53.0) * 6.2832;
+      float pulse = 0.85 + 0.15 * sin(uTime * (0.5 + float(o) * 0.08) + phase);
+
+      vec3 baseColor = res.y < 0.5 ? gold : silver;
+      // Le ottave piu' fini pesano meno: sono la trama di dettaglio, non
+      // il segno principale.
+      float octaveFall = 1.0 / (1.0 + float(o) * 0.6);
+      color += baseColor * res.x * fade * pulse * LINE_GAIN * octaveFall;
+    }
+
+    pitch /= OCTAVE_RATIO;
   }
-
-  // Costa: dove la fuga e' lenta si e' vicini al bordo dell'insieme. E'
-  // li' che vive tutto il dettaglio frattale, quindi il tratto si
-  // infittisce verso di esso invece di restare uniforme anche nelle zone
-  // piatte al largo.
-  float nearSet = smoothstep(0.06, 0.55, field / float(uMaxIter));
-  float shore = smoothstep(0.55, 0.95, field / float(uMaxIter));
-
-  // Il tratto e' l'unica cosa che deve saltare all'occhio, quindi prende
-  // tutto il guadagno...
-  vec3 color = lineColor * lines * (0.7 + nearSet * 1.3) * LINE_GAIN;
-
-  // ...mentre l'alone di costa resta un accenno. E' la parte piatta del
-  // disegno: alzarla non rende il wireframe piu' visibile, lo rende meno,
-  // perche' schiarisce il fondo *fra* le linee e ne divora il contrasto.
-  // La correzione gamma finale amplifica molto i valori bassi (0.05
-  // lineare diventa gia' ~0.25 a schermo), quindi qui basta pochissimo.
-  color += lineColor * shore * WASH;
 
   // I livelli piu' profondi (ancora "sotto") leggono un po' piu' tenui,
   // cosi' la pila si percepisce come sovrapposizione e non come un unico
@@ -268,13 +307,15 @@ void main() {
   // --- Nucleo ----------------------------------------------------------
   // Si disegna solo quando si e' gia' vicini: la ricerca la guida
   // l'orecchio, l'occhio arriva solo a confermare. Un mirino a tratto
-  // sottile, nello stesso linguaggio geometrico delle curve di livello del
-  // resto della mappa -- non un alone morbido, che si perdeva nel viola di
-  // fondo e non leggeva ne' come "vicino" ne' come "qualcosa".
+  // sottile, nello stesso linguaggio geometrico dei tracciati del resto
+  // della scheda -- non un alone morbido, che si perdeva nel fondo e non
+  // leggeva ne' come "vicino" ne' come "qualcosa". Ciano elettrico, non
+  // ambra: sul die di silicio, tutto oro e argento caldi, e' l'unico modo
+  // per non confondersi con la trama circostante.
   if (uNucleusGlow > 0.002 || uNucleusSolved > 0.5) {
     vec2 rel = uv - uNucleusUv;
     float r = length(rel);
-    vec3 tone = vec3(1.0, 0.82, 0.4);
+    vec3 tone = vec3(0.25, 0.85, 1.0);
 
     // Rombo che ruota lentamente e si stringe avvicinandosi, da meta'
     // schermo a un punto: la lettura visiva dello stesso avvicinamento che

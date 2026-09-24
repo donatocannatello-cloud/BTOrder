@@ -20,13 +20,16 @@ bundle minuscolo (~7 KB JS gzip) e riduce l'overhead nella WebView Android.
 **Mappe piane sovrapposte, non mondi sferici concentrici.** L'impianto è
 quello di una carta topografica navigata come Google Maps: il piano si
 guarda sempre dall'alto, ci si sposta scorrendo (pan) e si scende/sale di
-scala (zoom). Ogni livello è una mappa frattale piatta — un insieme di
-Julia disegnato per curve di livello sul suo campo escape-time "smooth"
-(conteggio di fuga continuo, non a gradini, che è ciò che permette isolinee
-pulite). Il parametro di Julia, la tinta, la rotazione e lo scostamento di
-ciascun livello derivano da una hash del suo indice assoluto: ogni mappa è
-visibilmente diversa dalle altre, ma il livello 0 è fissato così il punto
-di partenza non cambia mai.
+scala (zoom). Ogni livello era in origine una mappa frattale piatta — un
+insieme di Julia disegnato per curve di livello — ma dalla release
+"circuito integrato" ogni livello è invece un **die di silicio visto al
+microscopio**, come una vera foto di un chip decapsulato: un floorplan di
+blocchi rettangolari, ciascuno con la propria trama (reticolo dorato, array
+di via, bande argento di un banco di memoria, pad di bonding), generato
+proceduralmente in `dieCell()`. Il seme, la tinta, la rotazione e lo
+scostamento di ciascun livello derivano da una hash del suo indice
+assoluto: ogni scheda è visibilmente diversa dalle altre, ma il livello 0 è
+fissato così il punto di partenza non cambia mai.
 
 I livelli condividono un unico sistema di coordinate 2D ma sono
 campionati a scale diverse:
@@ -56,19 +59,17 @@ pixel: il costo resta piatto a qualunque profondità.
 > diventano `−2`, `−1` e `0`, e l'uscente arriva a `SCALE⁴` = **23×**
 > prima di spegnersi.
 >
-> Il costo è rientrato **abbassando la densità del tratto** (`hatch`) da 5
-> ottave a 3 — le due più fini erano quasi sempre sotto la soglia di
-> risoluzione, dove `contour()` le sfuma via da sola, quindi rendevano
-> poco ma si pagavano su ogni livello — e il tetto delle iterazioni in
-> `quality.ts` da 220 a 130. Ciò che conta è il prodotto livelli ×
-> iterazioni: 5×130 costa **332 ms** contro i **360 ms** di 3×220, quindi
-> l'ingrandimento è dieci volte maggiore *e* il rendering più leggero di
-> prima.
->
-> Le misure vanno prese con `readPixels` a forzare la sincronizzazione con
-> la GPU: una misura basata su `requestAnimationFrame` è quantizzata dal
-> vsync (33,3 e 50,0 ms sono esattamente 30 e 20 fps) e faceva sembrare
-> +12% un +50%.
+> Questa finestra a 5 livelli risale a quando ogni livello costava un ciclo
+> di iterazioni escape-time (fino a 130 per pixel, regolate da
+> `quality.ts`): il costo era il prodotto livelli × iterazioni, e le misure
+> andavano prese con `readPixels` a forzare la sincronizzazione con la GPU
+> (una misura basata su `requestAnimationFrame` è quantizzata dal vsync e
+> falsa il confronto). Da quando ogni livello è un die di silicio
+> procedurale (`dieCell()`, hash O(1) per cella, niente iterazione) il
+> costo per livello è crollato di un ordine di grandezza, ma la finestra a
+> 5 resta: è quella che dà la dissolvenza incrociata più morbida fra un
+> livello e il successivo, e ormai costa così poco da non essere più il
+> collo di bottiglia.
 
 > **Perché lo zoom è davvero infinito.** Poiché `SCALE^(1-1) == SCALE^0`,
 > il fattore di scala del livello entrante coincide *esattamente* con
@@ -87,15 +88,16 @@ pixel: il costo resta piatto a qualunque profondità.
 partenza (un telefono a 3x non deve renderizzare a 3x: il costo scala con
 il numero di pixel), poi un `QualityManager` misura il tempo-frame reale
 ogni ~900ms e regola `renderScale` (risoluzione interna del canvas,
-upscalata via CSS) e `maxIter` (budget di iterazioni escape-time per
-livello): se il framerate scende sotto 30fps degrada prima le iterazioni
-poi la risoluzione (il taglio più visibile su un disegno a linee), se sta
-comodo sopra 55fps risale. Cambi piccoli e non troppo frequenti per evitare
-"pompaggi" visibili. Il render loop si ferma del tutto quando la pagina è
-in background (`visibilitychange`). Le mappe piane costano molto meno del
-raymarching 3D precedente — una sola valutazione per livello per pixel,
-nessun passo lungo un raggio — quindi si parte da una qualità
-sensibilmente più alta a parità di dispositivo.
+upscalata via CSS) e `maxIter` (in origine un budget di iterazioni
+escape-time; da quando ogni livello è un die procedurale governa invece
+quante **ottave** della griglia di celle si valutano, vedi "Dettaglio
+dinamico" più sotto): se il framerate scende sotto 30fps degrada prima le
+ottave poi la risoluzione, se sta comodo sopra 55fps risale. Cambi piccoli
+e non troppo frequenti per evitare "pompaggi" visibili. Il render loop si
+ferma del tutto quando la pagina è in background (`visibilitychange`). Le
+mappe piane costano molto meno del raymarching 3D precedente — una sola
+valutazione per livello per pixel, nessun passo lungo un raggio — quindi
+si parte da una qualità sensibilmente più alta a parità di dispositivo.
 
 **Camera** (`src/camera.ts`): non c'è più nessuna camera 3D. `MapCamera`
 tiene un centro 2D e un `zoomLevel` continuo, entrambi **illimitati**: la
@@ -113,9 +115,10 @@ due gesti diversi e ci si aspetta due comportamenti diversi.
 
 **Mondo senza bordi, per riflessione**: non c'è nessun limite allo
 scorrimento, in nessuna direzione. Il mondo non è però infinito "per
-davvero": fuori dal suo raggio di interesse un insieme di Julia degenera in
-vuoto uniforme, quindi lasciar scorrere via darebbe deserto, e un wrap col
-modulo darebbe una cucitura netta e visibile ad ogni giro. La terza via è
+davvero": fuori dal suo riquadro fondamentale il floorplan del die
+ricomincerebbe a ripetersi identico, quindi lasciar scorrere via darebbe
+una cucitura visibile ad ogni giro se fatta con un semplice wrap col
+modulo. La terza via è
 un **ripiegamento a specchio** (`mirrorFold` nello shader): un'onda
 triangolare che è l'identità sul riquadro fondamentale `[-H, H]` e poi
 riflette ad ogni bordo, con periodo `4H`. Essendo continua (nessun salto di
@@ -146,37 +149,48 @@ desktop: `WASD` = scorrimento, `Space`/`Shift` = scendi/sali di scala,
 trascinamento col mouse o rotellina, `Ctrl` per accelerare — utili solo per
 un test rapido da laptop durante lo sviluppo.
 
-**Dettaglio dinamico**: le curve di livello sono multi-ottava, ciascuna
-antialiasata in spazio schermo con `fwidth()` e sfumata via automaticamente
-quando il suo passo diventerebbe sub-pixel. Le linee più fini si
-materializzano quindi solo quando la scala è abbastanza grande da poterle
-davvero risolvere — è il comportamento "il dettaglio aumenta scendendo"
-applicato al tratto, oltre che alla comparsa di mappe sempre nuove. Le
-isolinee si infittiscono verso il bordo dell'insieme, dove vive tutto il
-dettaglio frattale, invece di restare uniformi anche nelle zone piatte al
-largo.
+**Dettaglio dinamico — un die dentro un die dentro un die**: una singola
+griglia di celle a passo fisso, per quanto fitta, non ha il dettaglio
+infinito di un frattale — zoomando dentro una sola cella si finirebbe
+presto a vedere solo il suo bordo, enorme e vuoto. `shadeLayer()` risolve
+lo stesso problema che risolvevano le curve di livello multi-ottava del
+frattale, applicato a `dieCell()`: fino a 4 ottave (`OCTAVES`) della stessa
+griglia, a passi via via più fini di un fattore `OCTAVE_RATIO` (3.1, non
+una potenza di 2, per non allineare mai due ottave nello stesso punto).
+Ciascuna ottava sfuma via con `fwidth()` in **entrambe** le direzioni: sia
+quando il suo passo diventerebbe sub-pixel (troppo lontano, aliasing), sia
+quando si è zoomati così a fondo dentro una sua singola cella che nessun
+bordo è più in vista (troppo vicino: senza questa seconda sfumatura una
+cella piena riempirebbe lo schermo con una campitura piatta, che il
+tonemap scioglie in una macchia chiara). C'è quindi sempre un'ottava a
+fuoco a qualunque profondità di zoom, non solo al cambio di livello — è
+questo, non il pattern in sé, a rendere la discesa ancora infinita.
+`uMaxIter` (ereditato dal nome della vecchia epoca escape-time) ora limita
+quante ottave si valutano sotto carico: 4 sopra 105, 3 sopra 80, 2 sotto.
 
-**Livello 2 — evoluzione temporale** (in `shaders/fractalMap.ts`): il
-parametro di Julia di *ogni* livello deriva lentamente nel tempo
-(oscillazione sinusoidale calcolata in `main.ts`, periodo ~125s, sommata
-allo scostamento per-livello, non un valore assoluto): la mappa è viva
-anche stando fermi, senza mai stravolgersi. La palette ha una deriva
-cromatica lenta (cosine palette). La rotazione per-livello è invece
-**fissa nel tempo**, non animata: una mappa che ruota da sola disorienta.
+**Livello 2 — evoluzione temporale** (in `shaders/fractalMap.ts`): la
+rotazione di *ogni* livello deriva lentissimamente nel tempo (`uBreath`,
+oscillazione sinusoidale calcolata in `main.ts`, periodo ~125s): la scheda
+è viva anche stando ferma, ma di un soffio — non deve mai leggersi come un
+disorientamento. Ogni cella del reticolo/via ha in più un lieve sfarfallio
+di fase propria, il "segnale di vita" del circuito.
 
-**Stile visivo — carta topografica, non superficie illuminata**: lo shading
-non è Lambertiano/fotorealistico (era stato segnalato come "troppo
-simulato"), ma un disegno a linee. Le isolinee sono tracciate direttamente
-sul campo escape-time — un campo scalare liscio e continuo, che è ciò che
-permette curve pulite invece dell'effetto "rumore/statico" — multi-ottava e
-antialiasate via `fwidth()`. L'interno dell'insieme è una campitura appena
-percettibile (`FILL`, 3% del colore linea), come la terraferma su una
-carta; volutamente bassissima, perché la correzione gamma finale amplifica
-molto anche valori lineari piccoli (0.05 lineare diventa ~0.24 a schermo, e
-appiattisce tutto il disegno in una tinta unita).
+**Stile visivo — die di silicio al microscopio, non superficie
+illuminata**: lo shading non è Lambertiano/fotorealistico, ma un disegno a
+tratto netto su nero, nella stessa famiglia (auto-illuminato, nessuna luce
+in scena) di quando erano curve di livello. Ogni cella del floorplan
+(`dieCell()`) sceglie una fra cinque trame — reticolo continuo con un
+fondo dorato diffuso, array fitto di via, bande verticali o orizzontali
+color argento (l'array di memoria), quiete quasi vuota, pad di bonding radi
+e più grandi — dalla hash del *blocco* a cui appartiene (`BLOCK_CELLS`
+celle per lato), così il disegno si legge come zone rettangolari di
+macro-blocchi diversi e non come rumore cella per cella. Palette oro/rame
+per reticolo e via, argento freddo per le bande; il nucleo (vedi "Livello
+4" più sotto) è invece **ciano elettrico**, l'unico colore freddo saturo in
+scena, apposta per non confondersi mai con la trama circostante.
 
-Quattro costanti in cima allo shader governano la resa: `EXPOSURE`,
-`LINE_GAIN`, `SATURATION`, `WASH`. Due scelte non ovvie:
+Tre costanti in cima allo shader governano la resa: `EXPOSURE`,
+`LINE_GAIN`, `SATURATION`. Una scelta non ovvia resta valida da prima:
 
 - **La saturazione si applica *dopo* il tonemap, non prima.** Il tonemap di
   Reinhard (`c/(1+c)`) comprime ogni canale verso 1: più si alza
@@ -184,16 +198,6 @@ Quattro costanti in cima allo shader governano la resa: `EXPOSURE`,
   sbianca. Saturare a monte verrebbe quindi in gran parte annullato proprio
   dove il tratto è più luminoso, cioè dove il colore conta. In spazio
   display la tinta si recupera senza rinunciare alla luminosità.
-- **Alzare l'alone di costa (`WASH`) rende il wireframe *meno* visibile,
-  non più.** È la parte piatta del disegno: schiarisce il fondo *fra* le
-  linee e ne divora il contrasto. Un primo tentativo che alzava
-  l'esposizione globale ha prodotto esattamente questo, un lavaggio
-  magenta uniforme. Il guadagno va tutto sul tratto (`LINE_GAIN`), e
-  l'alone tenuto a un accenno.
-
-> Misurato su ritagli confrontabili, separando il fondo (mediana) dal
-> tratto (95° percentile): **tratto 1,68× più luminoso**, **contrasto
-> tratto/fondo 1,22×**, **saturazione 1,50×**.
 
 **Identità e schermata iniziale**: il gioco si chiama **Discesa
 Frattale**. L'ingresso mostra il titolo e un pulsante di avvio sopra la
