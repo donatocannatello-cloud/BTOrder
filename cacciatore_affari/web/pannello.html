@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cacciatore Affari</title>
+<style>
+:root {
+  --bg: #f4f5f7; --panel: #fff; --text: #1d2330; --muted: #667085; --border: #e2e5ea;
+  --accent: #2f6fdf; --accent-text: #fff; --ok: #1a7f4b; --warn: #b7791f; --err: #c0392b;
+  --soft: #eef3fc; --shadow: 0 1px 2px rgba(16,24,40,.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151b; --panel: #1b1f27; --text: #e6e9ef; --muted: #98a2b3; --border: #2c323d;
+    --accent: #6ea0ff; --accent-text: #0d1320; --ok: #3fbf7f; --warn: #e0a846; --err: #ff6b5b;
+    --soft: #1f2837; --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+       font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { background: var(--panel); border-bottom: 1px solid var(--border); padding: 14px 20px;
+         display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+h1 { font-size: 20px; margin: 0; }
+.stato { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 999px;
+         background: var(--soft); font-size: 14px; }
+.stato .pallino { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
+.stato.lavora .pallino { background: var(--warn); animation: pulsa 1s infinite alternate; }
+.stato.errore .pallino { background: var(--err); }
+@keyframes pulsa { to { opacity: .3; } }
+.spazio { flex: 1; }
+.azioni { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 20px; align-items: stretch; }
+.azione { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
+          box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px; min-width: 200px; flex: 1; }
+.azione h3 { margin: 0; font-size: 14px; }
+.azione p { margin: 0; color: var(--muted); font-size: 13px; flex: 1; }
+button { font: inherit; border-radius: 8px; border: 1px solid var(--border); background: var(--panel);
+         color: var(--text); padding: 8px 14px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.primario { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+button.pericolo { color: var(--err); }
+.riga { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.riepilogo { padding: 0 20px 6px; color: var(--muted); font-size: 14px; }
+nav { display: flex; gap: 4px; padding: 0 20px; border-bottom: 1px solid var(--border); }
+nav button { border: none; border-bottom: 3px solid transparent; border-radius: 0; background: none;
+             padding: 10px 14px; color: var(--muted); }
+nav button.attivo { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+section.scheda { display: none; padding: 16px 20px 90px; }
+section.scheda.attivo { display: block; }
+#risultati iframe { width: 100%; height: calc(100vh - 290px); min-height: 480px; border: 1px solid var(--border);
+                    border-radius: 12px; background: var(--panel); }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+        box-shadow: var(--shadow); margin-bottom: 14px; max-width: 980px; }
+.card h2 { font-size: 16px; margin: 0 0 4px; }
+.card > p.aiuto { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+.griglia { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px 16px; }
+label.campo { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+label.campo span.nota { font-size: 12px; }
+input[type=text], input[type=number], input[type=password], textarea, select {
+  font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 9px; width: 100%; }
+textarea { min-height: 70px; resize: vertical; }
+input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.spunte { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.spunte label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.categoria { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-top: 10px; }
+.categoria .testa { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.categoria .testa strong { text-transform: capitalize; font-size: 15px; }
+.categoria.spenta .corpo { opacity: .45; }
+.interruttore { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--muted); }
+.cursore { display: flex; align-items: center; gap: 10px; }
+.cursore input { flex: 1; }
+.cursore output { min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
+details.card summary { cursor: pointer; font-weight: 600; }
+details.card[open] summary { margin-bottom: 12px; }
+.barra-salva { position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel); border-top: 1px solid var(--border);
+               padding: 10px 20px; display: none; gap: 12px; align-items: center; z-index: 5; }
+.barra-salva.visibile { display: flex; }
+.barra-salva .msg { color: var(--warn); }
+#registro pre { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px;
+                height: calc(100vh - 300px); min-height: 360px; overflow: auto; margin: 10px 0 0;
+                font: 12.5px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; }
+.l-err { color: var(--err); } .l-warn { color: var(--warn); }
+#avviso { position: fixed; right: 16px; bottom: 70px; max-width: 420px; padding: 12px 14px; border-radius: 10px;
+          background: var(--text); color: var(--bg); box-shadow: 0 6px 20px rgba(0,0,0,.2); display: none; z-index: 10; }
+#avviso.visibile { display: block; }
+#avviso ul { margin: 6px 0 0; padding-left: 18px; }
+.chiuso { padding: 60px 20px; text-align: center; color: var(--muted); }
+@media (max-width: 640px) {
+  header, .azioni, .riepilogo, nav, section.scheda { padding-left: 16px; padding-right: 16px; }
+  .azione { min-width: 100%; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>🏭 Cacciatore Affari</h1>
+  <div class="stato" id="stato"><span class="pallino"></span><span id="stato-testo">Caricamento…</span></div>
+  <div class="spazio"></div>
+  <button class="pericolo" id="btn-chiudi" title="Ferma il programma">Chiudi pannello</button>
+</header>
+
+<div class="azioni">
+  <div class="azione">
+    <h3>▶ Scansiona ora</h3>
+    <p>Cerca nuovi annunci e invia su Telegram quelli interessanti.</p>
+    <button class="primario" data-azione="scansiona">Avvia scansione</button>
+  </div>
+  <div class="azione">
+    <h3>🧪 Scansione di prova</h3>
+    <p>Come sopra, ma senza inviare messaggi Telegram.</p>
+    <button data-azione="prova">Avvia prova</button>
+  </div>
+  <div class="azione">
+    <h3>⟳ Avvio continuo</h3>
+    <p id="loop-testo">Ripete la scansione a intervalli regolari finché il pannello resta aperto.</p>
+    <div class="riga">
+      ogni <input type="number" id="loop-ore" min="0.25" max="168" step="0.5" value="6" style="width:80px"> ore
+      <button id="btn-loop">Avvia</button>
+    </div>
+  </div>
+  <div class="azione">
+    <h3>⬇ Aggiorna programma</h3>
+    <p>Scarica l'ultima versione da GitHub. Impostazioni e dati restano intatti.</p>
+    <button data-azione="aggiorna">Aggiorna</button>
+  </div>
+</div>
+
+<div class="riepilogo" id="riepilogo"></div>
+
+<nav>
+  <button class="attivo" data-scheda="risultati">Risultati</button>
+  <button data-scheda="impostazioni">Impostazioni</button>
+  <button data-scheda="registro">Registro</button>
+</nav>
+
+<section class="scheda attivo" id="risultati">
+  <iframe id="frame-risultati" title="Risultati" src="/risultati"></iframe>
+</section>
+
+<section class="scheda" id="impostazioni">
+  <form id="modulo" autocomplete="off" onsubmit="return false">
+    <div class="card">
+      <h2>📍 Zona di ricerca</h2>
+      <p class="aiuto">Scegli le regioni. Se non spunti nessuna provincia vengono cercate tutte quelle delle regioni scelte.</p>
+      <div class="spunte" id="regioni"></div>
+      <div id="province-box" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
+      <h2>🏷 Cosa cercare</h2>
+      <p class="aiuto">Per ogni categoria: parole che l'annuncio deve contenere (almeno una) o non deve contenere, e limiti di prezzo e superficie. Scrivi una parola o frase per riga.</p>
+      <div id="categorie"></div>
+    </div>
+
+    <div class="card">
+      <h2>⭐ Quando avvisarmi</h2>
+      <p class="aiuto">Ogni annuncio riceve un punteggio da 0 a 100. Ricevi un messaggio quando è nuovo o ribassato e supera la soglia.</p>
+      <div class="griglia">
+        <label class="campo">Soglia punteggio generale
+          <div class="cursore"><input type="range" min="0" max="100" step="5" id="soglia"><output for="soglia"></output></div>
+          <span class="nota">Le categorie possono avere una soglia propria.</span>
+        </label>
+      </div>
+      <h3 style="font-size:14px;margin:16px 0 6px">Importanza dei criteri</h3>
+      <div class="griglia">
+        <label class="campo">Prezzo al m² rispetto alla zona
+          <div class="cursore"><input type="range" min="0" max="1" step="0.05" id="peso-eur_mq"><output></output></div></label>
+        <label class="campo">Ribasso rispetto alla prima asta
+          <div class="cursore"><input type="range" min="0" max="1" step="0.05" id="peso-ribasso"><output></output></div></label>
+        <label class="campo">Numero di aste andate deserte
+          <div class="cursore"><input type="range" min="0" max="1" step="0.05" id="peso-tentativi"><output></output></div></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>✈️ Telegram</h2>
+      <p class="aiuto">Crea un bot con @BotFather per avere il token. Poi scrivigli un messaggio e leggi il tuo chat_id da
+        <code>https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code>.</p>
+      <div class="griglia">
+        <label class="campo">Token del bot<input type="password" id="tg-token" placeholder="123456:ABC…"></label>
+        <label class="campo">Chat ID<input type="text" id="tg-chat" placeholder="es. 123456789"></label>
+      </div>
+      <div class="riga" style="margin-top:10px">
+        <label class="interruttore"><input type="checkbox" id="tg-mostra"> mostra token</label>
+        <button type="button" data-azione="test_telegram">Invia messaggio di prova</button>
+        <span class="nota" style="color:var(--muted);font-size:12px">Salva prima di provare.</span>
+      </div>
+    </div>
+
+    <details class="card">
+      <summary>⚙️ Impostazioni avanzate</summary>
+      <div class="griglia">
+        <label class="campo">Pausa minima tra richieste (s)<input type="number" min="3" step="0.5" id="http-min"></label>
+        <label class="campo">Pausa massima tra richieste (s)<input type="number" min="3" step="0.5" id="http-max"></label>
+        <label class="campo">Pagine massime per scansione<input type="number" min="1" max="1000" id="pvp-pagine"></label>
+        <label class="campo">Annunci per pagina<input type="number" min="1" max="200" id="pvp-size"></label>
+        <label class="campo">Tolleranza superficie duplicati (%)<input type="number" min="0" max="50" step="0.5" id="dup-sup"></label>
+        <label class="campo">Tolleranza prezzo duplicati (%)<input type="number" min="0" max="50" step="0.5" id="dup-prezzo"></label>
+        <label class="campo">Ribasso stimato per asta deserta (%)<input type="number" min="0" max="90" step="1" id="sc-ribasso-tent"></label>
+        <label class="campo">Annunci minimi per la mediana di provincia<input type="number" min="1" id="sc-campioni"></label>
+      </div>
+      <div class="spunte" style="margin-top:12px">
+        <label><input type="checkbox" id="pvp-dettagli"> Apri la pagina di dettaglio degli annunci nuovi</label>
+        <label><input type="checkbox" id="pvp-perizie"> Scarica i PDF delle perizie</label>
+        <label><input type="checkbox" id="http-robots"> Rispetta robots.txt</label>
+      </div>
+    </details>
+  </form>
+</section>
+
+<section class="scheda" id="registro">
+  <div class="riga">
+    <button type="button" id="btn-log">Aggiorna</button>
+    <label class="interruttore"><input type="checkbox" id="log-auto" checked> aggiornamento automatico</label>
+  </div>
+  <pre id="log"></pre>
+</section>
+
+<div class="barra-salva" id="barra-salva">
+  <span class="msg">Hai modifiche non salvate</span>
+  <button class="primario" id="btn-salva">Salva impostazioni</button>
+  <button id="btn-annulla">Annulla</button>
+</div>
+<div id="avviso"></div>
+
+<script>
+const CHIAVE = "__CHIAVE__";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const oraIt = s => s ? new Date(s).toLocaleString("it-IT", {day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit"}) : "";
+
+async function api(percorso, dati) {
+  const opz = dati === undefined ? {} : {
+    method: "POST", headers: {"Content-Type": "application/json", "X-Chiave": CHIAVE}, body: JSON.stringify(dati)};
+  const r = await fetch(percorso, opz);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.errore || `Errore ${r.status}`); e.dettagli = j.dettagli; throw e; }
+  return j;
+}
+
+let timerAvviso;
+function avviso(testo, dettagli) {
+  const el = $("avviso");
+  el.innerHTML = esc(testo) + (dettagli?.length ? "<ul>" + dettagli.map(d => `<li>${esc(d)}</li>`).join("") + "</ul>" : "");
+  el.classList.add("visibile");
+  clearTimeout(timerAvviso);
+  timerAvviso = setTimeout(() => el.classList.remove("visibile"), dettagli?.length ? 9000 : 4500);
+}
+
+// --- schede -------------------------------------------------------------
+document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("nav button, section.scheda").forEach(el => el.classList.remove("attivo"));
+  b.classList.add("attivo");
+  $(b.dataset.scheda).classList.add("attivo");
+  if (b.dataset.scheda === "registro") caricaLog();
+}));
+
+// --- stato e azioni -----------------------------------------------------------
+let ultimoFine = null, statoCorrente = null;
+const NOMI = {scansione: "Scansione", prova: "Prova", continuo: "Scansione automatica"};
+
+function mostraStato(s) {
+  statoCorrente = s;
+  const box = $("stato"), testo = $("stato-testo");
+  box.className = "stato";
+  if (s.in_corso) {
+    box.classList.add("lavora");
+    const sec = Math.round((Date.now() - new Date(s.in_corso.iniziato)) / 1000);
+    testo.textContent = `${NOMI[s.in_corso.tipo] || "Scansione"} in corso… ${Math.floor(sec/60)}:${String(sec%60).padStart(2,"0")}`;
+  } else if (s.ultimo?.esito === "errore") {
+    box.classList.add("errore");
+    testo.textContent = "Ultima scansione non riuscita (vedi Registro)";
+  } else {
+    testo.textContent = s.loop.attivo ? "Avvio continuo attivo" : "Pronto";
+  }
+  document.querySelectorAll("[data-azione=scansiona],[data-azione=prova],[data-azione=aggiorna]")
+    .forEach(b => b.disabled = !!s.in_corso);
+
+  $("btn-loop").textContent = s.loop.attivo ? "Ferma" : "Avvia";
+  $("loop-ore").disabled = s.loop.attivo;
+  $("loop-testo").textContent = s.loop.attivo
+    ? `Attivo ogni ${s.loop.ore} ore` + (s.loop.prossimo ? ` · prossima scansione ${oraIt(s.loop.prossimo)}` : "")
+    : "Ripete la scansione a intervalli regolari finché il pannello resta aperto.";
+
+  const a = s.annunci, u = s.ultimo;
+  let r = `${a.totale} annunci in archivio · ${a.sopra_60} con punteggio ≥ 60`;
+  if (u?.esito === "ok") {
+    const st = u.stats;
+    r += ` · ultima scansione ${oraIt(u.fine)}: ${st.nuovi} nuovi, ${st.ribassati} ribassati, ${st.notificati} notificati`;
+  }
+  if (!s.telegram_configurato) r += " · ⚠️ Telegram non configurato (vedi Impostazioni)";
+  $("riepilogo").textContent = r;
+
+  if (u && u.fine !== ultimoFine) {
+    if (ultimoFine !== null) {
+      $("frame-risultati").src = "/risultati?t=" + Date.now();
+      avviso(u.esito === "ok" ? `${NOMI[u.tipo] || "Scansione"} completata: ${u.stats.nuovi} nuovi annunci.`
+                              : `Scansione non riuscita: ${u.errore}`);
+    }
+    ultimoFine = u.fine;
+  } else if (ultimoFine === null) ultimoFine = u?.fine || "";
+}
+
+async function aggiornaStato() {
+  try { mostraStato(await api("/api/stato")); }
+  catch { $("stato-testo").textContent = "Pannello non raggiungibile"; $("stato").className = "stato errore"; }
+}
+
+async function azione(nome, extra = {}) {
+  const conferme = {
+    aggiorna: "Scaricare e installare l'ultima versione del programma?",
+  };
+  if (conferme[nome] && !confirm(conferme[nome])) return;
+  try {
+    const r = await api("/api/azione", {azione: nome, ...extra});
+    const msg = {
+      scansiona: "Scansione avviata.", prova: "Scansione di prova avviata.",
+      test_telegram: "Messaggio di prova inviato: controlla Telegram.",
+      aggiorna: `Programma aggiornato (${r.file} file). Chiudi il pannello e riavvia AFFARI_MIEI.bat.`,
+      avvia_loop: "Avvio continuo attivato.", ferma_loop: "Avvio continuo fermato.",
+    }[nome];
+    if (msg) avviso(msg);
+  } catch (e) { avviso(e.message, e.dettagli); }
+  aggiornaStato();
+}
+
+document.querySelectorAll("[data-azione]").forEach(b => b.addEventListener("click", () => azione(b.dataset.azione)));
+$("btn-loop").addEventListener("click", () => statoCorrente?.loop.attivo
+  ? azione("ferma_loop")
+  : azione("avvia_loop", {ore: parseFloat($("loop-ore").value)}));
+$("btn-chiudi").addEventListener("click", async () => {
+  if (!confirm("Chiudere il pannello? Le scansioni automatiche si fermeranno.")) return;
+  try { await api("/api/azione", {azione: "chiudi"}); } catch {}
+  document.body.innerHTML = '<div class="chiuso"><h2>Pannello chiuso</h2><p>Per riaprirlo avvia di nuovo AFFARI_MIEI.bat. Puoi chiudere questa scheda.</p></div>';
+});
+
+// --- impostazioni ---------------------------------------------------------------
+let config = null, regioni = {}, modificato = false;
+const righe = t => t.split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+const numOnull = v => v === "" || v == null ? null : Number(v);
+
+function segnaModifica() { modificato = true; $("barra-salva").classList.add("visibile"); }
+
+function disegnaProvince() {
+  const scelte = [...document.querySelectorAll("#regioni input:checked")].map(i => i.value);
+  const sel = new Set(config.province || []);
+  $("province-box").innerHTML = scelte.map(r =>
+    `<div style="margin-top:6px"><div style="font-size:13px;color:var(--muted);margin-bottom:4px">Province – ${esc(r)}</div>
+     <div class="spunte">${Object.entries(regioni[r] || {}).map(([s, n]) =>
+       `<label><input type="checkbox" class="prov" value="${s}" ${sel.has(s) ? "checked" : ""}> ${esc(n)} (${s})</label>`).join("")}</div></div>`
+  ).join("");
+}
+
+function disegnaCategorie() {
+  $("categorie").innerHTML = Object.entries(config.categorie).map(([nome, c]) => `
+    <div class="categoria ${c.abilitata === false ? "spenta" : ""}" data-cat="${esc(nome)}">
+      <div class="testa">
+        <strong>${esc(nome)}</strong>
+        <label class="interruttore"><input type="checkbox" class="c-abilitata" ${c.abilitata !== false ? "checked" : ""}> attiva</label>
+      </div>
+      <div class="corpo griglia">
+        <label class="campo">Parole da cercare<textarea class="c-parole">${esc((c.parole_chiave || []).join("\n"))}</textarea></label>
+        <label class="campo">Parole da escludere<textarea class="c-escluse">${esc((c.parole_escluse || []).join("\n"))}</textarea></label>
+        <label class="campo">Prezzo minimo €<input type="number" min="0" step="1000" class="c-pmin" value="${c.prezzo_min ?? ""}" placeholder="nessuno"></label>
+        <label class="campo">Prezzo massimo €<input type="number" min="0" step="1000" class="c-pmax" value="${c.prezzo_max ?? ""}" placeholder="nessuno"></label>
+        <label class="campo">Superficie minima m²<input type="number" min="0" step="10" class="c-sup" value="${c.superficie_min ?? ""}" placeholder="nessuna"></label>
+        <label class="campo">Soglia punteggio<input type="number" min="0" max="100" step="5" class="c-soglia" value="${c.soglia_punteggio ?? ""}" placeholder="generale"></label>
+      </div>
+    </div>`).join("");
+  document.querySelectorAll(".c-abilitata").forEach(i => i.addEventListener("change", () =>
+    i.closest(".categoria").classList.toggle("spenta", !i.checked)));
+}
+
+function cursore(id, val) {
+  const el = $(id); el.value = val;
+  const out = el.nextElementSibling; out.textContent = val;
+  el.oninput = () => { out.textContent = el.value; };
+}
+
+function riempiModulo() {
+  $("regioni").innerHTML = Object.keys(regioni).map(r =>
+    `<label><input type="checkbox" value="${esc(r)}" ${(config.regioni || []).some(x => x.toLowerCase() === r.toLowerCase()) ? "checked" : ""}> ${esc(r)}</label>`
+  ).join("") || "<em>Nessuna regione disponibile</em>";
+  document.querySelectorAll("#regioni input").forEach(i => i.addEventListener("change", disegnaProvince));
+  disegnaProvince();
+  disegnaCategorie();
+
+  const sc = config.scoring || {}, pesi = sc.pesi || {};
+  cursore("soglia", config.soglia_punteggio ?? 60);
+  cursore("peso-eur_mq", pesi.eur_mq ?? 0.5);
+  cursore("peso-ribasso", pesi.ribasso ?? 0.3);
+  cursore("peso-tentativi", pesi.tentativi ?? 0.2);
+
+  const tg = config.telegram || {};
+  $("tg-token").value = tg.token || "";
+  $("tg-chat").value = tg.chat_id || "";
+
+  const http = config.http || {}, pvp = config.fonti?.pvp || {}, dup = config.dedup || {};
+  $("http-min").value = http.min_delay ?? 3;
+  $("http-max").value = http.max_delay ?? 5;
+  $("http-robots").checked = http.rispetta_robots !== false;
+  $("pvp-pagine").value = pvp.max_pagine ?? 40;
+  $("pvp-size").value = pvp.page_size ?? 50;
+  $("pvp-dettagli").checked = pvp.scarica_dettagli !== false;
+  $("pvp-perizie").checked = !!pvp.scarica_perizie;
+  $("dup-sup").value = +((dup.tolleranza_superficie ?? 0.03) * 100).toFixed(2);
+  $("dup-prezzo").value = +((dup.tolleranza_prezzo ?? 0.05) * 100).toFixed(2);
+  $("sc-ribasso-tent").value = +((sc.ribasso_stimato_per_tentativo ?? 0.25) * 100).toFixed(2);
+  $("sc-campioni").value = sc.campioni_minimi_mediana ?? 3;
+  $("loop-ore").value = config.pannello?.ore_loop ?? 6;
+
+  modificato = false;
+  $("barra-salva").classList.remove("visibile");
+}
+
+function leggiModulo() {
+  // si parte dalla configurazione esistente per non perdere le chiavi non mostrate
+  const c = structuredClone(config);
+  c.regioni = [...document.querySelectorAll("#regioni input:checked")].map(i => i.value);
+  c.province = [...document.querySelectorAll(".prov:checked")].map(i => i.value);
+  c.soglia_punteggio = Number($("soglia").value);
+  document.querySelectorAll(".categoria").forEach(el => {
+    const cat = c.categorie[el.dataset.cat];
+    cat.abilitata = el.querySelector(".c-abilitata").checked;
+    cat.parole_chiave = righe(el.querySelector(".c-parole").value);
+    cat.parole_escluse = righe(el.querySelector(".c-escluse").value);
+    const imposta = (k, v) => { if (v === null) delete cat[k]; else cat[k] = v; };
+    imposta("prezzo_min", numOnull(el.querySelector(".c-pmin").value));
+    imposta("prezzo_max", numOnull(el.querySelector(".c-pmax").value));
+    imposta("superficie_min", numOnull(el.querySelector(".c-sup").value));
+    imposta("soglia_punteggio", numOnull(el.querySelector(".c-soglia").value));
+  });
+  c.scoring = c.scoring || {};
+  c.scoring.pesi = {eur_mq: Number($("peso-eur_mq").value), ribasso: Number($("peso-ribasso").value),
+                    tentativi: Number($("peso-tentativi").value)};
+  c.scoring.ribasso_stimato_per_tentativo = Number($("sc-ribasso-tent").value) / 100;
+  c.scoring.campioni_minimi_mediana = Number($("sc-campioni").value);
+  c.telegram = {...(c.telegram || {}), token: $("tg-token").value.trim(), chat_id: $("tg-chat").value.trim()};
+  c.http = {...(c.http || {}), min_delay: Number($("http-min").value), max_delay: Number($("http-max").value),
+            rispetta_robots: $("http-robots").checked};
+  c.fonti = c.fonti || {};
+  c.fonti.pvp = {...(c.fonti.pvp || {}), max_pagine: Number($("pvp-pagine").value), page_size: Number($("pvp-size").value),
+                 scarica_dettagli: $("pvp-dettagli").checked, scarica_perizie: $("pvp-perizie").checked};
+  c.dedup = {tolleranza_superficie: Number($("dup-sup").value) / 100, tolleranza_prezzo: Number($("dup-prezzo").value) / 100};
+  c.pannello = {...(c.pannello || {}), ore_loop: parseFloat($("loop-ore").value) || 6};
+  return c;
+}
+
+async function caricaConfig() {
+  const r = await api("/api/config");
+  config = r.config; regioni = r.regioni;
+  riempiModulo();
+}
+
+$("modulo").addEventListener("input", segnaModifica);
+$("modulo").addEventListener("change", segnaModifica);
+$("tg-mostra").addEventListener("change", e => $("tg-token").type = e.target.checked ? "text" : "password");
+$("btn-annulla").addEventListener("click", riempiModulo);
+$("btn-salva").addEventListener("click", async () => {
+  try {
+    const nuova = leggiModulo();
+    await api("/api/config", {config: nuova});
+    config = nuova;
+    modificato = false;
+    $("barra-salva").classList.remove("visibile");
+    avviso("Impostazioni salvate. Valgono dalla prossima scansione.");
+    aggiornaStato();
+  } catch (e) {
+    // gli errori possono riguardare campi nella sezione avanzata: la si apre
+    if (e.dettagli?.length) document.querySelector("details.card").open = true;
+    avviso(e.message, e.dettagli);
+  }
+});
+window.addEventListener("beforeunload", e => { if (modificato) { e.preventDefault(); e.returnValue = ""; } });
+
+// --- registro ---------------------------------------------------------------------
+async function caricaLog() {
+  try {
+    const {righe: r} = await api("/api/log?righe=400");
+    const pre = $("log");
+    const inFondo = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 20;
+    pre.innerHTML = r.map(l => {
+      const cls = / (ERROR|CRITICAL) /.test(l) ? "l-err" : / WARNING /.test(l) ? "l-warn" : "";
+      return cls ? `<span class="${cls}">${esc(l)}</span>` : esc(l);
+    }).join("\n") || "Il registro è vuoto: avvia una scansione.";
+    if (inFondo) pre.scrollTop = pre.scrollHeight;
+  } catch (e) { $("log").textContent = e.message; }
+}
+$("btn-log").addEventListener("click", caricaLog);
+
+// --- avvio -----------------------------------------------------------------------
+caricaConfig().catch(e => avviso("Impossibile leggere config.json: " + e.message));
+aggiornaStato();
+setInterval(aggiornaStato, 2000);
+setInterval(() => { if ($("log-auto").checked && $("registro").classList.contains("attivo")) caricaLog(); }, 3000);
+</script>
+</body>
+</html>

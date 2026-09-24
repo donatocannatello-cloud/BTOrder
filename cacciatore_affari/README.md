@@ -30,24 +30,31 @@ Poi modifica `config.json` (vedi sotto) e inserisci token e chat_id Telegram.
 
 ## Avvio rapido su Windows
 
-Fai doppio clic su **`AFFARI_MIEI.bat`**. Al primo avvio il file:
+Fai doppio clic su **`AFFARI_MIEI.bat`**: si apre nel browser il
+**pannello di controllo**. Lascia aperta la finestra nera, perché chiudendola si ferma il programma.
 
-- se nella cartella mancano i file del programma, li scarica da GitHub;
+Al primo avvio il `.bat`:
+
+- scarica da GitHub i file del programma, se mancano nella cartella;
 - crea l'ambiente Python (`.venv`) e installa le dipendenze;
-- se manca `config.json`, lo prepara dal modello e lo apre nel Blocco note.
-
-Poi mostra un menu:
-
-1. scansiona e apri il monitor;
-2. apri il monitor senza scansione;
-3. scansione di prova (nessun messaggio Telegram);
-4. avvio continuo ogni N ore;
-5. modifica `config.json`;
-6. apri il log;
-7. esegui i test;
-8. aggiorna il programma da GitHub (`config.json`, dati e log restano intatti).
+- crea `config.json` dal modello.
 
 Il `.bat` da solo basta: mettilo in una cartella vuota e avvialo.
+
+### Pannello di controllo
+
+Il pannello è disponibile solo su questo computer (`http://127.0.0.1:8765`). Contiene:
+
+- **Azioni**: scansiona ora, scansione di prova (senza Telegram), avvio
+  continuo ogni N ore finché il pannello resta aperto, aggiornamento del programma da GitHub;
+- **Risultati**: tabella filtrabile e mappa degli annunci;
+- **Impostazioni**: regioni e province, parole chiave e limiti per categoria,
+  soglia e pesi del punteggio, Telegram (con messaggio di prova) e opzioni avanzate.
+  I valori vengono controllati prima del salvataggio: ad esempio la pausa tra le richieste non può scendere sotto i 3 secondi;
+- **Registro**: il log aggiornato in tempo reale.
+
+Si può avviare anche da riga di comando: `python pannello.py` (opzioni
+`--porta` e `--no-browser`).
 
 ## Avvio
 
@@ -186,7 +193,7 @@ Altre opzioni di `fonti.pvp`: `page_size`, `max_pagine`, `sort`,
 
 ```
 cacciatore_affari/
-├── AFFARI_MIEI.bat     # menu di avvio per Windows (doppio clic)
+├── AFFARI_MIEI.bat     # avvio per Windows (doppio clic → pannello)
 ├── main.py            # ciclo completo e opzione --loop
 ├── config.py          # caricamento di config.json
 ├── storage.py         # unico punto di accesso ai file JSON (load/save/upsert atomici)
@@ -198,6 +205,8 @@ cacciatore_affari/
 ├── http_client.py     # client HTTP con rate limiting, retry e robots.txt
 ├── geo.py             # regioni e province
 ├── viewer.py          # pagina HTML con tabella e mappa
+├── pannello.py        # pannello di controllo web locale
+├── web/pannello.html  # interfaccia del pannello
 ├── adapters/
 │   ├── base.py        # classe astratta Adapter
 │   └── pvp.py         # Portale Vendite Pubbliche

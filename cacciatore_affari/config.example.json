@@ -73,6 +73,11 @@
     }
   },
 
+  "pannello": {
+    "porta": 8765,
+    "ore_loop": 6
+  },
+
   "percorsi": {
     "annunci": "data/annunci.json",
     "perizie": "data/perizie",
