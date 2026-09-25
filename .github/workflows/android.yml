@@ -5,6 +5,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,3 +36,18 @@ jobs:
         with:
           name: chiamatebt-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      # Link diretto e stabile all'ultimo APK del theremin:
+      # https://github.com/<owner>/<repo>/releases/download/theremin-latest/theremin-cromatico-debug.apk
+      - name: Prepara APK per la release
+        if: github.event_name != 'pull_request'
+        run: cp theremin/build/outputs/apk/debug/theremin-debug.apk theremin-cromatico-debug.apk
+
+      - name: Pubblica APK nella release "theremin-latest"
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: theremin-latest
+          name: Theremin Cromatico (ultima build)
+          prerelease: true
+          files: theremin-cromatico-debug.apk
