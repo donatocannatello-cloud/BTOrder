@@ -130,6 +130,34 @@ nell'inquadratura:
   attimo. Utile se cambia la luce o sposti il telefono.
 - **Muto**: silenzia il suono lasciando attive le onde.
 
+## Modalità Impara
+
+In alto si passa da **Suona** (theremin libero) a **Impara**, che guida
+l'esecuzione di un brano classico scelto con **♫ Brano** tra 11 melodie di
+pubblico dominio:
+
+Inno alla gioia (Beethoven) · Per Elisa (Beethoven) · Fra Martino ·
+Ah! vous dirai-je, maman (Mozart) · Eine kleine Nachtmusik (Mozart) ·
+Greensleeves · Ninna nanna (Brahms) · Canone in Re (Pachelbel) ·
+Il mattino (Grieg) · Minuetto in Sol (Petzold/Bach) · Largo "Dal Nuovo Mondo" (Dvořák)
+
+- Nell'anteprima della fotocamera compare un **secondo cursore**: un cerchio
+  colorato che indica dove portare la mano (il punto bianco) per suonare la
+  nota successiva, collegato alla mano da una linea; un cerchio più tenue
+  anticipa la nota dopo. Le linee verticali colorate segnano la posizione di
+  tutte le note del brano.
+- La lezione **aspetta il giocatore**: una nota vale quando è tenuta intonata
+  per ~0,2 s (l'arco bianco attorno al cerchio si riempie e il cerchio diventa
+  verde); poi la guida passa alla successiva.
+- Per rendere le note raggiungibili, in Impara la larghezza dell'inquadratura
+  copre solo l'estensione del brano (± un semitono) e le note si agganciano ai
+  semitoni.
+- **▶ Ascolta** fa suonare il brano all'app, con il cursore guida che si sposta
+  a tempo; **↺ Da capo** ricomincia la lezione.
+
+I brani sono in `learn/Brani.kt` (notazione compatta tipo `E4:1 F#4:0.5`),
+la logica di avanzamento in `learn/Lezione.kt`.
+
 ## Come funziona
 
 1. **`camera/HandAnalyzer.kt`** riceve da CameraX (`ImageAnalysis`,
@@ -162,7 +190,7 @@ nell'inquadratura:
 La logica senza dipendenze Android (scale/note, synth, tracker) ha test JUnit
 in `theremin/src/test`: `./gradlew :theremin:testDebugUnitTest`.
 In questo ambiente i test sono stati eseguiti compilandoli con `kotlinc`
-direttamente sulla JVM (8/8 superati); la build Android completa non è stata
+direttamente sulla JVM (tutti superati); la build Android completa non è stata
 verificata per lo stesso motivo descritto sopra (SDK/Google Maven non
 raggiungibili dal sandbox).
 
