@@ -1,0 +1,114 @@
+package it.example.btorder
+
+import android.content.Context
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+
+/** ID fisso della voce "Audio Telefono" (auricolare integrato). */
+const val ID_AURICOLARE_TELEFONO = "PHONE_EARPIECE"
+
+/** ID fisso della voce "Vivavoce Telefono" (altoparlante integrato). */
+const val ID_VIVAVOCE_TELEFONO = "PHONE_SPEAKER"
+
+/** ID fisso della voce "Cuffie USB" (cuffie collegate via cavo USB/micro-USB). */
+const val ID_CUFFIE_USB = "WIRED_USB_HEADSET"
+
+/** Tipo di voce mostrata nella lista unificata dei dispositivi. */
+enum class TipoVoceDispositivo {
+    BLUETOOTH,
+    AURICOLARE_TELEFONO,
+    VIVAVOCE_TELEFONO,
+    CUFFIE_USB
+}
+
+/** Applicazione dell'ordine di priorità scelto dall'utente al dispositivo di comunicazione attivo. */
+object DispositiviAudio {
+
+    /**
+     * Esito di un tentativo di instradamento, abbastanza dettagliato da poter essere mostrato
+     * all'utente (nella notifica del Service) per capire perché l'audio non è finito dove ci si
+     * aspettava, senza dover leggere i log del dispositivo.
+     */
+    sealed class EsitoInstradamento {
+        /** Il dispositivo [id] è stato trovato disponibile ed è stato impostato con successo. */
+        data class Applicato(val id: String) : EsitoInstradamento()
+
+        /** Il sistema non riporta ALCUN dispositivo di comunicazione disponibile in questo momento. */
+        object NessunDispositivoDisponibile : EsitoInstradamento()
+
+        /**
+         * Nessuno dei dispositivi in classifica risulta tra quelli disponibili ora.
+         * [dispositiviVisti] elenca cosa riportava effettivamente il sistema in quel momento
+         * (tipo e ID), utile per capire se il problema è un ID che non combacia con quello
+         * salvato in classifica, senza dover leggere i log del dispositivo.
+         */
+        data class NessunoInClassificaDisponibile(val dispositiviVisti: List<String>) : EsitoInstradamento()
+
+        /** Il dispositivo [id] era disponibile ma Android ha rifiutato di impostarlo. */
+        data class ImpostazioneRifiutata(val id: String) : EsitoInstradamento()
+    }
+
+    /**
+     * true se al momento risulta collegata una cuffia via USB (es. tramite adattatore
+     * micro-USB): a differenza del Bluetooth non esiste un concetto di "accoppiamento"
+     * persistente, quindi qui si può solo rilevare la presenza fisica attuale.
+     */
+    fun cuffieUsbConnesse(context: Context): Boolean {
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return false
+        return audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any {
+            it.type == AudioDeviceInfo.TYPE_USB_HEADSET || it.type == AudioDeviceInfo.TYPE_USB_DEVICE
+        }
+    }
+
+    /**
+     * Cerca, tra i dispositivi di comunicazione EFFETTIVAMENTE disponibili in
+     * questo momento ([AudioManager.getAvailableCommunicationDevices]), il
+     * primo che compare in [ordinePriorita] e lo imposta come dispositivo di
+     * comunicazione attivo per la chiamata in corso.
+     */
+    fun applicaPrimoDispositivoDisponibile(
+        audioManager: AudioManager,
+        ordinePriorita: List<String>
+    ): EsitoInstradamento {
+        val disponibili = audioManager.availableCommunicationDevices
+        if (disponibili.isEmpty()) return EsitoInstradamento.NessunDispositivoDisponibile
+
+        val ordinePrioritaNormalizzato = ordinePriorita.map { it.uppercase() }
+        for (id in ordinePrioritaNormalizzato) {
+            val dispositivoTrovato = disponibili.firstOrNull { it.idStabile() == id }
+            if (dispositivoTrovato != null) {
+                return if (audioManager.setCommunicationDevice(dispositivoTrovato)) {
+                    EsitoInstradamento.Applicato(id)
+                } else {
+                    EsitoInstradamento.ImpostazioneRifiutata(id)
+                }
+            }
+        }
+        return EsitoInstradamento.NessunoInClassificaDisponibile(
+            disponibili.map { "${it.tipoLeggibile()}:${it.idStabile()}" }
+        )
+    }
+
+    /**
+     * Ricava l'ID stabile (MAC per il Bluetooth, costante fissa per l'hardware integrato/USB).
+     * Il MAC riportato da [AudioDeviceInfo.getAddress] per un dispositivo Bluetooth non è sempre
+     * garantito nello stesso formato/case di [android.bluetooth.BluetoothDevice.getAddress] (da
+     * cui viene invece l'ID salvato in classifica): normalizzato in maiuscolo per evitare che un
+     * confronto banale per case faccia fallire l'instradamento in silenzio.
+     */
+    private fun AudioDeviceInfo.idStabile(): String = when (type) {
+        AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> ID_AURICOLARE_TELEFONO
+        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> ID_VIVAVOCE_TELEFONO
+        AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE -> ID_CUFFIE_USB
+        else -> address.uppercase()
+    }
+
+    private fun AudioDeviceInfo.tipoLeggibile(): String = when (type) {
+        AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "auricolare"
+        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "vivavoce"
+        AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE -> "usb"
+        AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "bt-sco"
+        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "bt-a2dp"
+        else -> "tipo$type"
+    }
+}
