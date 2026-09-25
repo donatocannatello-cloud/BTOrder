@@ -108,17 +108,21 @@ class CallRoutingService : Service() {
             // prima sincronizza lo stato "attivo" salvato (altrimenti il pulsante in app resta
             // bloccato su "Ferma", come se il servizio funzionasse, mentre in realtà è già morto)
             // e lascia una notifica non legata al Service, così l'utente capisce perché.
-            ambitoCoroutine.launch { DevicePriorityStore.impostaServizioAttivo(applicationContext, false) }
-            notificationManager.notify(
-                ID_NOTIFICA_AVVISO,
-                NotificationCompat.Builder(this, CANALE_NOTIFICA)
-                    .setContentTitle("BTOrder - Instradamento chiamate fermo")
-                    .setContentText("Manca il permesso \"Telefono\": aprilo dall'app e riavvia il monitoraggio")
-                    .setSmallIcon(R.drawable.ic_notifica)
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    .setAutoCancel(true)
-                    .build()
-            )
+            ambitoCoroutine.launch {
+                DevicePriorityStore.impostaServizioAttivo(applicationContext, false)
+                if (!ImpostazioniStore.leggiModalitaSilenziosaUnaVolta(applicationContext)) {
+                    notificationManager.notify(
+                        ID_NOTIFICA_AVVISO,
+                        NotificationCompat.Builder(this@CallRoutingService, CANALE_NOTIFICA)
+                            .setContentTitle("BTOrder - Instradamento chiamate fermo")
+                            .setContentText("Manca il permesso \"Telefono\": aprilo dall'app e riavvia il monitoraggio")
+                            .setSmallIcon(R.drawable.ic_notifica)
+                            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                            .setAutoCancel(true)
+                            .build()
+                    )
+                }
+            }
             stopSelf()
             return
         }

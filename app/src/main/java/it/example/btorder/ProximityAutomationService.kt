@@ -147,7 +147,8 @@ class ProximityAutomationService : Service() {
         Settings.System.putInt(contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, originale)
     }
 
-    private fun mostraNotificaAvvioApp(dispositivo: DispositivoFiducia) {
+    private suspend fun mostraNotificaAvvioApp(dispositivo: DispositivoFiducia) {
+        if (ImpostazioniStore.leggiModalitaSilenziosaUnaVolta(applicationContext)) return
         val pacchetto = dispositivo.appDaAvviarePackage ?: return
         val intentAvvio = packageManager.getLaunchIntentForPackage(pacchetto) ?: return
 

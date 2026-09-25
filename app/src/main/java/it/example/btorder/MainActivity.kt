@@ -117,7 +117,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             BTOrderTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    SchermataPrincipale()
+                    var mostraImpostazioni by remember { mutableStateOf(false) }
+                    if (mostraImpostazioni) {
+                        SchermataImpostazioni(onIndietro = { mostraImpostazioni = false })
+                    } else {
+                        SchermataPrincipale(onApriImpostazioni = { mostraImpostazioni = true })
+                    }
                 }
             }
         }
@@ -131,7 +136,7 @@ class MainActivity : ComponentActivity() {
  * a tendina e accedere ai suoi settaggi).
  */
 @Composable
-fun SchermataPrincipale() {
+fun SchermataPrincipale(onApriImpostazioni: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -234,7 +239,14 @@ fun SchermataPrincipale() {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text(text = "BTOrder", style = MaterialTheme.typography.headlineMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "BTOrder", style = MaterialTheme.typography.headlineMedium)
+                TextButton(onClick = onApriImpostazioni) { Text("⚙ Impostazioni") }
+            }
             Text(
                 text = "Trascina un dispositivo dalle lineette per impostare l'ordine di " +
                     "priorità usato in chiamata. Tocca un dispositivo Bluetooth per segnarlo " +
@@ -781,4 +793,59 @@ private fun SelettoreAppDialog(
             }
         }
     )
+}
+
+/**
+ * Pagina delle impostazioni generali dell'app, separata dalla lista dispositivi. Per ora
+ * contiene solo la modalità silenziosa, ma è il punto in cui aggiungere le prossime.
+ */
+@Composable
+fun SchermataImpostazioni(onIndietro: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val modalitaSilenziosa by ImpostazioniStore.osservaModalitaSilenziosa(context)
+        .collectAsState(initial = false)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onIndietro) { Text("‹ Indietro") }
+            Text(
+                text = "Impostazioni",
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+        }
+
+        Card(modifier = Modifier.padding(top = 16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = "Modalità silenziosa", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        text = "Nasconde gli avvisi (es. permesso mancante) e la scorciatoia " +
+                            "per aprire un'app alla connessione. La notifica permanente che " +
+                            "segnala un servizio attivo resta comunque visibile: è Android " +
+                            "stesso a richiederla per farlo funzionare in background.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+                Switch(
+                    checked = modalitaSilenziosa,
+                    onCheckedChange = { attiva ->
+                        scope.launch { ImpostazioniStore.impostaModalitaSilenziosa(context, attiva) }
+                    }
+                )
+            }
+        }
+    }
 }

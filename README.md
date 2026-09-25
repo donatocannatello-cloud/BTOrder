@@ -118,6 +118,17 @@ telefono se l'utente ha attivato "Avvia automaticamente all'accensione".
 Va avviato/fermato manualmente dal pulsante "Avvia/Ferma automazioni auto",
 oppure automaticamente al boot se l'opzione è attiva.
 
+### Impostazioni
+
+**`ImpostazioniStore.kt`** persiste le impostazioni generali dell'app (non
+legate a un singolo dispositivo), raggiungibili dal pulsante "⚙
+Impostazioni" in cima alla schermata principale. Per ora contiene solo la
+**modalità silenziosa**: se attiva, nasconde la notifica di avviso per
+permesso mancante e la scorciatoia per aprire un'app alla connessione. La
+notifica permanente dei due Service in foreground resta comunque visibile:
+è un requisito di Android per farli funzionare in background, non
+disattivabile da un'app di terze parti.
+
 ## Permessi
 
 Richiesti a runtime da `MainActivity` con
