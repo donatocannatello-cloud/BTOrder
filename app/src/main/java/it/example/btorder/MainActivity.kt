@@ -182,6 +182,7 @@ fun SchermataPrincipale() {
         .collectAsState(initial = emptyMap())
 
     fun ricaricaDispositivi() {
+        indirizziConnessi = DispositiviBluetooth.indirizziAttualmenteConnessi(context)
         dispositiviAccoppiati = DispositiviBluetooth.elencaDispositiviAccoppiati(context, indirizziConnessi)
         cuffieUsbConnesse = DispositiviAudio.cuffieUsbConnesse(context)
     }
@@ -192,7 +193,6 @@ fun SchermataPrincipale() {
     // dal fatto che questa Activity sia visibile o meno.
     DisposableEffect(Unit) {
         val ricevitore = DispositiviBluetooth.creaRicevitoreConnessioni { indirizzo, connesso ->
-            indirizziConnessi = if (connesso) indirizziConnessi + indirizzo else indirizziConnessi - indirizzo
             ricaricaDispositivi()
             if (connesso) {
                 scope.launch { TrustedDeviceStore.registraConnessione(context, indirizzo, System.currentTimeMillis()) }

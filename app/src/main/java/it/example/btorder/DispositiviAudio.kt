@@ -36,8 +36,13 @@ object DispositiviAudio {
         /** Il sistema non riporta ALCUN dispositivo di comunicazione disponibile in questo momento. */
         object NessunDispositivoDisponibile : EsitoInstradamento()
 
-        /** Nessuno dei dispositivi in classifica risulta tra quelli disponibili ora. */
-        object NessunoInClassificaDisponibile : EsitoInstradamento()
+        /**
+         * Nessuno dei dispositivi in classifica risulta tra quelli disponibili ora.
+         * [dispositiviVisti] elenca cosa riportava effettivamente il sistema in quel momento
+         * (tipo e ID), utile per capire se il problema è un ID che non combacia con quello
+         * salvato in classifica, senza dover leggere i log del dispositivo.
+         */
+        data class NessunoInClassificaDisponibile(val dispositiviVisti: List<String>) : EsitoInstradamento()
 
         /** Il dispositivo [id] era disponibile ma Android ha rifiutato di impostarlo. */
         data class ImpostazioneRifiutata(val id: String) : EsitoInstradamento()
@@ -68,7 +73,8 @@ object DispositiviAudio {
         val disponibili = audioManager.availableCommunicationDevices
         if (disponibili.isEmpty()) return EsitoInstradamento.NessunDispositivoDisponibile
 
-        for (id in ordinePriorita) {
+        val ordinePrioritaNormalizzato = ordinePriorita.map { it.uppercase() }
+        for (id in ordinePrioritaNormalizzato) {
             val dispositivoTrovato = disponibili.firstOrNull { it.idStabile() == id }
             if (dispositivoTrovato != null) {
                 return if (audioManager.setCommunicationDevice(dispositivoTrovato)) {
@@ -78,14 +84,31 @@ object DispositiviAudio {
                 }
             }
         }
-        return EsitoInstradamento.NessunoInClassificaDisponibile
+        return EsitoInstradamento.NessunoInClassificaDisponibile(
+            disponibili.map { "${it.tipoLeggibile()}:${it.idStabile()}" }
+        )
     }
 
-    /** Ricava l'ID stabile (MAC per il Bluetooth, costante fissa per l'hardware integrato/USB). */
+    /**
+     * Ricava l'ID stabile (MAC per il Bluetooth, costante fissa per l'hardware integrato/USB).
+     * Il MAC riportato da [AudioDeviceInfo.getAddress] per un dispositivo Bluetooth non è sempre
+     * garantito nello stesso formato/case di [android.bluetooth.BluetoothDevice.getAddress] (da
+     * cui viene invece l'ID salvato in classifica): normalizzato in maiuscolo per evitare che un
+     * confronto banale per case faccia fallire l'instradamento in silenzio.
+     */
     private fun AudioDeviceInfo.idStabile(): String = when (type) {
         AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> ID_AURICOLARE_TELEFONO
         AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> ID_VIVAVOCE_TELEFONO
         AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE -> ID_CUFFIE_USB
-        else -> address
+        else -> address.uppercase()
+    }
+
+    private fun AudioDeviceInfo.tipoLeggibile(): String = when (type) {
+        AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "auricolare"
+        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "vivavoce"
+        AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE -> "usb"
+        AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "bt-sco"
+        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "bt-a2dp"
+        else -> "tipo$type"
     }
 }

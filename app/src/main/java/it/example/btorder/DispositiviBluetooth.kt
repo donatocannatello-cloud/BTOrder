@@ -83,6 +83,38 @@ object DispositiviBluetooth {
         }
     }
 
+    /**
+     * Indirizzi dei dispositivi accoppiati risultati connessi ORA, interrogando direttamente lo
+     * stack Bluetooth invece di fare affidamento solo sui broadcast ACL: quel canale riceve solo
+     * gli eventi di connessione/disconnessione avvenuti mentre BTOrder è aperto, quindi un
+     * dispositivo già connesso PRIMA dell'avvio dell'app (il caso più comune: ci si sale in auto
+     * e SOLO DOPO si apre BTOrder) risulterebbe scorrettamente "non connesso" finché non si
+     * disconnette e riconnette con l'app in primo piano. `isConnected()` è pubblico solo da API
+     * 33 ma esiste da sempre: viene invocato per reflection per funzionare anche su API 31-32.
+     */
+    @Suppress("MissingPermission")
+    fun indirizziAttualmenteConnessi(context: Context): Set<String> {
+        if (!haPermessoBluetooth(context)) return emptySet()
+        val bluetoothManager =
+            context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+        val adapter = bluetoothManager?.adapter ?: return emptySet()
+        if (!adapter.isEnabled) return emptySet()
+
+        return adapter.bondedDevices
+            .filter { dispositivo ->
+                try {
+                    val metodo = dispositivo.javaClass.getMethod("isConnected")
+                    metodo.invoke(dispositivo) as? Boolean ?: false
+                } catch (e: ReflectiveOperationException) {
+                    false
+                } catch (e: SecurityException) {
+                    false
+                }
+            }
+            .map { it.address }
+            .toSet()
+    }
+
     /** Filtro per i broadcast di sistema emessi alla connessione/disconnessione ACL. */
     fun filtroEventiConnessione(): IntentFilter = IntentFilter().apply {
         addAction(BluetoothDevice.ACTION_ACL_CONNECTED)

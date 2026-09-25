@@ -154,15 +154,18 @@ class CallRoutingService : Service() {
                         )
                         return@launch
                     }
-                    DispositiviAudio.EsitoInstradamento.NessunDispositivoDisponibile,
-                    DispositiviAudio.EsitoInstradamento.NessunoInClassificaDisponibile -> {
+                    DispositiviAudio.EsitoInstradamento.NessunDispositivoDisponibile -> {
+                        if (tentativo == TENTATIVI_INSTRADAMENTO - 1) {
+                            aggiornaNotifica("Ultima chiamata: il sistema non riportava alcun dispositivo audio disponibile")
+                        } else {
+                            delay(INTERVALLO_TENTATIVO_MS)
+                        }
+                    }
+                    is DispositiviAudio.EsitoInstradamento.NessunoInClassificaDisponibile -> {
                         if (tentativo == TENTATIVI_INSTRADAMENTO - 1) {
                             aggiornaNotifica(
-                                if (esito is DispositiviAudio.EsitoInstradamento.NessunDispositivoDisponibile) {
-                                    "Ultima chiamata: il sistema non riportava alcun dispositivo audio disponibile"
-                                } else {
-                                    "Ultima chiamata: nessuno dei dispositivi in classifica era disponibile"
-                                }
+                                "Ultima chiamata: nessuno dei dispositivi in classifica era disponibile " +
+                                    "(visti: ${esito.dispositiviVisti.joinToString(", ").ifBlank { "nessuno" }})"
                             )
                         } else {
                             delay(INTERVALLO_TENTATIVO_MS)
