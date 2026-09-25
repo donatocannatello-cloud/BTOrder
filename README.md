@@ -96,3 +96,81 @@ macchina normale, o una CI con rete non ristretta).
   siano *davvero* disponibili.
 - Il servizio va avviato manualmente dall'app; non c'è (ancora) un
   `BroadcastReceiver` per l'avvio automatico al boot.
+
+---
+
+# Theremin Cromatico (modulo `:theremin`)
+
+Seconda app del progetto (Kotlin + Jetpack Compose + CameraX): un **theremin
+suonato con la mano davanti alla fotocamera anteriore**, mentre sul display
+scorre un **flusso di onde cromatiche** sincronizzato con il suono.
+
+- **Package**: `it.example.theremin` — **minSdk** 26, **targetSdk** 34
+- **Permessi**: solo `CAMERA` (le immagini sono analizzate in locale, mai
+  salvate né inviate)
+- **Build**: `./gradlew :theremin:assembleDebug` → APK in
+  `theremin/build/outputs/apk/debug/`
+
+## Come si suona
+
+Tieni il telefono in verticale, con la fotocamera anteriore rivolta verso di
+te (o appoggiato sul tavolo, rivolto verso il soffitto) e muovi una mano
+nell'inquadratura:
+
+| Movimento della mano | Effetto |
+| --- | --- |
+| sinistra → destra | altezza da **Do3 a Do6** (tre ottave) |
+| basso → alto | volume da silenzio a pieno |
+| fuori campo | il suono sfuma nel silenzio |
+
+- **Scala**: `Continua` (glissando libero, come un vero theremin),
+  `Cromatica`, `Maggiore`, `Pentatonica` (le note si agganciano ai gradi della
+  scala, con portamento morbido tra una e l'altra).
+- **Ricalibra**: fa reimparare lo sfondo — tieni la mano fuori campo per un
+  attimo. Utile se cambia la luce o sposti il telefono.
+- **Muto**: silenzia il suono lasciando attive le onde.
+
+## Come funziona
+
+1. **`camera/HandAnalyzer.kt`** riceve da CameraX (`ImageAnalysis`,
+   ~640×480) il piano di luminanza di ogni fotogramma.
+2. **`camera/MotionTracker.kt`** riduce il fotogramma a una griglia 40×30,
+   mantiene un modello di sfondo a media mobile e considera "mano" le celle che
+   se ne discostano; la posizione è il baricentro pesato di quelle celle,
+   raddrizzata secondo `rotationDegrees` e specchiata come un selfie. Lo sfondo
+   si aggiorna lentamente anche sotto la mano, quindi una mano immobile per
+   molti secondi viene gradualmente "assorbita".
+3. **`MainActivity.kt`** traduce la posizione in frequenza (`audio/Scale.kt`,
+   con eventuale quantizzazione) e volume, e li passa al synth.
+4. **`audio/ThereminSynth.kt`** genera il suono: sinusoide con armoniche
+   decrescenti, leggera saturazione e vibrato a 5,5 Hz; portamento sulla
+   frequenza e inviluppo sul volume interpolano campione per campione i
+   bersagli che arrivano dalla fotocamera a ~30 Hz.
+   **`audio/AudioEngine.kt`** lo riproduce su un `AudioTrack` float a bassa
+   latenza da un thread audio dedicato, conservando gli ultimi campioni.
+5. **`ui/ChromaticWaves.kt`** disegna a ogni fotogramma (Compose `Canvas`,
+   fusione additiva `BlendMode.Plus`):
+   - nove onde con alone luminoso, la cui **tinta** segue la nota (il cerchio
+     delle 12 note è mappato sulla ruota dei colori: ogni semitono = 30°);
+   - **ampiezza** e luminosità proporzionali al volume reale del synth;
+   - numero di creste e velocità di scorrimento crescenti con l'altezza;
+   - al centro, l'**oscilloscopio** della forma d'onda effettivamente suonata,
+     allineato sul passaggio per lo zero per restare fermo.
+
+## Test
+
+La logica senza dipendenze Android (scale/note, synth, tracker) ha test JUnit
+in `theremin/src/test`: `./gradlew :theremin:testDebugUnitTest`.
+In questo ambiente i test sono stati eseguiti compilandoli con `kotlinc`
+direttamente sulla JVM (8/8 superati); la build Android completa non è stata
+verificata per lo stesso motivo descritto sopra (SDK/Google Maven non
+raggiungibili dal sandbox).
+
+## Limiti noti
+
+- Il rilevamento è basato sul movimento/contrasto rispetto allo sfondo, non
+  riconosce la forma della mano: anche il viso o altri oggetti in movimento
+  nell'inquadratura spostano il punto rilevato. Funziona meglio con uno
+  sfondo fermo e ben illuminato (es. telefono appoggiato rivolto al soffitto).
+- Latenza complessiva tipica 60–120 ms (fotocamera + buffer audio), dipende dal
+  dispositivo.

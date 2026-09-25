@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tre onde sovrapposte nei colori dello spettro -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M30,46 C38,34 46,34 54,46 C62,58 70,58 78,46"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeColor="#FF4081" />
+    <path
+        android:pathData="M30,54 C38,42 46,42 54,54 C62,66 70,66 78,54"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeColor="#40C4FF" />
+    <path
+        android:pathData="M30,62 C38,50 46,50 54,62 C62,74 70,74 78,62"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeColor="#B2FF59" />
+</vector>
