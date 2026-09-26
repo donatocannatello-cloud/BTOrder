@@ -12,8 +12,21 @@ android {
         // API 26: AudioTrack.PERFORMANCE_MODE_LOW_LATENCY
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // Cresce a ogni build su GitHub Actions, così ogni APK si installa come aggiornamento
+        versionCode = (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0) + 1
+        versionName = "1.0.${System.getenv("GITHUB_RUN_NUMBER") ?: "dev"}"
+    }
+
+    // Chiave di debug fissa, salvata nel repository: senza di essa ogni runner CI genera una
+    // chiave nuova e Android rifiuta l'aggiornamento ("pacchetto in conflitto").
+    // Solo per le build di debug/distribuzione interna, non per il Play Store.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
