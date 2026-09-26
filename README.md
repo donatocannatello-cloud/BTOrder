@@ -130,6 +130,35 @@ nell'inquadratura:
   attimo. Utile se cambia la luce o sposti il telefono.
 - **Muto**: silenzia il suono lasciando attive le onde.
 
+## Regolazioni del suono e della lettura (🎛 Suono)
+
+Il pulsante **🎛 Suono** in alto apre un pannello; le scelte vengono salvate.
+
+| Regolazione | Effetto |
+| --- | --- |
+| Timbro | Theremin, Sinusoide pura, Flauto, Clarinetto, Violino, Organo, Voce, 8-bit (sintesi additiva di armoniche) |
+| Ottava | trasporta il suono da −2 a +2 ottave senza spostare le note sull'inquadratura (vale anche in Impara) |
+| Tonalità | tonica (Do…Si) su cui sono costruite le scale Cromatica/Maggiore/Pentatonica |
+| Estensione | ottave coperte dalla larghezza dell'inquadratura in Suona (1–4): meno ottave = note più larghe |
+| Vibrato / Velocità vibrato | profondità (fino a ±3%) e frequenza (2–9 Hz) |
+| Portamento | tempo di glissando tra le note (5–400 ms) |
+| Eco | ripetizioni a ~0,3 s con retroazione |
+| Calore | saturazione, da pulito a "valvolare" |
+| Punto seguito | **Punta delle dita** (predefinito) o **Centro della mano** |
+| Margine ai bordi | fascia laterale (0–30%) esclusa dalla tastiera |
+
+### Note agli estremi dell'inquadratura
+
+Il baricentro della sagoma veniva trascinato verso il centro dal braccio e
+"tagliato" dal bordo dell'immagine, per cui le note estreme erano
+irraggiungibili. Ora:
+
+- di default si segue la **punta delle dita** (la fascia più alta della sagoma
+  in movimento), che arriva fino al bordo anche con il braccio in campo;
+- la tastiera esclude un **margine** su ciascun lato (12% di default, fasce
+  scure nell'anteprima): la nota più grave e la più acuta si suonano prima del
+  bordo, dove la mano è ancora interamente visibile.
+
 ## Modalità Impara
 
 In alto si passa da **Suona** (theremin libero) a **Impara**, che guida

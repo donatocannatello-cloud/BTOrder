@@ -30,4 +30,21 @@ class ScaleTest {
         assertEquals(Note.MIDI_MIN, Note.posizioneToMidi(-1f, Scala.CROMATICA), 0f)
         assertEquals(Note.MIDI_MAX, Note.posizioneToMidi(2f, Scala.CROMATICA), 0f)
     }
+
+    @Test
+    fun `la tonalita sposta la scala`() {
+        // Pentatonica di Re: Re Mi Fa# La Si
+        assertEquals(66f, Scala.PENTATONICA.quantizza(65.8f, tonica = 2), 0f) // Fa#
+        assertEquals(62f, Scala.PENTATONICA.quantizza(61.6f, tonica = 2), 0f) // Re
+        assertEquals(71f, Scala.PENTATONICA.quantizza(71.4f, tonica = 2), 0f) // Si
+    }
+
+    @Test
+    fun `i margini fanno raggiungere gli estremi prima del bordo`() {
+        val imp = Impostazioni(margine = 0.15f)
+        assertEquals(0f, imp.tastieraDaCamera(0.1f), 0f)
+        assertEquals(1f, imp.tastieraDaCamera(0.9f), 0f)
+        assertEquals(0.5f, imp.tastieraDaCamera(0.5f), 1e-6f)
+        assertEquals(0.3f, imp.tastieraDaCamera(imp.cameraDaTastiera(0.3f)), 1e-6f)
+    }
 }

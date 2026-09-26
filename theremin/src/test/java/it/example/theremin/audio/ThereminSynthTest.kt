@@ -26,4 +26,19 @@ class ThereminSynthTest {
         for (i in 1 until blocco.size) if (blocco[i - 1] < 0f && blocco[i] >= 0f) periodi++
         assertEquals(88f, periodi.toFloat(), 2f)
     }
+
+    @Test
+    fun `tutti i timbri, con eco e saturazione al massimo, restano in -1 1 e suonano`() {
+        for (timbro in Timbro.entries) {
+            val synth = ThereminSynth(48_000)
+            synth.applica(Impostazioni(timbro = timbro, eco = 1f, calore = 1f, vibrato = 1f))
+            synth.frequenzaBersaglio = 1500f
+            synth.volumeBersaglio = 1f
+            val blocco = FloatArray(4800)
+            var picco = 0f
+            repeat(10) { picco = maxOf(picco, synth.render(blocco)) }
+            assertTrue("${timbro.name} picco $picco", picco in 0.2f..1f)
+            assertTrue(timbro.name, blocco.all { it.isFinite() })
+        }
+    }
 }

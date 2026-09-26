@@ -24,23 +24,44 @@ class MotionTrackerTest {
         assertTrue(t.elabora(sfondo).presenza < 0.01f)
     }
 
+    private fun MotionTracker.segui(sfondo: ByteArray, mano: ByteArray, specchia: Boolean = false): PosizioneMano {
+        repeat(20) { elabora(sfondo, specchia = specchia) }
+        var p = elabora(mano, specchia = specchia)
+        repeat(10) { p = elabora(mano, specchia = specchia) }
+        return p
+    }
+
     @Test
-    fun `segue una mano in alto a destra`() {
-        val t = MotionTracker()
-        val sfondo = fotogramma()
-        repeat(20) { t.elabora(sfondo) }
+    fun `al centro segue il baricentro della mano`() {
+        val t = MotionTracker().apply { punto = PuntoMano.CENTRO }
         val mano = fotogramma { x, y -> x in 448..575 && y in 48..143 } // centro (0.8, 0.2)
-        var p = t.elabora(mano)
-        repeat(10) { p = t.elabora(mano) }
+        val p = t.segui(fotogramma(), mano)
         assertTrue(p.presenza > 0.9f)
         assertEquals(0.8f, p.x, 0.03f)
         assertEquals(0.2f, p.y, 0.03f)
+    }
 
-        // Specchiata: la stessa mano appare a sinistra
-        val t2 = MotionTracker()
-        repeat(20) { t2.elabora(sfondo, specchia = true) }
-        repeat(10) { p = t2.elabora(mano, specchia = true) }
-        assertEquals(0.2f, p.x, 0.03f)
+    @Test
+    fun `in modalita punta segue la cima della sagoma, anche specchiata`() {
+        val mano = fotogramma { x, y -> x in 448..575 && y in 48..143 }
+        val p = MotionTracker().segui(fotogramma(), mano)
+        assertEquals(0.8f, p.x, 0.03f)
+        assertTrue("y ${p.y}", p.y in 0.1f..0.2f)
+
+        val specchiata = MotionTracker().segui(fotogramma(), mano, specchia = true)
+        assertEquals(0.2f, specchiata.x, 0.03f)
+    }
+
+    @Test
+    fun `il braccio non trascina la punta verso il centro`() {
+        // Mano in alto a sinistra con il braccio che scende in diagonale fino al centro in basso
+        val conBraccio = fotogramma { x, y ->
+            (x in 0..90 && y in 60..160) || (y in 160..479 && x in (y - 160) * 280 / 320 until (y - 160) * 280 / 320 + 70)
+        }
+        val punta = MotionTracker().segui(fotogramma(), conBraccio)
+        val centro = MotionTracker().apply { punto = PuntoMano.CENTRO }.segui(fotogramma(), conBraccio)
+        assertTrue("punta ${punta.x}", punta.x < 0.1f)
+        assertTrue("centro ${centro.x}", centro.x > 0.2f)
     }
 
     @Test

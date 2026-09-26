@@ -12,11 +12,12 @@ enum class Scala(val etichetta: String, private val gradi: IntArray?) {
     MAGGIORE("Maggiore", intArrayOf(0, 2, 4, 5, 7, 9, 11)),
     PENTATONICA("Pentatonica", intArrayOf(0, 2, 4, 7, 9));
 
-    /** Aggancia una nota MIDI (anche frazionaria) al grado più vicino della scala (tonica Do). */
-    fun quantizza(midi: Float): Float {
+    /** Aggancia una nota MIDI (anche frazionaria) al grado più vicino della scala costruita su [tonica] (0 = Do). */
+    fun quantizza(midi: Float, tonica: Int = 0): Float {
         val gradi = gradi ?: return midi
-        val ottava = floor(midi / 12f)
-        val dentroOttava = midi - ottava * 12f
+        val relativa = midi - tonica
+        val ottava = floor(relativa / 12f)
+        val dentroOttava = relativa - ottava * 12f
         var migliore = 0f
         var distanzaMinima = Float.MAX_VALUE
         // Si considera anche il Do dell'ottava successiva (12) per arrotondare correttamente verso l'alto
@@ -27,7 +28,7 @@ enum class Scala(val etichetta: String, private val gradi: IntArray?) {
                 migliore = g
             }
         }
-        return ottava * 12f + migliore
+        return ottava * 12f + migliore + tonica
     }
 
     fun successiva(): Scala = entries[(ordinal + 1) % entries.size]
@@ -49,14 +50,22 @@ object Note {
      * L'estensione [min]..[max] è di default quella intera del theremin; in modalità Impara
      * viene ristretta al brano, così ogni nota occupa una fascia più larga dell'inquadratura.
      */
-    fun posizioneToMidi(posizione: Float, scala: Scala, min: Float = MIDI_MIN, max: Float = MIDI_MAX): Float {
+    fun posizioneToMidi(
+        posizione: Float,
+        scala: Scala,
+        min: Float = MIDI_MIN,
+        max: Float = MIDI_MAX,
+        tonica: Int = 0,
+    ): Float {
         val p = posizione.coerceIn(0f, 1f)
-        return scala.quantizza(min + p * (max - min))
+        return scala.quantizza(min + p * (max - min), tonica)
     }
 
     /** Inversa di [posizioneToMidi]: dove mettere la mano (0..1) per suonare [midi]. */
     fun midiToPosizione(midi: Float, min: Float = MIDI_MIN, max: Float = MIDI_MAX): Float =
         ((midi - min) / (max - min)).coerceIn(0f, 1f)
+
+    fun nomeClasse(classe: Int): String = NOMI[((classe % 12) + 12) % 12]
 
     /** Nome italiano della nota più vicina, con numero d'ottava (es. "La4"). */
     fun nome(midi: Float): String {
