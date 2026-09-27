@@ -56,6 +56,11 @@ android {
         kotlinCompilerExtensionVersion = "1.5.14"
     }
 
+    // Il modello di MediaPipe va letto così com'è dagli asset, senza compressione
+    androidResources {
+        noCompress += "task"
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -79,5 +84,26 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
     implementation("androidx.camera:camera-view:$cameraxVersion")
 
+    // Riconoscimento della mano (21 punti per mano), eseguito interamente sul telefono
+    implementation("com.google.mediapipe:tasks-vision:0.10.14")
+
     testImplementation("junit:junit:4.13.2")
 }
+
+// Modello di MediaPipe per i punti della mano: non è nel repository (7,8 MB) ma viene scaricato
+// dal server ufficiale di Google alla prima compilazione e salvato negli asset.
+val scaricaModelloMano by tasks.registering {
+    val destinazione = layout.projectDirectory.file("src/main/assets/hand_landmarker.task").asFile
+    outputs.file(destinazione)
+    doLast {
+        if (!destinazione.exists() || destinazione.length() == 0L) {
+            destinazione.parentFile.mkdirs()
+            val url = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+            logger.lifecycle("Scarico il modello della mano da $url")
+            uri(url).toURL().openStream().use { input ->
+                destinazione.outputStream().use { input.copyTo(it) }
+            }
+        }
+    }
+}
+tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(scaricaModelloMano) }

@@ -2,6 +2,14 @@ package it.example.theremin.audio
 
 import it.example.theremin.camera.PuntoMano
 
+/** Come viene trovata la mano nell'immagine della fotocamera. */
+enum class Rilevatore(val etichetta: String) {
+    /** Riconoscimento vero della mano con MediaPipe: preciso, indipendente da sfondo e luce. */
+    MANO_IA("Riconoscimento mano (IA)"),
+    /** Sottrazione dello sfondo: leggerissimo, ma serve uno sfondo fermo e una ricalibrazione. */
+    MOVIMENTO("Movimento sullo sfondo"),
+}
+
 /**
  * Parametri regolabili dall'utente, per il suono e per la lettura della mano.
  * Classe immutabile: ogni modifica produce una copia, che viene applicata al synth e salvata.
@@ -36,6 +44,9 @@ data class Impostazioni(
     /** Volume della base musicale di sottofondo, 0..1. */
     val volumeBase: Float = 0.6f,
     // --- Lettura della mano ---
+    val rilevatore: Rilevatore = Rilevatore.MANO_IA,
+    /** Mano (o dito) sul sensore di prossimità, in alto vicino all'altoparlante = silenzio immediato. */
+    val prossimitaMuta: Boolean = false,
     /** Fascia ai due lati dell'inquadratura (0..0.3) esclusa dalla tastiera: le note estreme si raggiungono prima del bordo. */
     val margine: Float = 0.12f,
     val puntoMano: PuntoMano = PuntoMano.PUNTA,

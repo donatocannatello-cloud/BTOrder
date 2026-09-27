@@ -99,6 +99,7 @@ class MotionTracker {
      * @param rotazione gradi (orari) per raddrizzare l'immagine, come `ImageInfo.rotationDegrees`
      * @param specchia true per la fotocamera anteriore, così la mano si muove come in uno specchio
      * @param timestampNs istante del fotogramma (0 = ignoto, si assumono 30 fotogrammi al secondo)
+     * @param offsetCanale byte da saltare in ogni pixel (es. 1 per leggere il verde da RGBA)
      */
     @Synchronized
     fun elabora(
@@ -110,8 +111,9 @@ class MotionTracker {
         rotazione: Int,
         specchia: Boolean,
         timestampNs: Long = 0L,
+        offsetCanale: Int = 0,
     ): PosizioneMano {
-        riduci(luma, larghezza, altezza, rowStride, pixelStride)
+        riduci(luma, larghezza, altezza, rowStride, pixelStride, offsetCanale)
         val dt = if (timestampNs > 0L && ultimoTimestampNs > 0L) {
             ((timestampNs - ultimoTimestampNs) / 1e9f).coerceIn(0.005f, 0.2f)
         } else 1f / 30f
@@ -311,7 +313,7 @@ class MotionTracker {
     }
 
     /** Media della luminanza per cella, campionando una sottogriglia di pixel per contenere il costo. */
-    private fun riduci(luma: ByteArray, larghezza: Int, altezza: Int, rowStride: Int, pixelStride: Int) {
+    private fun riduci(luma: ByteArray, larghezza: Int, altezza: Int, rowStride: Int, pixelStride: Int, offset: Int) {
         val cellaW = larghezza / COLONNE
         val cellaH = altezza / RIGHE
         val passoX = (cellaW / CAMPIONI_PER_LATO).coerceAtLeast(1)
@@ -325,7 +327,7 @@ class MotionTracker {
                 while (py < fineY) {
                     var px = c * cellaW
                     val fineX = px + cellaW
-                    val base = py * rowStride
+                    val base = py * rowStride + offset
                     while (px < fineX) {
                         tot += luma[base + px * pixelStride].toInt() and 0xFF
                         cnt++

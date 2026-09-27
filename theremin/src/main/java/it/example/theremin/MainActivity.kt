@@ -114,6 +114,13 @@ import androidx.camera.camera2.interop.Camera2CameraControl
 import androidx.camera.camera2.interop.CaptureRequestOptions
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
+import androidx.compose.material3.Switch
+import androidx.lifecycle.Lifecycle
+import it.example.theremin.audio.Rilevatore
+import it.example.theremin.camera.PuntoMano2D
+import it.example.theremin.camera.SceltaMani
+import it.example.theremin.camera.SensoreProssimita
+import it.example.theremin.camera.TrackerMediaPipe
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -135,6 +142,21 @@ class MainActivity : ComponentActivity() {
     @Volatile private var inDimostrazione = false
     private var ultimoFotogrammaNs = 0L
     @Volatile private var camera: Camera? = null
+    /** Riconoscimento IA della mano; creato in background, null finché non è pronto o se non disponibile. */
+    @Volatile private var mediaPipe: TrackerMediaPipe? = null
+    private var erroreMediaPipe by mutableStateOf<String?>(null)
+    private var maniUi by mutableStateOf<List<List<PuntoMano2D>>>(emptyList())
+
+    /** Mano sul sensore di prossimità: silenzio immediato (se l'opzione è attiva). */
+    @Volatile private var sensoreCoperto = false
+    private var sensoreCopertoUi by mutableStateOf(false)
+    private val prossimita by lazy {
+        SensoreProssimita(this) { vicino ->
+            sensoreCoperto = vicino
+            sensoreCopertoUi = vicino
+            if (vicino) engine.synth.volumeBersaglio = 0f
+        }
+    }
     private var eraCalibrato = false
 
     // Stato mostrato dalla UI
@@ -173,6 +195,15 @@ class MainActivity : ComponentActivity() {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
         esecutoreAnalisi = Executors.newSingleThreadExecutor()
+        // Il modello IA si carica sul thread di analisi, prima del primo fotogramma
+        esecutoreAnalisi.execute {
+            mediaPipe = try {
+                TrackerMediaPipe(applicationContext)
+            } catch (e: Throwable) {
+                erroreMediaPipe = "Riconoscimento IA non disponibile su questo telefono: uso il rilevamento per movimento"
+                null
+            }
+        }
         aggiornaImpostazioni(store.leggi(), salva = false)
         base.ripristina()
 
@@ -202,16 +233,19 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         engine.avvia()
         base.riprendi()
+        prossimita.attiva(impostazioni.prossimitaMuta)
     }
 
     override fun onStop() {
         fermaDimostrazione()
         engine.ferma()
         base.sospendi()
+        prossimita.attiva(false)
         super.onStop()
     }
 
     override fun onDestroy() {
+        esecutoreAnalisi.execute { mediaPipe?.close() }
         esecutoreAnalisi.shutdown()
         base.rilascia()
         super.onDestroy()
@@ -307,11 +341,17 @@ class MainActivity : ComponentActivity() {
     private fun hzSuonati(midi: Float) = Note.midiToHz(midi + 12f * impostazioni.ottava)
 
     private fun aggiornaImpostazioni(nuove: Impostazioni, salva: Boolean = true) {
+        val vecchie = impostazioni
         impostazioni = nuove
         impostazioniUi = nuove
         engine.synth.applica(nuove)
         tracker.punto = nuove.puntoMano
         tracker.sensibilita = nuove.sensibilita
+        if (nuove.rilevatore != vecchie.rilevatore || !salva) {
+            // L'IA non ha bisogno di sfondo né di esposizione bloccata; il movimento sì
+            if (nuove.rilevatore == Rilevatore.MOVIMENTO) ricalibra() else bloccaEsposizione(false)
+        }
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) prossimita.attiva(nuove.prossimitaMuta)
         base.impostaVolume(nuove.volumeBase)
         if (salva) store.salva(nuove)
     }
@@ -323,11 +363,11 @@ class MainActivity : ComponentActivity() {
      *
      * In modalità Impara la stessa nota fa anche avanzare la lezione.
      */
-    private fun suPosizione(p: PosizioneMano) {
-        // Appena lo sfondo è imparato si blocca l'esposizione: così, quando la mano entra (specie su
-        // uno sfondo bianco), la fotocamera non si riadatta e la mano resta ben distinta dallo sfondo
+    private fun suPosizione(p: PosizioneMano, mani: List<List<PuntoMano2D>>) {
+        // Col rilevamento per movimento, appena lo sfondo è imparato si blocca l'esposizione: così,
+        // quando la mano entra (specie su uno sfondo bianco), la fotocamera non si riadatta
         val calibrato = tracker.calibrato
-        if (calibrato && !eraCalibrato) bloccaEsposizione(true)
+        if (calibrato && !eraCalibrato && impostazioni.rilevatore == Rilevatore.MOVIMENTO) bloccaEsposizione(true)
         eraCalibrato = calibrato
 
         val ora = System.nanoTime()
@@ -335,7 +375,8 @@ class MainActivity : ComponentActivity() {
         ultimoFotogrammaNs = ora
 
         val midi = midiDa(p.x, modalita, lezione.brano, scala, impostazioni)
-        val volume = if (inPausa) 0f else p.presenza * volumeDaAltezza(p.y)
+        val muto = inPausa || (impostazioni.prossimitaMuta && sensoreCoperto)
+        val volume = if (muto) 0f else p.presenza * volumeDaAltezza(p.y)
         if (!inDimostrazione) {
             engine.synth.frequenzaBersaglio = hzSuonati(midi)
             engine.synth.volumeBersaglio = volume
@@ -349,6 +390,7 @@ class MainActivity : ComponentActivity() {
         val progresso = l.progressoNota
         runOnUiThread {
             posizioneUi = p
+            maniUi = mani
             indiceUi = indice
             progressoNotaUi = progresso
         }
@@ -454,8 +496,11 @@ class MainActivity : ComponentActivity() {
                 Mixer()
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    if (modalitaUi == Modalita.IMPARA) "Porta il punto bianco dentro il cerchio colorato"
-                    else "← grave · acuto →      ↑ forte · piano ↓",
+                    when {
+                        impostazioniUi.prossimitaMuta && sensoreCopertoUi -> "🤚 Sensore coperto: silenzio"
+                        modalitaUi == Modalita.IMPARA -> "Porta il punto bianco dentro il cerchio colorato"
+                        else -> "← grave · acuto →      ↑ forte · piano ↓"
+                    },
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center,
@@ -492,8 +537,10 @@ class MainActivity : ComponentActivity() {
                             scalaUi = scala
                         }) { Text("Scala: ${scalaUi.etichetta}", color = Color.White) }
                     }
-                    OutlinedButton(contentPadding = PADDING_PULSANTI, onClick = ::ricalibra) {
-                        Text("Ricalibra", color = Color.White)
+                    if (impostazioniUi.rilevatore == Rilevatore.MOVIMENTO) {
+                        OutlinedButton(contentPadding = PADDING_PULSANTI, onClick = ::ricalibra) {
+                            Text("Ricalibra", color = Color.White)
+                        }
                     }
                 }
             }
@@ -846,7 +893,51 @@ class MainActivity : ComponentActivity() {
                 Spacer(Modifier.height(16.dp))
                 Text("Lettura della mano", style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (r in Rilevatore.entries) {
+                        FilterChip(
+                            selected = imp.rilevatore == r,
+                            onClick = { cambia(imp.copy(rilevatore = r)) },
+                            label = { Text(r.etichetta) },
+                        )
+                    }
+                }
+                erroreMediaPipe?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+                Text(
+                    if (imp.rilevatore == Rilevatore.MANO_IA) {
+                        "Riconosce la forma della mano con qualunque sfondo e luce. Con una mano, la punta " +
+                            "dell'indice decide nota e volume; con due mani, come un theremin vero, la destra " +
+                            "suona la nota e l'altezza della sinistra regola il volume."
+                    } else {
+                        "Segue ciò che si muove rispetto allo sfondo: più leggero, ma serve uno sfondo fermo."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Sensore di prossimità = silenzio", style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            if (prossimita.disponibile) {
+                                "Copri il sensore (in alto, vicino all'altoparlante delle chiamate) per zittire " +
+                                    "subito il suono e staccare le note."
+                            } else {
+                                "Questo telefono non ha un sensore di prossimità."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = imp.prossimitaMuta,
+                        onCheckedChange = { cambia(imp.copy(prossimitaMuta = it)) },
+                        enabled = prossimita.disponibile,
+                    )
+                }
+                if (imp.rilevatore == Rilevatore.MOVIMENTO) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (pm in PuntoMano.entries) {
                         FilterChip(
                             selected = imp.puntoMano == pm,
@@ -855,16 +946,18 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
-                Regolazione("Sensibilità", "${(imp.sensibilita * 100).roundToInt()}%", imp.sensibilita, 0f..1f) {
-                    cambia(imp.copy(sensibilita = it))
+                if (imp.rilevatore == Rilevatore.MOVIMENTO) {
+                    Regolazione("Sensibilità", "${(imp.sensibilita * 100).roundToInt()}%", imp.sensibilita, 0f..1f) {
+                        cambia(imp.copy(sensibilita = it))
+                    }
+                    Text(
+                        "Alzala se la mano non viene trovata (sfondo chiaro o simile alla pelle), abbassala se il " +
+                            "punto si muove da solo. Dopo aver cambiato luce o posizione del telefono premi Ricalibra " +
+                            "con la mano fuori campo.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-                Text(
-                    "Alzala se la mano non viene trovata (sfondo chiaro o simile alla pelle), abbassala se il " +
-                        "punto si muove da solo. Dopo aver cambiato luce o posizione del telefono premi Ricalibra " +
-                        "con la mano fuori campo.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
                 Regolazione(
                     "Margine ai bordi", "${(imp.margine * 100).roundToInt()}%",
                     imp.margine, 0f..0.3f,
@@ -940,13 +1033,24 @@ class MainActivity : ComponentActivity() {
                     .also { it.setSurfaceProvider(previewView.surfaceProvider) }
                 val analisi = ImageAnalysis.Builder()
                     .setResolutionSelector(selettore)
+                    // RGBA: serve a MediaPipe; il rilevamento per movimento ne legge il canale verde
+                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
-                    .also { it.setAnalyzer(esecutoreAnalisi, HandAnalyzer(tracker, ::suPosizione)) }
+                    .also {
+                        it.setAnalyzer(
+                            esecutoreAnalisi,
+                            HandAnalyzer(
+                                tracker,
+                                mediaPipe = { mediaPipe?.takeIf { impostazioni.rilevatore == Rilevatore.MANO_IA } },
+                                suPosizione = ::suPosizione,
+                            ),
+                        )
+                    }
                 provider.unbindAll()
                 camera = provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_FRONT_CAMERA, anteprima, analisi)
                 // Nuova sessione della fotocamera: esposizione di nuovo automatica e sfondo da reimparare
-                ricalibra()
+                if (impostazioni.rilevatore == Rilevatore.MOVIMENTO) ricalibra()
             }, ContextCompat.getMainExecutor(context))
             onDispose {
                 if (futuro.isDone) futuro.get().unbindAll()
@@ -1004,6 +1108,16 @@ class MainActivity : ComponentActivity() {
                         size = androidx.compose.ui.geometry.Size(40.dp.toPx(), 40.dp.toPx()),
                         style = Stroke(3.dp.toPx()),
                     )
+                }
+                // Punti delle mani riconosciute dall'IA, con la punta dell'indice evidenziata
+                for (mano in maniUi) {
+                    for ((k, punto) in mano.withIndex()) {
+                        drawCircle(
+                            if (k == SceltaMani.PUNTA_INDICE) Color(0xFFFFD54F) else Color.White.copy(alpha = 0.7f),
+                            radius = (if (k == SceltaMani.PUNTA_INDICE) 4.dp else 2.dp).toPx(),
+                            center = Offset(punto.x * size.width, punto.y * size.height),
+                        )
+                    }
                 }
                 if (p.presenza > 0.3f) {
                     val centro = Offset(p.x * size.width, p.y * size.height)

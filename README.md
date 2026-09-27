@@ -171,7 +171,32 @@ Il pulsante **🎛 Suono** in alto apre un pannello; le scelte vengono salvate.
 | Sensibilità | soglia minima del rilevamento: più alta se la mano si confonde con lo sfondo |
 | Margine ai bordi | fascia laterale (0–30%) esclusa dalla tastiera |
 
-### Precisione del rilevamento (`camera/MotionTracker.kt`)
+### Riconoscimento della mano con l'IA (predefinito)
+
+Il rilevatore predefinito è **MediaPipe Hand Landmarker** di Google
+(`camera/TrackerMediaPipe.kt`), eseguito interamente sul telefono: riconosce
+la forma della mano e ne dà 21 punti, disegnati nell'anteprima (la punta
+dell'indice in giallo). Non dipende da sfondo o luce, non scambia viso o corpo
+per una mano e non serve ricalibrare.
+
+- **una mano**: la punta dell'indice decide nota (orizzontale) e volume (altezza);
+- **due mani**, come un theremin vero: la destra suona la nota con l'indice,
+  l'altezza del palmo sinistro regola il volume (`camera/SceltaMani.kt`).
+
+Il modello (`hand_landmarker.task`, 7,8 MB) non è nel repository: il task
+Gradle `scaricaModelloMano` lo scarica dal server ufficiale di Google negli
+asset alla prima compilazione. Se il riconoscimento non è disponibile sul
+telefono, l'app usa automaticamente il rilevamento per movimento, che resta
+selezionabile nel pannello 🎛 (“Movimento sullo sfondo”).
+
+### Sensore di prossimità come interruttore
+
+Opzione nel pannello 🎛: coprendo il sensore di prossimità (in alto, vicino
+all'altoparlante delle chiamate) il suono si zittisce all'istante, per
+staccare le note. Il sensore non serve per la posizione: sulla quasi totalità
+dei telefoni distingue solo "vicino" (≈5 cm) e "lontano".
+
+### Rilevamento per movimento: precisione (`camera/MotionTracker.kt`)
 
 - griglia di analisi 64×48 (prima 40×30);
 - **esposizione bloccata** (AE/AWB lock via Camera2 interop) appena lo sfondo è

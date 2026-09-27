@@ -25,6 +25,8 @@ class ImpostazioniStore(context: Context) {
             volumeBase = prefs.getFloat("volumeBase", d.volumeBase),
             margine = prefs.getFloat("margine", d.margine),
             puntoMano = enumOppure(prefs.getString("puntoMano", null), d.puntoMano),
+            rilevatore = enumOppure(prefs.getString("rilevatore", null), d.rilevatore),
+            prossimitaMuta = prefs.getBoolean("prossimitaMuta", d.prossimitaMuta),
         )
     }
 
@@ -45,6 +47,8 @@ class ImpostazioniStore(context: Context) {
             .putFloat("volumeBase", i.volumeBase)
             .putFloat("margine", i.margine)
             .putString("puntoMano", i.puntoMano.name)
+            .putString("rilevatore", i.rilevatore.name)
+            .putBoolean("prossimitaMuta", i.prossimitaMuta)
             .apply()
     }
 
