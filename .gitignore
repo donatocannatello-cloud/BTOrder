@@ -11,3 +11,6 @@ local.properties
 /app/build
 /theremin/build
 /theremin/src/main/assets/hand_landmarker.task
+# Chiavi di firma per il Play Store: mai nel repository
+*.jks
+upload*.keystore

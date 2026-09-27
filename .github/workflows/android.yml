@@ -11,6 +11,12 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Chiave di caricamento per il Play Store, dai Secrets del repository (mai nel codice)
+      THEREMIN_UPLOAD_KEYSTORE_BASE64: ${{ secrets.THEREMIN_UPLOAD_KEYSTORE_BASE64 }}
+      THEREMIN_UPLOAD_STORE_PASSWORD: ${{ secrets.THEREMIN_UPLOAD_STORE_PASSWORD }}
+      THEREMIN_UPLOAD_KEY_ALIAS: ${{ secrets.THEREMIN_UPLOAD_KEY_ALIAS }}
+      THEREMIN_UPLOAD_KEY_PASSWORD: ${{ secrets.THEREMIN_UPLOAD_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -26,6 +32,21 @@ jobs:
 
       - name: Compila APK di debug
         run: ./gradlew --no-daemon assembleDebug
+
+      - name: Versione di MediaPipe usata
+        run: ./gradlew --no-daemon -q :theremin:dependencies --configuration releaseRuntimeClasspath | grep -m1 "tasks-vision" || true
+
+      - name: Controllo librerie native a 16 KB (requisito Google Play)
+        run: python3 .github/scripts/controlla_16kb.py theremin/build/outputs/apk/debug/theremin-debug.apk || echo "::warning::Librerie native non compatibili con pagine da 16 KB"
+
+      - name: Compila AAB firmato per il Play Store
+        if: github.event_name != 'pull_request' && env.THEREMIN_UPLOAD_KEYSTORE_BASE64 != ''
+        run: |
+          echo "$THEREMIN_UPLOAD_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          export THEREMIN_UPLOAD_STORE_FILE="$RUNNER_TEMP/upload.jks"
+          ./gradlew --no-daemon :theremin:bundleRelease
+          cp theremin/build/outputs/bundle/release/theremin-release.aab theremin-cromatico-release.aab
+          rm "$RUNNER_TEMP/upload.jks"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -50,4 +71,7 @@ jobs:
           tag_name: theremin-latest
           name: Theremin Cromatico (ultima build)
           prerelease: true
-          files: theremin-cromatico-debug.apk
+          # L'AAB (se c'è la chiave nei Secrets) è il file da caricare su Google Play Console
+          files: |
+            theremin-cromatico-debug.apk
+            theremin-cromatico-release.aab

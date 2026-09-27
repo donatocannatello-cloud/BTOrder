@@ -1,17 +1,21 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
     namespace = "it.example.theremin"
-    compileSdk = 34
+    // Google Play richiede per le app nuove l'ultima versione di Android come target (Android 16)
+    compileSdk = 36
 
     defaultConfig {
-        applicationId = "it.example.theremin"
+        // Identità definitiva sul Play Store: non va più cambiata
+        applicationId = "it.donatocannatello.theremincromatico"
         // API 26: AudioTrack.PERFORMANCE_MODE_LOW_LATENCY
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
+        manifestPlaceholders["nomeApp"] = "Theremin Cromatico"
         // Cresce a ogni build su GitHub Actions, così ogni APK si installa come aggiornamento
         versionCode = (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0) + 1
         versionName = "1.0.${System.getenv("GITHUB_RUN_NUMBER") ?: "dev"}"
@@ -23,20 +27,38 @@ android {
         }
     }
 
-    // Chiave di debug fissa, salvata nel repository: senza di essa ogni runner CI genera una
-    // chiave nuova e Android rifiuta l'aggiornamento ("pacchetto in conflitto").
-    // Solo per le build di debug/distribuzione interna, non per il Play Store.
     signingConfigs {
+        // Chiave di debug fissa, salvata nel repository: senza di essa ogni runner CI genera una
+        // chiave nuova e Android rifiuta l'aggiornamento ("pacchetto in conflitto").
+        // Solo per le build di debug/distribuzione interna, non per il Play Store.
         getByName("debug") {
             storeFile = file("debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+        // Chiave di caricamento per il Play Store: NON è nel repository (che è pubblico). Su GitHub
+        // Actions arriva dai Secrets; in locale si passa con le stesse variabili d'ambiente.
+        val keystoreCaricamento = System.getenv("THEREMIN_UPLOAD_STORE_FILE")
+        if (keystoreCaricamento != null && file(keystoreCaricamento).exists()) {
+            create("caricamento") {
+                storeFile = file(keystoreCaricamento)
+                storePassword = System.getenv("THEREMIN_UPLOAD_STORE_PASSWORD")
+                keyAlias = System.getenv("THEREMIN_UPLOAD_KEY_ALIAS")
+                keyPassword = System.getenv("THEREMIN_UPLOAD_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
+        debug {
+            // Pacchetto distinto: la versione di prova (APK da GitHub) e quella del Play Store,
+            // firmate con chiavi diverse, possono stare sullo stesso telefono senza conflitti
+            applicationIdSuffix = ".debug"
+            manifestPlaceholders["nomeApp"] = "Theremin (prova)"
+        }
         release {
+            signingConfigs.findByName("caricamento")?.let { signingConfig = it }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -56,10 +78,6 @@ android {
 
     buildFeatures {
         compose = true
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
     }
 
     // Il modello di MediaPipe va letto così com'è dagli asset, senza compressione
@@ -85,13 +103,15 @@ dependencies {
     implementation("androidx.compose.material3:material3")
 
     // Fotocamera anteriore: anteprima + analisi dei fotogrammi
-    val cameraxVersion = "1.3.4"
+    // 1.4+: librerie native allineate a pagine da 16 KB, come richiesto da Google Play
+    val cameraxVersion = "1.4.2"
     implementation("androidx.camera:camera-camera2:$cameraxVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
     implementation("androidx.camera:camera-view:$cameraxVersion")
 
     // Riconoscimento della mano (21 punti per mano), eseguito interamente sul telefono
-    implementation("com.google.mediapipe:tasks-vision:0.10.14")
+    // Versione recente: librerie native compatibili con pagine da 16 KB (requisito di Google Play)
+    implementation("com.google.mediapipe:tasks-vision:0.10.+")
 
     testImplementation("junit:junit:4.13.2")
 }
