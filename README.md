@@ -136,6 +136,11 @@ Si può suonare il theremin sopra un brano di sottofondo (per esempio la propria
 copia di *Romeo and Juliet*). L'app non include brani registrati: la base si
 sceglie dal telefono o da internet.
 
+- **📻 Radio Romeo and Juliet**: pulsante dedicato alla web radio di Verona
+  (electronic chill). L'indirizzo dello stream non è scritto nell'app: viene
+  chiesto ogni volta al catalogo pubblico [Radio Browser](https://www.radio-browser.info)
+  (`audio/RadioBrowser.kt`), così resta valido anche se la radio cambia server.
+  Dallo stesso pannello si può **cercare qualunque altra radio** per nome.
 - **📻** apre il pannello della base: **Scegli un file audio dal telefono**
   (selettore di sistema, qualunque formato supportato da Android: mp3, m4a,
   ogg, flac…) oppure **Radio / stream**: si incolla l'URL di una radio o di un

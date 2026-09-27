@@ -105,6 +105,8 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.compose.material3.OutlinedTextField
 import it.example.theremin.audio.BaseMusicale
+import it.example.theremin.audio.RadioBrowser
+import it.example.theremin.audio.StazioneRadio
 import it.example.theremin.audio.StatoBase
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -147,6 +149,9 @@ class MainActivity : ComponentActivity() {
     private var statoBaseUi by mutableStateOf(StatoBase())
     private var pannelloBaseAperto by mutableStateOf(false)
     private var ripetiBase by mutableStateOf(true)
+    private var risultatiRadio by mutableStateOf<List<StazioneRadio>>(emptyList())
+    private var ricercaRadioInCorso by mutableStateOf(false)
+    private var erroreRicercaRadio by mutableStateOf<String?>(null)
     private val sceltaFileAudio = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) apriFileAudio(uri)
     }
@@ -233,6 +238,32 @@ class MainActivity : ComponentActivity() {
             if (c.moveToFirst()) c.getString(0) else null
         }
         base.carica(uri, nome ?: "File audio")
+    }
+
+    /**
+     * Cerca una radio nel catalogo online. Con [avviaMigliore] fa partire subito la stazione
+     * che corrisponde meglio al nome (usato dal pulsante di Radio Romeo and Juliet).
+     */
+    private fun cercaRadio(nome: String, avviaMigliore: Boolean = false) {
+        if (nome.isBlank()) return
+        ricercaRadioInCorso = true
+        erroreRicercaRadio = null
+        lifecycleScope.launch {
+            try {
+                val risultati = RadioBrowser.cerca(nome)
+                risultatiRadio = risultati
+                if (risultati.isEmpty()) erroreRicercaRadio = "Nessuna radio trovata per \"$nome\""
+                else if (avviaMigliore) RadioBrowser.migliore(risultati, nome)?.let(::ascoltaRadio)
+            } catch (e: Exception) {
+                erroreRicercaRadio = "Catalogo radio non raggiungibile: controlla la connessione"
+            } finally {
+                ricercaRadioInCorso = false
+            }
+        }
+    }
+
+    private fun ascoltaRadio(stazione: StazioneRadio) {
+        base.carica(Uri.parse(stazione.url), "📻 ${stazione.nome}")
     }
 
     /** Frequenza effettivamente suonata: la nota trasposta dell'ottava scelta. */
@@ -479,8 +510,8 @@ class MainActivity : ComponentActivity() {
             ) {
                 Text("Base musicale", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    "Suona il theremin sopra un brano di sottofondo, per esempio la tua copia di " +
-                        "\"Romeo and Juliet\": sceglila dalla musica del telefono oppure incolla l'indirizzo di una radio in streaming.",
+                    "Suona il theremin sopra una radio online o un brano di sottofondo, " +
+                        "con il volume della base separato da quello del theremin.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -512,6 +543,54 @@ class MainActivity : ComponentActivity() {
                 }
 
                 Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = { cercaRadio(RadioBrowser.ROMEO_AND_JULIET, avviaMigliore = true) },
+                    enabled = !ricercaRadioInCorso,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("📻 Radio Romeo and Juliet") }
+
+                Spacer(Modifier.height(12.dp))
+                Text("Altre radio online", style = MaterialTheme.typography.labelLarge)
+                var nomeRadio by remember { mutableStateOf("") }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = nomeRadio,
+                        onValueChange = { nomeRadio = it },
+                        label = { Text("Nome della radio") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedButton(
+                        onClick = { cercaRadio(nomeRadio) },
+                        enabled = nomeRadio.isNotBlank() && !ricercaRadioInCorso,
+                    ) { Text("Cerca") }
+                }
+                if (ricercaRadioInCorso) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                }
+                erroreRicercaRadio?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+                for (stazione in risultatiRadio.take(15)) {
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { ascoltaRadio(stazione) }
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Text(stazione.nome, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            listOf(stazione.paese, stazione.codec, if (stazione.bitrate > 0) "${stazione.bitrate} kbps" else "")
+                                .filter { it.isNotBlank() }.joinToString(" · "),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+                Text("Oppure", style = MaterialTheme.typography.labelLarge)
                 OutlinedButton(onClick = { sceltaFileAudio.launch(arrayOf("audio/*")) }) {
                     Text("📂 Scegli un file audio dal telefono")
                 }
