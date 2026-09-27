@@ -111,7 +111,7 @@ dependencies {
 
     // Riconoscimento della mano (21 punti per mano), eseguito interamente sul telefono
     // Versione recente: librerie native compatibili con pagine da 16 KB (requisito di Google Play)
-    implementation("com.google.mediapipe:tasks-vision:0.10.+")
+    implementation("com.google.mediapipe:tasks-vision:0.10.35")
 
     testImplementation("junit:junit:4.13.2")
 }
