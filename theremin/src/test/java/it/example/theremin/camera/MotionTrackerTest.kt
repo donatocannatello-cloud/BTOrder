@@ -142,4 +142,35 @@ class MotionTrackerTest {
         val ultimi = xs.takeLast(15)
         assertTrue("oscillazione ${ultimi.max() - ultimi.min()}", ultimi.max() - ultimi.min() < 0.01f)
     }
+
+    @Test
+    fun `quando la mano esce la presenza va a zero subito, anche dopo averla tenuta ferma a lungo`() {
+        val t = MotionTracker()
+        val sfondo = fotogramma(180, 0)
+        val mano = fotogramma(180, 60, mano = manoCentrale)
+        repeat(25) { t.elabora(sfondo) }
+        repeat(200) { t.elabora(mano) } // circa 7 secondi di mano ferma
+        assertTrue(t.elabora(mano).presenza > 0.9f)
+        // La mano esce: entro 2 fotogrammi (circa 70 ms) la presenza deve essere zero, senza "fantasmi"
+        t.elabora(sfondo)
+        val p = t.elabora(sfondo)
+        assertEquals(0f, p.presenza, 0f)
+        repeat(30) { assertEquals(0f, t.elabora(sfondo).presenza, 0f) }
+    }
+
+    @Test
+    fun `un piccolo movimento lontano dalla mano non la sposta e da solo non fa suonare`() {
+        val t = MotionTracker().apply { punto = PuntoMano.CENTRO }
+        repeat(25) { t.elabora(fotogramma(180, 0)) }
+        // Solo un piccolo oggetto che si muove in un angolo (es. un riflesso): niente mano
+        var p = PosizioneMano(0f, 0f, 0f)
+        repeat(6) { k -> p = t.elabora(fotogramma(180, 60, mano = { x, y -> x in 20 + k * 3..45 + k * 3 && y in 20..40 })) }
+        assertEquals(0f, p.presenza, 0f)
+        // Mano al centro più il piccolo oggetto: si segue la mano
+        repeat(6) { k ->
+            p = t.elabora(fotogramma(180, 60, mano = { x, y -> manoCentrale(x, y) || (x in 20 + k * 3..45 + k * 3 && y in 20..40) }))
+        }
+        assertTrue(p.presenza > 0.9f)
+        assertEquals(0.5f, p.x, 0.03f)
+    }
 }

@@ -31,11 +31,16 @@ enum class PuntoMano(val etichetta: String) {
  *    fotocamera si riadatta) e viene sottratta a tutte le celle;
  * 2. **soglia adattiva**: il rumore del sensore viene stimato (mediana delle differenze) e la
  *    soglia si alza o si abbassa di conseguenza, con un minimo regolato da [sensibilita];
- * 3. anche il **movimento** rispetto al fotogramma precedente conta, così una mano che si muove
- *    su uno sfondo di colore simile viene comunque vista;
- * 4. le celle isolate (rumore) vengono scartate, tenendo solo quelle con vicini in primo piano;
+ * 3. anche il **movimento** rispetto al fotogramma precedente conta (dove l'immagine differisce
+ *    almeno un po' dallo sfondo), così una mano che si muove su uno sfondo simile viene comunque vista;
+ * 4. le celle isolate (rumore) vengono scartate, tenendo solo quelle con vicini in primo piano,
+ *    e si segue soltanto la **sagoma più grande** (la mano), ignorando piccoli movimenti altrove;
  * 5. il punto scelto ([punto]) passa per un **filtro One Euro**: fermo quando la mano è ferma,
  *    reattivo quando si muove.
+ *
+ * Lo sfondo non "assorbe" mai la mano: così, quando la mano esce, non resta una sagoma fantasma
+ * e la presenza cade a zero in pochi centesimi di secondo. Solo un oggetto rimasto
+ * perfettamente immobile per [FOTOGRAMMI_OGGETTO_FERMO] fotogrammi viene inglobato nello sfondo.
  */
 class MotionTracker {
 
@@ -55,6 +60,10 @@ class MotionTracker {
     private val punteggio = FloatArray(n)
     private val primoPiano = BooleanArray(n)
     private val appoggio = FloatArray(n)
+    private val attiva = BooleanArray(n)
+    private val etichetta = IntArray(n)
+    private val coda = IntArray(n)
+    private val fermoDa = IntArray(n)
     private var fotogrammi = 0
 
     // Accumulatori per riga in coordinate schermo (al massimo max(COLONNE, RIGHE) righe)
@@ -69,12 +78,14 @@ class MotionTracker {
     private var xUscita = 0.5f
     private var yUscita = 0.5f
     private var presenzaLiscia = 0f
+    private var fotogrammiSenzaMano = 0
     private var ultimoTimestampNs = 0L
 
     /** Dimentica lo sfondo: i prossimi fotogrammi vengono usati per reimpararlo (tenere la mano fuori campo). */
     @Synchronized
     fun ricalibra() {
         fotogrammi = 0
+        fermoDa.fill(0)
         calibrato = false
         presenzaLiscia = 0f
     }
@@ -136,10 +147,35 @@ class MotionTracker {
             val dSfondo = abs(corrente[i] - sfondo[i] - scostamento)
             val dMoto = abs(corrente[i] - precedente[i]) * 0.8f
             punteggio[i] = maxOf(dSfondo, dMoto)
-            primoPiano[i] = punteggio[i] > soglia
+            // Il movimento aiuta solo dove l'immagine differisce anche dallo sfondo: altrimenti il
+            // punto appena lasciato libero dalla mano che esce verrebbe scambiato per la mano
+            primoPiano[i] = dSfondo > soglia || (dMoto > soglia && dSfondo > soglia * 0.5f)
         }
 
         // 4. via le celle isolate: servono almeno due vicini in primo piano
+        for (r in 0 until RIGHE) for (c in 0 until COLONNE) {
+            val i = r * COLONNE + c
+            attiva[i] = primoPiano[i] && vicini(r, c) >= 2
+        }
+        // ...e si tiene solo la sagoma connessa più grande (la mano con il braccio)
+        val sagoma = sagomaPiuGrande()
+
+        // Aggiornamento dello sfondo: segue la scena (esposizione compresa) ma non la mano
+        for (i in 0 until n) {
+            if (attiva[i]) {
+                val immobile = abs(corrente[i] - precedente[i]) < SOGLIA_IMMOBILE
+                fermoDa[i] = if (immobile) fermoDa[i] + 1 else 0
+                if (fermoDa[i] > FOTOGRAMMI_OGGETTO_FERMO) {
+                    // Un oggetto posato e rimasto immobile a lungo diventa parte dello sfondo
+                    sfondo[i] = corrente[i] - scostamento
+                    fermoDa[i] = 0
+                }
+            } else {
+                fermoDa[i] = 0
+                sfondo[i] += (corrente[i] - sfondo[i]) * ALFA_SFONDO
+            }
+        }
+
         val ruotata = ((rotazione % 180) + 180) % 180 == 90
         val righeSchermo = if (ruotata) COLONNE else RIGHE
         rigaCelle.fill(0)
@@ -147,25 +183,19 @@ class MotionTracker {
         rigaSx.fill(0f)
         rigaSy.fill(0f)
         var celleAttive = 0
-        for (r in 0 until RIGHE) {
-            for (c in 0 until COLONNE) {
+        if (sagoma > 0) {
+            for (r in 0 until RIGHE) for (c in 0 until COLONNE) {
                 val i = r * COLONNE + c
-                val attiva = primoPiano[i] && vicini(r, c) >= 2
-                if (attiva) {
-                    val peso = punteggio[i] - soglia
-                    var (x, y) = ruota((c + 0.5f) / COLONNE, (r + 0.5f) / RIGHE, rotazione)
-                    if (specchia) x = 1f - x
-                    val riga = (y * righeSchermo).toInt().coerceIn(0, righeSchermo - 1)
-                    rigaCelle[riga]++
-                    rigaPeso[riga] += peso
-                    rigaSx[riga] += peso * x
-                    rigaSy[riga] += peso * y
-                    celleAttive++
-                    sfondo[i] += (corrente[i] - scostamento - sfondo[i]) * ALFA_PRIMO_PIANO
-                } else {
-                    // Lo sfondo segue lentamente la scena, esposizione compresa
-                    sfondo[i] += (corrente[i] - sfondo[i]) * ALFA_SFONDO
-                }
+                if (etichetta[i] != sagoma) continue
+                val peso = punteggio[i] - soglia
+                var (x, y) = ruota((c + 0.5f) / COLONNE, (r + 0.5f) / RIGHE, rotazione)
+                if (specchia) x = 1f - x
+                val riga = (y * righeSchermo).toInt().coerceIn(0, righeSchermo - 1)
+                rigaCelle[riga]++
+                rigaPeso[riga] += peso
+                rigaSx[riga] += peso * x
+                rigaSy[riga] += peso * y
+                celleAttive++
             }
         }
         corrente.copyInto(precedente)
@@ -201,8 +231,59 @@ class MotionTracker {
                 yUscita = filtroY.filtra(y, dt)
             }
         }
-        presenzaLiscia += ((if (presente) 1f else 0f) - presenzaLiscia) * 0.3f
+        // Presenza: sale in fretta e, quando la mano esce, va a zero subito
+        // (un solo fotogramma "buco" è tollerato, per non interrompere il suono per un disturbo)
+        if (presente) {
+            fotogrammiSenzaMano = 0
+            presenzaLiscia = minOf(1f, presenzaLiscia + 0.5f)
+        } else {
+            fotogrammiSenzaMano++
+            if (fotogrammiSenzaMano >= FOTOGRAMMI_USCITA) presenzaLiscia = 0f
+        }
         return PosizioneMano(xUscita, yUscita, presenzaLiscia)
+    }
+
+    /**
+     * Etichetta le sagome connesse (celle [attiva] adiacenti, anche in diagonale) e restituisce
+     * l'etichetta di quella con più "energia", o 0 se nessuna è abbastanza grande da essere una mano.
+     */
+    private fun sagomaPiuGrande(): Int {
+        etichetta.fill(0)
+        var prossima = 1
+        var migliore = 0
+        var energiaMigliore = 0f
+        for (inizio in 0 until n) {
+            if (!attiva[inizio] || etichetta[inizio] != 0) continue
+            val e = prossima++
+            var testa = 0
+            var fine = 0
+            coda[fine++] = inizio
+            etichetta[inizio] = e
+            var celle = 0
+            var energia = 0f
+            while (testa < fine) {
+                val i = coda[testa++]
+                celle++
+                energia += punteggio[i]
+                val r = i / COLONNE
+                val c = i % COLONNE
+                for (dr in -1..1) for (dc in -1..1) {
+                    val rr = r + dr
+                    val cc = c + dc
+                    if (rr !in 0 until RIGHE || cc !in 0 until COLONNE) continue
+                    val j = rr * COLONNE + cc
+                    if (attiva[j] && etichetta[j] == 0) {
+                        etichetta[j] = e
+                        coda[fine++] = j
+                    }
+                }
+            }
+            if (celle >= MIN_CELLE_SAGOMA && energia > energiaMigliore) {
+                energiaMigliore = energia
+                migliore = e
+            }
+        }
+        return migliore
     }
 
     private fun vicini(r: Int, c: Int): Int {
@@ -265,9 +346,13 @@ class MotionTracker {
         private const val FOTOGRAMMI_CALIBRAZIONE = 12
         private const val SOGLIA_MIN_POCO_SENSIBILE = 22f
         private const val SOGLIA_MIN_MOLTO_SENSIBILE = 7f
-        private const val FRAZIONE_MINIMA = 0.008f
+        private const val FRAZIONE_MINIMA = 0.006f
         private const val ALFA_SFONDO = 0.03f
-        private const val ALFA_PRIMO_PIANO = 0.003f
+        /** Celle minime perché una sagoma sia considerata una mano (~0,8% dell'inquadratura). */
+        private const val MIN_CELLE_SAGOMA = 25
+        private const val SOGLIA_IMMOBILE = 2.5f
+        private const val FOTOGRAMMI_OGGETTO_FERMO = 240
+        private const val FOTOGRAMMI_USCITA = 2
         private const val MIN_CELLE_RIGA = 2
         /** Altezza della fascia "punta", in frazione dell'altezza dell'immagine. */
         private const val FASCIA_PUNTA = 0.08f

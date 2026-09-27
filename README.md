@@ -184,6 +184,11 @@ Il pulsante **🎛 Suono** in alto apre un pannello; le scelte vengono salvate.
   (Sensibilità), più rilevamento del **movimento** tra fotogrammi;
 - scarto delle celle isolate e **filtro One Euro** sulla posizione: niente
   tremolio a mano ferma, nessun ritardo nei movimenti rapidi.
+- si segue solo la **sagoma connessa più grande**: piccoli movimenti altrove
+  (riflessi, viso) non spostano il punto e da soli non fanno suonare;
+- **silenzio immediato quando la mano esce**: lo sfondo non "assorbe" mai la
+  mano (niente sagome fantasma dove è rimasta a lungo), la presenza va a zero
+  dopo 2 fotogrammi senza mano (~70 ms) e il suono si chiude in ~30 ms.
 
 I test in `MotionTrackerTest` coprono sfondo bianco con mano poco
 contrastata, cambio di esposizione all'ingresso della mano, cambio di luce
