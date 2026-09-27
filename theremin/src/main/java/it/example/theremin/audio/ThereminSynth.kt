@@ -30,6 +30,7 @@ class ThereminSynth(private val sampleRate: Int) {
     @Volatile private var coeffGlide = coefficiente(0.045f)
     @Volatile private var quantitaEco = 0.0
     @Volatile private var guadagnoSaturazione = 1.4
+    @Volatile private var volumeGenerale = 1.0
 
     private val coeffVolume = coefficiente(0.030f)
 
@@ -48,6 +49,8 @@ class ThereminSynth(private val sampleRate: Int) {
         coeffGlide = coefficiente(imp.portamentoMs.coerceIn(3f, 1000f) / 1000f)
         quantitaEco = imp.eco.coerceIn(0f, 1f).toDouble()
         guadagnoSaturazione = 0.6 + 3.0 * imp.calore.coerceIn(0f, 1f)
+        val v = imp.volumeTheremin.coerceIn(0f, 1f).toDouble()
+        volumeGenerale = v * v // curva quadratica, più naturale all'orecchio
     }
 
     /** Riempie [out] con campioni in [-1, 1] e restituisce il picco assoluto del blocco. */
@@ -61,6 +64,7 @@ class ThereminSynth(private val sampleRate: Int) {
         val eco = quantitaEco
         val retroazione = 0.55 * eco
         val drive = guadagnoSaturazione
+        val generale = volumeGenerale
         val normalizzazione = 1.0 / tanh(drive)
         val limiteArmoniche = sampleRate * 0.45
         var picco = 0f
@@ -85,7 +89,7 @@ class ThereminSynth(private val sampleRate: Int) {
                 s += a * sin((k + 1) * w)
             }
             s = tanh(drive * s * 0.8) * normalizzazione * 0.8 // saturazione "valvolare", normalizzata
-            var campione = s * vol * 0.85
+            var campione = s * vol * 0.85 * generale
 
             if (eco > 0.0) {
                 val ritardato = lineaEco[posEco].toDouble()

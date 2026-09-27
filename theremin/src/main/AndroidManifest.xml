@@ -3,6 +3,8 @@
 
     <!-- La fotocamera anteriore è l'"antenna" del theremin -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Solo per la base musicale da radio / stream via internet -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <uses-feature
         android:name="android.hardware.camera.front"
@@ -14,6 +16,7 @@
         android:label="@string/nome_app"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
         android:theme="@style/Theme.Theremin">
 
         <!-- Orientamento fisso: la mappatura mano → nota resta stabile mentre si suona -->

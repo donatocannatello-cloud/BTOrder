@@ -25,6 +25,11 @@ data class Impostazioni(
     val eco: Float = 0f,
     /** Saturazione "valvolare", 0..1: da suono pulito a caldo e un po' sporco. */
     val calore: Float = 0.3f,
+    // --- Mixer ---
+    /** Volume del theremin, 0..1, indipendente dalla base musicale. */
+    val volumeTheremin: Float = 1f,
+    /** Volume della base musicale di sottofondo, 0..1. */
+    val volumeBase: Float = 0.6f,
     // --- Lettura della mano ---
     /** Fascia ai due lati dell'inquadratura (0..0.3) esclusa dalla tastiera: le note estreme si raggiungono prima del bordo. */
     val margine: Float = 0.12f,

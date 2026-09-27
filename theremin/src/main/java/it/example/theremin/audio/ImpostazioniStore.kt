@@ -19,6 +19,8 @@ class ImpostazioniStore(context: Context) {
             portamentoMs = prefs.getFloat("portamentoMs", d.portamentoMs),
             eco = prefs.getFloat("eco", d.eco),
             calore = prefs.getFloat("calore", d.calore),
+            volumeTheremin = prefs.getFloat("volumeTheremin", d.volumeTheremin),
+            volumeBase = prefs.getFloat("volumeBase", d.volumeBase),
             margine = prefs.getFloat("margine", d.margine),
             puntoMano = enumOppure(prefs.getString("puntoMano", null), d.puntoMano),
         )
@@ -35,6 +37,8 @@ class ImpostazioniStore(context: Context) {
             .putFloat("portamentoMs", i.portamentoMs)
             .putFloat("eco", i.eco)
             .putFloat("calore", i.calore)
+            .putFloat("volumeTheremin", i.volumeTheremin)
+            .putFloat("volumeBase", i.volumeBase)
             .putFloat("margine", i.margine)
             .putString("puntoMano", i.puntoMano.name)
             .apply()

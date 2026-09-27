@@ -130,6 +130,22 @@ nell'inquadratura:
   attimo. Utile se cambia la luce o sposti il telefono.
 - **Muto**: silenzia il suono lasciando attive le onde.
 
+## Base musicale e mixer (📻)
+
+Si può suonare il theremin sopra un brano di sottofondo (per esempio la propria
+copia di *Romeo and Juliet*). L'app non include brani registrati: la base si
+sceglie dal telefono o da internet.
+
+- **📻** apre il pannello della base: **Scegli un file audio dal telefono**
+  (selettore di sistema, qualunque formato supportato da Android: mp3, m4a,
+  ogg, flac…) oppure **Radio / stream**: si incolla l'URL di una radio o di un
+  file in rete. L'ultima base viene ricordata e ricaricata, in pausa, al
+  riavvio.
+- **Mixer** sempre visibile in basso: due cursori indipendenti **Theremin** e
+  **Base**, più ▶/⏸ della base. I volumi vengono salvati.
+- La base va in pausa quando l'app passa in secondo piano e riparte al
+  ritorno, come il theremin. Opzione **Ripeti** per i file (non per gli stream).
+
 ## Regolazioni del suono e della lettura (🎛 Suono)
 
 Il pulsante **🎛 Suono** in alto apre un pannello; le scelte vengono salvate.

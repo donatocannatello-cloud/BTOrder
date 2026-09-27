@@ -100,6 +100,12 @@ import it.example.theremin.audio.ImpostazioniStore
 import it.example.theremin.audio.Timbro
 import it.example.theremin.camera.PuntoMano
 import kotlin.math.roundToInt
+import android.content.Intent
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.compose.material3.OutlinedTextField
+import it.example.theremin.audio.BaseMusicale
+import it.example.theremin.audio.StatoBase
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -136,6 +142,15 @@ class MainActivity : ComponentActivity() {
     private var dimostrazione: Job? = null
     private val store by lazy { ImpostazioniStore(this) }
 
+    // Base musicale di sottofondo (file dal telefono o radio in streaming), con volume separato
+    private val base by lazy { BaseMusicale(this) { statoBaseUi = it } }
+    private var statoBaseUi by mutableStateOf(StatoBase())
+    private var pannelloBaseAperto by mutableStateOf(false)
+    private var ripetiBase by mutableStateOf(true)
+    private val sceltaFileAudio = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) apriFileAudio(uri)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -146,6 +161,7 @@ class MainActivity : ComponentActivity() {
         }
         esecutoreAnalisi = Executors.newSingleThreadExecutor()
         aggiornaImpostazioni(store.leggi(), salva = false)
+        base.ripristina()
 
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
@@ -160,6 +176,7 @@ class MainActivity : ComponentActivity() {
                         SchermataTheremin()
                         if (sceltaBranoAperta) SceltaBrano()
                         if (pannelloSuonoAperto) PannelloSuono()
+                        if (pannelloBaseAperto) PannelloBase()
                     } else {
                         RichiestaPermesso { richiesta.launch(Manifest.permission.CAMERA) }
                     }
@@ -171,16 +188,19 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         engine.avvia()
+        base.riprendi()
     }
 
     override fun onStop() {
         fermaDimostrazione()
         engine.ferma()
+        base.sospendi()
         super.onStop()
     }
 
     override fun onDestroy() {
         esecutoreAnalisi.shutdown()
+        base.rilascia()
         super.onDestroy()
     }
 
@@ -202,6 +222,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Apre un file audio scelto dall'utente, mantenendo il permesso di rileggerlo ai prossimi avvii. */
+    private fun apriFileAudio(uri: Uri) {
+        try {
+            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } catch (_: SecurityException) {
+            // Alcuni fornitori non concedono permessi persistenti: il file resta usabile in questa sessione
+        }
+        val nome = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        }
+        base.carica(uri, nome ?: "File audio")
+    }
+
     /** Frequenza effettivamente suonata: la nota trasposta dell'ottava scelta. */
     private fun hzSuonati(midi: Float) = Note.midiToHz(midi + 12f * impostazioni.ottava)
 
@@ -210,6 +243,7 @@ class MainActivity : ComponentActivity() {
         impostazioniUi = nuove
         engine.synth.applica(nuove)
         tracker.punto = nuove.puntoMano
+        base.impostaVolume(nuove.volumeBase)
         if (salva) store.salva(nuove)
     }
 
@@ -342,6 +376,8 @@ class MainActivity : ComponentActivity() {
             }
 
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                Mixer()
+                Spacer(Modifier.height(4.dp))
                 Text(
                     if (modalitaUi == Modalita.IMPARA) "Porta il punto bianco dentro il cerchio colorato"
                     else "← grave · acuto →      ↑ forte · piano ↓",
@@ -384,6 +420,122 @@ class MainActivity : ComponentActivity() {
                     OutlinedButton(contentPadding = PADDING_PULSANTI, onClick = { tracker.ricalibra() }) {
                         Text("Ricalibra", color = Color.White)
                     }
+                }
+            }
+        }
+    }
+
+    /** Due volumi indipendenti, sempre a portata di mano: theremin e base musicale. */
+    @Composable
+    private fun Mixer() {
+        val imp = impostazioniUi
+        val stato = statoBaseUi
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(contentPadding = PADDING_PULSANTI, onClick = { pannelloBaseAperto = true }) {
+                Text("📻", color = Color.White)
+            }
+            if (stato.titolo != null && !stato.caricamento && stato.errore == null) {
+                TextButton(onClick = { base.alterna() }) {
+                    Text(if (stato.inRiproduzione) "⏸" else "▶", color = Color.White, fontSize = 18.sp)
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+            CursoreVolume("Theremin", imp.volumeTheremin, Modifier.weight(1f)) {
+                aggiornaImpostazioni(imp.copy(volumeTheremin = it))
+            }
+            Spacer(Modifier.width(8.dp))
+            CursoreVolume("Base", imp.volumeBase, Modifier.weight(1f)) {
+                aggiornaImpostazioni(imp.copy(volumeBase = it))
+            }
+        }
+    }
+
+    @Composable
+    private fun CursoreVolume(etichetta: String, valore: Float, modifier: Modifier, onCambia: (Float) -> Unit) {
+        Column(modifier) {
+            Text(
+                "$etichetta ${(valore * 100).roundToInt()}%",
+                color = Color.White.copy(alpha = 0.75f),
+                fontSize = 11.sp,
+            )
+            Slider(value = valore, onValueChange = onCambia)
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    private fun PannelloBase() {
+        val stato = statoBaseUi
+        val imp = impostazioniUi
+        var url by remember { mutableStateOf("") }
+
+        ModalBottomSheet(onDismissRequest = { pannelloBaseAperto = false }) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 32.dp)
+            ) {
+                Text("Base musicale", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "Suona il theremin sopra un brano di sottofondo, per esempio la tua copia di " +
+                        "\"Romeo and Juliet\": sceglila dalla musica del telefono oppure incolla l'indirizzo di una radio in streaming.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+
+                Text(
+                    when {
+                        stato.titolo == null -> "Nessuna base caricata"
+                        stato.caricamento -> "Caricamento: ${stato.titolo}…"
+                        else -> "♫ ${stato.titolo}"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                stato.errore?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Button(
+                        onClick = { base.alterna() },
+                        enabled = stato.titolo != null && !stato.caricamento && stato.errore == null,
+                    ) { Text(if (stato.inRiproduzione) "⏸ Pausa" else "▶ Riproduci") }
+                    FilterChip(
+                        selected = ripetiBase,
+                        onClick = {
+                            ripetiBase = !ripetiBase
+                            base.impostaRipeti(ripetiBase)
+                        },
+                        label = { Text("Ripeti") },
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+                OutlinedButton(onClick = { sceltaFileAudio.launch(arrayOf("audio/*")) }) {
+                    Text("📂 Scegli un file audio dal telefono")
+                }
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("Radio / stream (URL)") },
+                    placeholder = { Text("https://…") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = { base.carica(Uri.parse(url.trim()), url.trim()) },
+                    enabled = url.trim().startsWith("http"),
+                ) { Text("Ascolta lo stream") }
+
+                Spacer(Modifier.height(16.dp))
+                Regolazione("Volume theremin", "${(imp.volumeTheremin * 100).roundToInt()}%", imp.volumeTheremin, 0f..1f) {
+                    aggiornaImpostazioni(imp.copy(volumeTheremin = it))
+                }
+                Regolazione("Volume base", "${(imp.volumeBase * 100).roundToInt()}%", imp.volumeBase, 0f..1f) {
+                    aggiornaImpostazioni(imp.copy(volumeBase = it))
                 }
             }
         }
