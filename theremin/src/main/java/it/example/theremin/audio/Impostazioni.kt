@@ -25,6 +25,11 @@ data class Impostazioni(
     val eco: Float = 0f,
     /** Saturazione "valvolare", 0..1: da suono pulito a caldo e un po' sporco. */
     val calore: Float = 0.3f,
+    /**
+     * Rinforzo dei bassi, 0..1: sulle note gravi aggiunge armoniche, perché l'altoparlante del
+     * telefono non riproduce le frequenze sotto ~250 Hz e senza armoniche le note gravi sparirebbero.
+     */
+    val rinforzoBassi: Float = 0.6f,
     // --- Mixer ---
     /** Volume del theremin, 0..1, indipendente dalla base musicale. */
     val volumeTheremin: Float = 1f,
@@ -34,6 +39,8 @@ data class Impostazioni(
     /** Fascia ai due lati dell'inquadratura (0..0.3) esclusa dalla tastiera: le note estreme si raggiungono prima del bordo. */
     val margine: Float = 0.12f,
     val puntoMano: PuntoMano = PuntoMano.PUNTA,
+    /** Sensibilità del rilevamento, 0..1: più alta se la mano si confonde con lo sfondo, più bassa con sfondi "rumorosi". */
+    val sensibilita: Float = 0.5f,
 ) {
     /** Posizione x della mano nell'inquadratura (0..1) → posizione sulla tastiera (0..1), escludendo i margini. */
     fun tastieraDaCamera(x: Float): Float = ((x - margine) / (1f - 2f * margine)).coerceIn(0f, 1f)
@@ -46,7 +53,7 @@ data class Impostazioni(
     val midiMax: Float get() = Note.MIDI_MIN + 12f * estensioneOttave
 
     companion object {
-        const val OTTAVA_MIN = -2
+        const val OTTAVA_MIN = -3
         const val OTTAVA_MAX = 2
     }
 }

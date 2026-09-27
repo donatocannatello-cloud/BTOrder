@@ -137,7 +137,8 @@ copia di *Romeo and Juliet*). L'app non include brani registrati: la base si
 sceglie dal telefono o da internet.
 
 - **📻 Radio Romeo and Juliet**: pulsante dedicato alla web radio di Verona
-  (electronic chill). L'indirizzo dello stream non è scritto nell'app: viene
+  (electronic chill, radioromeoandjuliet.com); la vecchia "RTL 102.5 Romeo &
+  Juliet", chiusa, è esclusa (`audio/SceltaRadio.kt`). L'indirizzo dello stream non è scritto nell'app: viene
   chiesto ogni volta al catalogo pubblico [Radio Browser](https://www.radio-browser.info)
   (`audio/RadioBrowser.kt`), così resta valido anche se la radio cambia server.
   Dallo stesso pannello si può **cercare qualunque altra radio** per nome.
@@ -157,8 +158,9 @@ Il pulsante **🎛 Suono** in alto apre un pannello; le scelte vengono salvate.
 
 | Regolazione | Effetto |
 | --- | --- |
-| Timbro | Theremin, Sinusoide pura, Flauto, Clarinetto, Violino, Organo, Voce, 8-bit (sintesi additiva di armoniche) |
-| Ottava | trasporta il suono da −2 a +2 ottave senza spostare le note sull'inquadratura (vale anche in Impara) |
+| Timbro | Theremin, Sinusoide pura, Flauto, Clarinetto, Violino, Organo, Voce, 8-bit, Basso, Violoncello (sintesi additiva di armoniche) |
+| Ottava | trasporta il suono da −3 a +2 ottave senza spostare le note sull'inquadratura (vale anche in Impara) |
+| Rinforzo bassi | sulle note sotto ~250 Hz aggiunge armoniche: l'altoparlante del telefono non riproduce le fondamentali gravi, ma l'orecchio le "ricostruisce" dalle armoniche |
 | Tonalità | tonica (Do…Si) su cui sono costruite le scale Cromatica/Maggiore/Pentatonica |
 | Estensione | ottave coperte dalla larghezza dell'inquadratura in Suona (1–4): meno ottave = note più larghe |
 | Vibrato / Velocità vibrato | profondità (fino a ±3%) e frequenza (2–9 Hz) |
@@ -166,7 +168,26 @@ Il pulsante **🎛 Suono** in alto apre un pannello; le scelte vengono salvate.
 | Eco | ripetizioni a ~0,3 s con retroazione |
 | Calore | saturazione, da pulito a "valvolare" |
 | Punto seguito | **Punta delle dita** (predefinito) o **Centro della mano** |
+| Sensibilità | soglia minima del rilevamento: più alta se la mano si confonde con lo sfondo |
 | Margine ai bordi | fascia laterale (0–30%) esclusa dalla tastiera |
+
+### Precisione del rilevamento (`camera/MotionTracker.kt`)
+
+- griglia di analisi 64×48 (prima 40×30);
+- **esposizione bloccata** (AE/AWB lock via Camera2 interop) appena lo sfondo è
+  imparato, e sbloccata a ogni Ricalibra: su uno sfondo bianco, quando entrava
+  la mano la fotocamera ricalibrava l'esposizione e la mano "spariva";
+- **compensazione dell'esposizione** comunque applicata in software (si
+  sottrae lo scostamento mediano tra fotogramma e sfondo), per i dispositivi
+  che non supportano il blocco;
+- **soglia adattiva** al rumore del sensore, con minimo regolabile
+  (Sensibilità), più rilevamento del **movimento** tra fotogrammi;
+- scarto delle celle isolate e **filtro One Euro** sulla posizione: niente
+  tremolio a mano ferma, nessun ritardo nei movimenti rapidi.
+
+I test in `MotionTrackerTest` coprono sfondo bianco con mano poco
+contrastata, cambio di esposizione all'ingresso della mano, cambio di luce
+senza mano e rumore del sensore.
 
 ### Note agli estremi dell'inquadratura
 

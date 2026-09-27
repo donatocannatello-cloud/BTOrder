@@ -13,6 +13,19 @@ class MotionTrackerTest {
         if (mano != null && mano(i % w, i / w)) 30 else 180.toByte()
     }
 
+    /** Fotogramma con sfondo e mano di luminanza scelta, più rumore del sensore casuale. */
+    private fun fotogramma(
+        sfondo: Int,
+        luceMano: Int,
+        rumore: Int = 0,
+        rnd: java.util.Random = java.util.Random(1),
+        mano: ((Int, Int) -> Boolean)? = null,
+    ) = ByteArray(w * h) { i ->
+        val base = if (mano != null && mano(i % w, i / w)) luceMano else sfondo
+        val r = if (rumore > 0) rnd.nextInt(2 * rumore + 1) - rumore else 0
+        (base + r).coerceIn(0, 255).toByte()
+    }
+
     private fun MotionTracker.elabora(f: ByteArray, rot: Int = 0, specchia: Boolean = false) =
         elabora(f, w, h, w, 1, rot, specchia)
 
@@ -69,5 +82,64 @@ class MotionTrackerTest {
         assertEquals(Pair(1f, 0f), MotionTracker.ruota(0f, 0f, 90))
         assertEquals(Pair(0f, 1f), MotionTracker.ruota(0f, 0f, 270))
         assertEquals(Pair(1f, 1f), MotionTracker.ruota(0f, 0f, 180))
+    }
+
+    private val manoCentrale: (Int, Int) -> Boolean = { x, y -> x in 280..360 && y in 150..479 } // mano+braccio dal basso, x ≈ 0.5
+
+    @Test
+    fun `su sfondo bianco la mano poco contrastata viene trovata`() {
+        // Sfondo quasi bianco (240) e mano chiara (222): differenza di soli 18 livelli, con rumore del sensore
+        val rnd = java.util.Random(7)
+        val t = MotionTracker()
+        repeat(25) { t.elabora(fotogramma(240, 0, rumore = 4, rnd = rnd)) }
+        var p = PosizioneMano(0f, 0f, 0f)
+        repeat(10) { p = t.elabora(fotogramma(240, 222, rumore = 4, rnd = rnd, mano = manoCentrale)) }
+        assertTrue("presenza ${p.presenza}", p.presenza > 0.9f)
+        assertEquals(0.5f, p.x, 0.04f)
+    }
+
+    @Test
+    fun `se la fotocamera cambia esposizione quando entra la mano, la mano resta dove e`() {
+        // Entrando la mano scura, l'esposizione automatica schiarisce tutta la scena di 35 livelli
+        val t = MotionTracker()
+        repeat(25) { t.elabora(fotogramma(200, 0)) }
+        var p = PosizioneMano(0f, 0f, 0f)
+        val manoASinistra: (Int, Int) -> Boolean = { x, y -> x in 120..200 && y in 150..479 } // x ≈ 0.25
+        repeat(10) { p = t.elabora(fotogramma(235, 90, mano = manoASinistra)) }
+        assertTrue(p.presenza > 0.9f)
+        assertEquals(0.25f, p.x, 0.04f)
+    }
+
+    @Test
+    fun `un cambio di luce su tutta la scena, senza mano, non viene preso per una mano`() {
+        val t = MotionTracker()
+        repeat(25) { t.elabora(fotogramma(150, 0)) }
+        var p = PosizioneMano(0f, 0f, 0f)
+        repeat(10) { p = t.elabora(fotogramma(190, 0)) }
+        assertTrue("presenza ${p.presenza}", p.presenza < 0.05f)
+    }
+
+    @Test
+    fun `il rumore del sensore da solo non viene preso per una mano`() {
+        val rnd = java.util.Random(3)
+        val t = MotionTracker().apply { sensibilita = 1f }
+        var p = PosizioneMano(0f, 0f, 0f)
+        repeat(60) { p = t.elabora(fotogramma(128, 0, rumore = 25, rnd = rnd)) }
+        assertTrue("presenza ${p.presenza}", p.presenza < 0.05f)
+    }
+
+    @Test
+    fun `a mano ferma la posizione non trema`() {
+        val t = MotionTracker()
+        repeat(25) { t.elabora(fotogramma(180, 0)) }
+        val rnd = java.util.Random(5)
+        val xs = mutableListOf<Float>()
+        repeat(30) {
+            // La sagoma "vibra" di qualche pixel come una mano vera tenuta ferma
+            val d = rnd.nextInt(9) - 4
+            xs += t.elabora(fotogramma(180, 40, mano = { x, y -> x in 280 + d..360 + d && y in 150..479 })).x
+        }
+        val ultimi = xs.takeLast(15)
+        assertTrue("oscillazione ${ultimi.max() - ultimi.min()}", ultimi.max() - ultimi.min() < 0.01f)
     }
 }

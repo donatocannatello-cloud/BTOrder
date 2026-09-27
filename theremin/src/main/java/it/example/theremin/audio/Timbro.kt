@@ -14,7 +14,10 @@ enum class Timbro(val etichetta: String, ampiezze: FloatArray) {
     VIOLINO("Violino", FloatArray(10) { n -> 1f / (n + 1) * (1f - n * 0.05f) }),
     ORGANO("Organo", floatArrayOf(1f, 0.7f, 0f, 0.5f, 0f, 0f, 0f, 0.35f)),
     VOCE("Voce", floatArrayOf(1f, 0.55f, 0.8f, 0.3f, 0.12f, 0.25f, 0.06f)),
-    OTTO_BIT("8-bit", FloatArray(15) { n -> if (n % 2 == 0) 1f / (n + 1) else 0f });
+    OTTO_BIT("8-bit", FloatArray(15) { n -> if (n % 2 == 0) 1f / (n + 1) else 0f }),
+    /** Ricco di armoniche: le note gravi si sentono bene anche dall'altoparlante del telefono. */
+    BASSO("Basso", floatArrayOf(1f, 0.8f, 0.6f, 0.45f, 0.3f, 0.2f, 0.12f, 0.08f)),
+    VIOLONCELLO("Violoncello", FloatArray(12) { n -> (1f / (n + 1)) * (if (n == 1 || n == 2) 1.3f else 1f) });
 
     /** Ampiezze normalizzate a energia unitaria (la fondamentale da sola varrebbe 1). */
     val armoniche: FloatArray = run {

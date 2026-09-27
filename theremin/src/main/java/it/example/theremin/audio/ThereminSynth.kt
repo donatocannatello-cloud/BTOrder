@@ -31,6 +31,7 @@ class ThereminSynth(private val sampleRate: Int) {
     @Volatile private var quantitaEco = 0.0
     @Volatile private var guadagnoSaturazione = 1.4
     @Volatile private var volumeGenerale = 1.0
+    @Volatile private var rinforzoBassi = 0.6
 
     private val coeffVolume = coefficiente(0.030f)
 
@@ -49,6 +50,7 @@ class ThereminSynth(private val sampleRate: Int) {
         coeffGlide = coefficiente(imp.portamentoMs.coerceIn(3f, 1000f) / 1000f)
         quantitaEco = imp.eco.coerceIn(0f, 1f).toDouble()
         guadagnoSaturazione = 0.6 + 3.0 * imp.calore.coerceIn(0f, 1f)
+        rinforzoBassi = imp.rinforzoBassi.coerceIn(0f, 1f).toDouble()
         val v = imp.volumeTheremin.coerceIn(0f, 1f).toDouble()
         volumeGenerale = v * v // curva quadratica, più naturale all'orecchio
     }
@@ -65,6 +67,7 @@ class ThereminSynth(private val sampleRate: Int) {
         val retroazione = 0.55 * eco
         val drive = guadagnoSaturazione
         val generale = volumeGenerale
+        val rinforzo = rinforzoBassi
         val normalizzazione = 1.0 / tanh(drive)
         val limiteArmoniche = sampleRate * 0.45
         var picco = 0f
@@ -87,6 +90,12 @@ class ThereminSynth(private val sampleRate: Int) {
                 if (a == 0f) continue
                 if (f * (k + 1) > limiteArmoniche) break // niente armoniche oltre Nyquist (aliasing)
                 s += a * sin((k + 1) * w)
+            }
+            // Rinforzo bassi: sotto ~250 Hz si aggiungono armoniche, che l'orecchio usa per
+            // "ricostruire" la fondamentale anche quando l'altoparlante non riesce a riprodurla
+            val r = rinforzo * ((250.0 - f) / 200.0).coerceIn(0.0, 1.0)
+            if (r > 0.0) {
+                s += r * (0.6 * sin(2 * w) + 0.45 * sin(3 * w) + 0.3 * sin(4 * w) + 0.2 * sin(5 * w))
             }
             s = tanh(drive * s * 0.8) * normalizzazione * 0.8 // saturazione "valvolare", normalizzata
             var campione = s * vol * 0.85 * generale

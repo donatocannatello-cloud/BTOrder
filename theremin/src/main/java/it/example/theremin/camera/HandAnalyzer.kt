@@ -30,6 +30,7 @@ class HandAnalyzer(
                 pixelStride = piano.pixelStride,
                 rotazione = it.imageInfo.rotationDegrees,
                 specchia = true,
+                timestampNs = it.imageInfo.timestamp,
             )
             suPosizione(posizione)
         }

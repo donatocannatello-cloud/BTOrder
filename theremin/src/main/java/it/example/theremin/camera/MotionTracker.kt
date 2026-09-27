@@ -1,5 +1,6 @@
 package it.example.theremin.camera
 
+import kotlin.math.PI
 import kotlin.math.abs
 
 /** Posizione della mano in coordinate schermo normalizzate (0..1, origine in alto a sinistra). */
@@ -21,35 +22,60 @@ enum class PuntoMano(val etichetta: String) {
 /**
  * Individua la mano davanti alla fotocamera per sottrazione dello sfondo, indipendente da Android.
  *
- * Ogni fotogramma (solo luminanza) viene ridotto a una griglia di [COLONNE]×[RIGHE] celle; un
- * modello di sfondo a media mobile impara la scena statica e le celle che se ne discostano
- * sono considerate "mano". Le celle in primo piano vengono riportate in coordinate schermo
- * (raddrizzate e specchiate) e da lì si ricava il punto da seguire, secondo [punto].
- * Lo sfondo si aggiorna lentamente anche sotto la mano, così una mano immobile per molti
- * secondi viene gradualmente assorbita, mentre un movimento viene seguito subito.
+ * Ogni fotogramma (solo luminanza) viene ridotto a una griglia di [COLONNE]×[RIGHE] celle.
+ * Dopo un breve assestamento (la fotocamera regola l'esposizione) un modello di sfondo impara
+ * la scena statica; poi, per ogni fotogramma:
+ *
+ * 1. **compensazione dell'esposizione**: la differenza mediana tra fotogramma e sfondo è lo
+ *    scostamento globale di luminosità (tipico quando la mano entra su uno sfondo bianco e la
+ *    fotocamera si riadatta) e viene sottratta a tutte le celle;
+ * 2. **soglia adattiva**: il rumore del sensore viene stimato (mediana delle differenze) e la
+ *    soglia si alza o si abbassa di conseguenza, con un minimo regolato da [sensibilita];
+ * 3. anche il **movimento** rispetto al fotogramma precedente conta, così una mano che si muove
+ *    su uno sfondo di colore simile viene comunque vista;
+ * 4. le celle isolate (rumore) vengono scartate, tenendo solo quelle con vicini in primo piano;
+ * 5. il punto scelto ([punto]) passa per un **filtro One Euro**: fermo quando la mano è ferma,
+ *    reattivo quando si muove.
  */
 class MotionTracker {
 
     @Volatile var punto: PuntoMano = PuntoMano.PUNTA
 
-    private val sfondo = FloatArray(COLONNE * RIGHE)
-    private val corrente = FloatArray(COLONNE * RIGHE)
-    private var fotogrammiAppresi = 0
+    /** 0 = poco sensibile (sfondi rumorosi), 1 = molto sensibile (mano poco contrastata sullo sfondo). */
+    @Volatile var sensibilita: Float = 0.5f
+
+    /** true quando lo sfondo è stato imparato: da qui la fotocamera può bloccare l'esposizione. */
+    @Volatile var calibrato: Boolean = false
+        private set
+
+    private val n = COLONNE * RIGHE
+    private val sfondo = FloatArray(n)
+    private val corrente = FloatArray(n)
+    private val precedente = FloatArray(n)
+    private val punteggio = FloatArray(n)
+    private val primoPiano = BooleanArray(n)
+    private val appoggio = FloatArray(n)
+    private var fotogrammi = 0
 
     // Accumulatori per riga in coordinate schermo (al massimo max(COLONNE, RIGHE) righe)
-    private val rigaCelle = IntArray(maxOf(COLONNE, RIGHE))
-    private val rigaPeso = FloatArray(maxOf(COLONNE, RIGHE))
-    private val rigaSx = FloatArray(maxOf(COLONNE, RIGHE))
-    private val rigaSy = FloatArray(maxOf(COLONNE, RIGHE))
+    private val maxRighe = maxOf(COLONNE, RIGHE)
+    private val rigaCelle = IntArray(maxRighe)
+    private val rigaPeso = FloatArray(maxRighe)
+    private val rigaSx = FloatArray(maxRighe)
+    private val rigaSy = FloatArray(maxRighe)
 
-    private var xLiscia = 0.5f
-    private var yLiscia = 0.5f
+    private val filtroX = FiltroOneEuro()
+    private val filtroY = FiltroOneEuro()
+    private var xUscita = 0.5f
+    private var yUscita = 0.5f
     private var presenzaLiscia = 0f
+    private var ultimoTimestampNs = 0L
 
     /** Dimentica lo sfondo: i prossimi fotogrammi vengono usati per reimpararlo (tenere la mano fuori campo). */
     @Synchronized
     fun ricalibra() {
-        fotogrammiAppresi = 0
+        fotogrammi = 0
+        calibrato = false
         presenzaLiscia = 0f
     }
 
@@ -61,6 +87,7 @@ class MotionTracker {
      * @param pixelStride distanza in byte tra due pixel consecutivi
      * @param rotazione gradi (orari) per raddrizzare l'immagine, come `ImageInfo.rotationDegrees`
      * @param specchia true per la fotocamera anteriore, così la mano si muove come in uno specchio
+     * @param timestampNs istante del fotogramma (0 = ignoto, si assumono 30 fotogrammi al secondo)
      */
     @Synchronized
     fun elabora(
@@ -71,32 +98,61 @@ class MotionTracker {
         pixelStride: Int,
         rotazione: Int,
         specchia: Boolean,
+        timestampNs: Long = 0L,
     ): PosizioneMano {
         riduci(luma, larghezza, altezza, rowStride, pixelStride)
+        val dt = if (timestampNs > 0L && ultimoTimestampNs > 0L) {
+            ((timestampNs - ultimoTimestampNs) / 1e9f).coerceIn(0.005f, 0.2f)
+        } else 1f / 30f
+        ultimoTimestampNs = timestampNs
 
-        if (fotogrammiAppresi < FOTOGRAMMI_CALIBRAZIONE) {
-            if (fotogrammiAppresi == 0) corrente.copyInto(sfondo)
-            else for (i in sfondo.indices) sfondo[i] += (corrente[i] - sfondo[i]) * 0.3f
-            fotogrammiAppresi++
+        // Assestamento dell'esposizione, poi apprendimento dello sfondo
+        if (fotogrammi < FOTOGRAMMI_ASSESTAMENTO + FOTOGRAMMI_CALIBRAZIONE) {
+            val k = fotogrammi - FOTOGRAMMI_ASSESTAMENTO
+            when {
+                k < 0 -> {}
+                k == 0 -> corrente.copyInto(sfondo)
+                else -> for (i in 0 until n) sfondo[i] += (corrente[i] - sfondo[i]) / (k + 1)
+            }
+            fotogrammi++
+            if (fotogrammi == FOTOGRAMMI_ASSESTAMENTO + FOTOGRAMMI_CALIBRAZIONE) calibrato = true
+            corrente.copyInto(precedente)
             presenzaLiscia = 0f
-            return PosizioneMano(xLiscia, yLiscia, 0f)
+            return PosizioneMano(xUscita, yUscita, 0f)
         }
 
-        // Righe dell'immagine raddrizzata: con rotazione di 90°/270° le colonne del sensore diventano righe
+        // 1. scostamento globale di esposizione
+        for (i in 0 until n) appoggio[i] = corrente[i] - sfondo[i]
+        val scostamento = mediana(appoggio)
+        // 2. rumore: mediana delle differenze assolute residue
+        for (i in 0 until n) appoggio[i] = abs(corrente[i] - sfondo[i] - scostamento)
+        val rumore = mediana(appoggio)
+        val sogliaMinima = SOGLIA_MIN_POCO_SENSIBILE +
+            (SOGLIA_MIN_MOLTO_SENSIBILE - SOGLIA_MIN_POCO_SENSIBILE) * sensibilita.coerceIn(0f, 1f)
+        val soglia = maxOf(sogliaMinima, rumore * 4f)
+
+        // 3. punteggio per cella: differenza dallo sfondo o movimento rispetto al fotogramma prima
+        for (i in 0 until n) {
+            val dSfondo = abs(corrente[i] - sfondo[i] - scostamento)
+            val dMoto = abs(corrente[i] - precedente[i]) * 0.8f
+            punteggio[i] = maxOf(dSfondo, dMoto)
+            primoPiano[i] = punteggio[i] > soglia
+        }
+
+        // 4. via le celle isolate: servono almeno due vicini in primo piano
         val ruotata = ((rotazione % 180) + 180) % 180 == 90
         val righeSchermo = if (ruotata) COLONNE else RIGHE
         rigaCelle.fill(0)
         rigaPeso.fill(0f)
         rigaSx.fill(0f)
         rigaSy.fill(0f)
-
         var celleAttive = 0
         for (r in 0 until RIGHE) {
             for (c in 0 until COLONNE) {
                 val i = r * COLONNE + c
-                val diff = abs(corrente[i] - sfondo[i])
-                if (diff > SOGLIA) {
-                    val peso = diff - SOGLIA
+                val attiva = primoPiano[i] && vicini(r, c) >= 2
+                if (attiva) {
+                    val peso = punteggio[i] - soglia
                     var (x, y) = ruota((c + 0.5f) / COLONNE, (r + 0.5f) / RIGHE, rotazione)
                     if (specchia) x = 1f - x
                     val riga = (y * righeSchermo).toInt().coerceIn(0, righeSchermo - 1)
@@ -105,24 +161,24 @@ class MotionTracker {
                     rigaSx[riga] += peso * x
                     rigaSy[riga] += peso * y
                     celleAttive++
-                    sfondo[i] += (corrente[i] - sfondo[i]) * ALFA_PRIMO_PIANO
+                    sfondo[i] += (corrente[i] - scostamento - sfondo[i]) * ALFA_PRIMO_PIANO
                 } else {
+                    // Lo sfondo segue lentamente la scena, esposizione compresa
                     sfondo[i] += (corrente[i] - sfondo[i]) * ALFA_SFONDO
                 }
             }
         }
+        corrente.copyInto(precedente)
 
-        val frazione = celleAttive.toFloat() / (COLONNE * RIGHE)
+        val frazione = celleAttive.toFloat() / n
         var presente = frazione > FRAZIONE_MINIMA
         if (presente) {
-            // Righe da considerare: tutte (baricentro) o solo una fascia in cima alla sagoma (punta)
             var prima = 0
             var ultima = righeSchermo - 1
             if (punto == PuntoMano.PUNTA) {
-                // Prima riga con abbastanza celle, per non farsi ingannare da un pixel di rumore isolato
                 prima = (0 until righeSchermo).firstOrNull { rigaCelle[it] >= MIN_CELLE_RIGA }
                     ?: (0 until righeSchermo).first { rigaCelle[it] > 0 }
-                ultima = (prima + RIGHE_PUNTA - 1).coerceAtMost(righeSchermo - 1)
+                ultima = (prima + righeSchermo * FASCIA_PUNTA).toInt().coerceIn(prima, righeSchermo - 1)
             }
             var somma = 0f
             var sx = 0f
@@ -136,14 +192,41 @@ class MotionTracker {
             if (presente) {
                 val x = sx / somma
                 val y = sy / somma
-                // Più la mano copre l'inquadratura, più la posizione è affidabile: si segue più rapidamente
-                val k = if (frazione > 0.05f) 0.55f else 0.35f
-                xLiscia += (x - xLiscia) * k
-                yLiscia += (y - yLiscia) * k
+                if (presenzaLiscia < 0.3f) {
+                    // La mano è appena entrata: si parte da dove si trova, senza scivolare dal punto vecchio
+                    filtroX.reimposta(x)
+                    filtroY.reimposta(y)
+                }
+                xUscita = filtroX.filtra(x, dt)
+                yUscita = filtroY.filtra(y, dt)
             }
         }
-        presenzaLiscia += ((if (presente) 1f else 0f) - presenzaLiscia) * 0.25f
-        return PosizioneMano(xLiscia, yLiscia, presenzaLiscia)
+        presenzaLiscia += ((if (presente) 1f else 0f) - presenzaLiscia) * 0.3f
+        return PosizioneMano(xUscita, yUscita, presenzaLiscia)
+    }
+
+    private fun vicini(r: Int, c: Int): Int {
+        var k = 0
+        for (dr in -1..1) for (dc in -1..1) {
+            if (dr == 0 && dc == 0) continue
+            val rr = r + dr
+            val cc = c + dc
+            if (rr in 0 until RIGHE && cc in 0 until COLONNE && primoPiano[rr * COLONNE + cc]) k++
+        }
+        return k
+    }
+
+    /** Mediana approssimata con un istogramma su 0..255 (i valori sono livelli di luminanza). */
+    private val istogramma = IntArray(512)
+    private fun mediana(v: FloatArray): Float {
+        istogramma.fill(0)
+        for (x in v) istogramma[(x + 256f).toInt().coerceIn(0, 511)]++
+        var cumulata = 0
+        for (b in istogramma.indices) {
+            cumulata += istogramma[b]
+            if (cumulata * 2 >= v.size) return b - 256f + 0.5f
+        }
+        return 0f
     }
 
     /** Media della luminanza per cella, campionando una sottogriglia di pixel per contenere il costo. */
@@ -155,7 +238,7 @@ class MotionTracker {
         for (r in 0 until RIGHE) {
             for (c in 0 until COLONNE) {
                 var tot = 0
-                var n = 0
+                var cnt = 0
                 var py = r * cellaH
                 val fineY = py + cellaH
                 while (py < fineY) {
@@ -164,27 +247,30 @@ class MotionTracker {
                     val base = py * rowStride
                     while (px < fineX) {
                         tot += luma[base + px * pixelStride].toInt() and 0xFF
-                        n++
+                        cnt++
                         px += passoX
                     }
                     py += passoY
                 }
-                corrente[r * COLONNE + c] = if (n > 0) tot.toFloat() / n else 0f
+                corrente[r * COLONNE + c] = if (cnt > 0) tot.toFloat() / cnt else 0f
             }
         }
     }
 
     companion object {
-        const val COLONNE = 40
-        const val RIGHE = 30
-        private const val CAMPIONI_PER_LATO = 4
+        const val COLONNE = 64
+        const val RIGHE = 48
+        private const val CAMPIONI_PER_LATO = 3
+        private const val FOTOGRAMMI_ASSESTAMENTO = 8
         private const val FOTOGRAMMI_CALIBRAZIONE = 12
-        private const val SOGLIA = 18f
-        private const val FRAZIONE_MINIMA = 0.012f
-        private const val ALFA_SFONDO = 0.04f
-        private const val ALFA_PRIMO_PIANO = 0.004f
+        private const val SOGLIA_MIN_POCO_SENSIBILE = 22f
+        private const val SOGLIA_MIN_MOLTO_SENSIBILE = 7f
+        private const val FRAZIONE_MINIMA = 0.008f
+        private const val ALFA_SFONDO = 0.03f
+        private const val ALFA_PRIMO_PIANO = 0.003f
         private const val MIN_CELLE_RIGA = 2
-        private const val RIGHE_PUNTA = 4
+        /** Altezza della fascia "punta", in frazione dell'altezza dell'immagine. */
+        private const val FASCIA_PUNTA = 0.08f
 
         /** Ruota in senso orario di [gradi] un punto normalizzato (u, v) del fotogramma grezzo. */
         fun ruota(u: Float, v: Float, gradi: Int): Pair<Float, Float> = when (((gradi % 360) + 360) % 360) {
@@ -193,5 +279,40 @@ class MotionTracker {
             270 -> Pair(v, 1f - u)
             else -> Pair(u, v)
         }
+    }
+}
+
+/**
+ * Filtro One Euro (Casiez et al., 2012): passa-basso la cui frequenza di taglio cresce con la
+ * velocità. Elimina il tremolio a mano ferma senza introdurre ritardo nei movimenti rapidi.
+ */
+class FiltroOneEuro(
+    private val tagliominimoHz: Float = 1.5f,
+    private val beta: Float = 3f,
+    private val taglioDerivataHz: Float = 1f,
+) {
+    private var x = Float.NaN
+    private var dx = 0f
+
+    fun reimposta(valore: Float) {
+        x = valore
+        dx = 0f
+    }
+
+    fun filtra(valore: Float, dt: Float): Float {
+        if (x.isNaN()) {
+            reimposta(valore)
+            return valore
+        }
+        val derivata = (valore - x) / dt
+        dx += (derivata - dx) * alfa(taglioDerivataHz, dt)
+        val taglio = tagliominimoHz + beta * abs(dx)
+        x += (valore - x) * alfa(taglio, dt)
+        return x
+    }
+
+    private fun alfa(taglioHz: Float, dt: Float): Float {
+        val tau = 1f / (2f * PI.toFloat() * taglioHz)
+        return 1f / (1f + tau / dt)
     }
 }

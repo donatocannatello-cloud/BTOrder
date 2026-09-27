@@ -19,6 +19,8 @@ class ImpostazioniStore(context: Context) {
             portamentoMs = prefs.getFloat("portamentoMs", d.portamentoMs),
             eco = prefs.getFloat("eco", d.eco),
             calore = prefs.getFloat("calore", d.calore),
+            rinforzoBassi = prefs.getFloat("rinforzoBassi", d.rinforzoBassi),
+            sensibilita = prefs.getFloat("sensibilita", d.sensibilita),
             volumeTheremin = prefs.getFloat("volumeTheremin", d.volumeTheremin),
             volumeBase = prefs.getFloat("volumeBase", d.volumeBase),
             margine = prefs.getFloat("margine", d.margine),
@@ -37,6 +39,8 @@ class ImpostazioniStore(context: Context) {
             .putFloat("portamentoMs", i.portamentoMs)
             .putFloat("eco", i.eco)
             .putFloat("calore", i.calore)
+            .putFloat("rinforzoBassi", i.rinforzoBassi)
+            .putFloat("sensibilita", i.sensibilita)
             .putFloat("volumeTheremin", i.volumeTheremin)
             .putFloat("volumeBase", i.volumeBase)
             .putFloat("margine", i.margine)

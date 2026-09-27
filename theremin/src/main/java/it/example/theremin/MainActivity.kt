@@ -106,8 +106,14 @@ import android.provider.OpenableColumns
 import androidx.compose.material3.OutlinedTextField
 import it.example.theremin.audio.BaseMusicale
 import it.example.theremin.audio.RadioBrowser
+import it.example.theremin.audio.SceltaRadio
 import it.example.theremin.audio.StazioneRadio
 import it.example.theremin.audio.StatoBase
+import android.hardware.camera2.CaptureRequest
+import androidx.camera.camera2.interop.Camera2CameraControl
+import androidx.camera.camera2.interop.CaptureRequestOptions
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
+import androidx.camera.core.Camera
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -128,6 +134,8 @@ class MainActivity : ComponentActivity() {
     /** Durante l'ascolto dimostrativo è il brano, non la mano, a comandare il synth. */
     @Volatile private var inDimostrazione = false
     private var ultimoFotogrammaNs = 0L
+    @Volatile private var camera: Camera? = null
+    private var eraCalibrato = false
 
     // Stato mostrato dalla UI
     private var posizioneUi by mutableStateOf(PosizioneMano(0.5f, 0.5f, 0f))
@@ -241,10 +249,10 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Cerca una radio nel catalogo online. Con [avviaMigliore] fa partire subito la stazione
-     * che corrisponde meglio al nome (usato dal pulsante di Radio Romeo and Juliet).
+     * Cerca una radio nel catalogo online e mostra i risultati. Con [scegli] fa partire subito
+     * la stazione indicata da quel criterio (usato dal pulsante di Radio Romeo and Juliet).
      */
-    private fun cercaRadio(nome: String, avviaMigliore: Boolean = false) {
+    private fun cercaRadio(nome: String, scegli: ((List<StazioneRadio>) -> StazioneRadio?)? = null) {
         if (nome.isBlank()) return
         ricercaRadioInCorso = true
         erroreRicercaRadio = null
@@ -252,8 +260,15 @@ class MainActivity : ComponentActivity() {
             try {
                 val risultati = RadioBrowser.cerca(nome)
                 risultatiRadio = risultati
-                if (risultati.isEmpty()) erroreRicercaRadio = "Nessuna radio trovata per \"$nome\""
-                else if (avviaMigliore) RadioBrowser.migliore(risultati, nome)?.let(::ascoltaRadio)
+                val scelta = scegli?.invoke(risultati)
+                when {
+                    scelta != null -> {
+                        risultatiRadio = listOf(scelta)
+                        ascoltaRadio(scelta)
+                    }
+                    scegli != null -> erroreRicercaRadio = "Radio non trovata nel catalogo: prova a cercarla per nome"
+                    risultati.isEmpty() -> erroreRicercaRadio = "Nessuna radio trovata per \"$nome\""
+                }
             } catch (e: Exception) {
                 erroreRicercaRadio = "Catalogo radio non raggiungibile: controlla la connessione"
             } finally {
@@ -266,6 +281,28 @@ class MainActivity : ComponentActivity() {
         base.carica(Uri.parse(stazione.url), "📻 ${stazione.nome}")
     }
 
+    /** Blocca o sblocca esposizione e bilanciamento del bianco automatici della fotocamera. */
+    @OptIn(ExperimentalCamera2Interop::class)
+    private fun bloccaEsposizione(blocca: Boolean) {
+        val c = camera ?: return
+        try {
+            Camera2CameraControl.from(c.cameraControl).setCaptureRequestOptions(
+                CaptureRequestOptions.Builder()
+                    .setCaptureRequestOption(CaptureRequest.CONTROL_AE_LOCK, blocca)
+                    .setCaptureRequestOption(CaptureRequest.CONTROL_AWB_LOCK, blocca)
+                    .build()
+            )
+        } catch (_: Exception) {
+            // Non tutti i dispositivi lo supportano: il rilevamento compensa comunque l'esposizione
+        }
+    }
+
+    /** Ricalibrazione: si sblocca l'esposizione, la si lascia assestare e si reimpara lo sfondo. */
+    private fun ricalibra() {
+        bloccaEsposizione(false)
+        tracker.ricalibra()
+    }
+
     /** Frequenza effettivamente suonata: la nota trasposta dell'ottava scelta. */
     private fun hzSuonati(midi: Float) = Note.midiToHz(midi + 12f * impostazioni.ottava)
 
@@ -274,6 +311,7 @@ class MainActivity : ComponentActivity() {
         impostazioniUi = nuove
         engine.synth.applica(nuove)
         tracker.punto = nuove.puntoMano
+        tracker.sensibilita = nuove.sensibilita
         base.impostaVolume(nuove.volumeBase)
         if (salva) store.salva(nuove)
     }
@@ -286,6 +324,12 @@ class MainActivity : ComponentActivity() {
      * In modalità Impara la stessa nota fa anche avanzare la lezione.
      */
     private fun suPosizione(p: PosizioneMano) {
+        // Appena lo sfondo è imparato si blocca l'esposizione: così, quando la mano entra (specie su
+        // uno sfondo bianco), la fotocamera non si riadatta e la mano resta ben distinta dallo sfondo
+        val calibrato = tracker.calibrato
+        if (calibrato && !eraCalibrato) bloccaEsposizione(true)
+        eraCalibrato = calibrato
+
         val ora = System.nanoTime()
         val dtMs = if (ultimoFotogrammaNs == 0L) 0f else ((ora - ultimoFotogrammaNs) / 1e6f).coerceAtMost(200f)
         ultimoFotogrammaNs = ora
@@ -448,7 +492,7 @@ class MainActivity : ComponentActivity() {
                             scalaUi = scala
                         }) { Text("Scala: ${scalaUi.etichetta}", color = Color.White) }
                     }
-                    OutlinedButton(contentPadding = PADDING_PULSANTI, onClick = { tracker.ricalibra() }) {
+                    OutlinedButton(contentPadding = PADDING_PULSANTI, onClick = ::ricalibra) {
                         Text("Ricalibra", color = Color.White)
                     }
                 }
@@ -544,7 +588,7 @@ class MainActivity : ComponentActivity() {
 
                 Spacer(Modifier.height(16.dp))
                 Button(
-                    onClick = { cercaRadio(RadioBrowser.ROMEO_AND_JULIET, avviaMigliore = true) },
+                    onClick = { cercaRadio(SceltaRadio.RICERCA_ROMEO_AND_JULIET, SceltaRadio::romeoAndJuliet) },
                     enabled = !ricercaRadioInCorso,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("📻 Radio Romeo and Juliet") }
@@ -786,6 +830,15 @@ class MainActivity : ComponentActivity() {
                 Regolazione("Eco", "${(imp.eco * 100).roundToInt()}%", imp.eco, 0f..1f) {
                     cambia(imp.copy(eco = it))
                 }
+                Regolazione("Rinforzo bassi", "${(imp.rinforzoBassi * 100).roundToInt()}%", imp.rinforzoBassi, 0f..1f) {
+                    cambia(imp.copy(rinforzoBassi = it))
+                }
+                Text(
+                    "Per note gravi: abbassa l'Ottava (fino a −3) e scegli Basso o Violoncello. Il rinforzo aggiunge " +
+                        "armoniche alle note sotto ~250 Hz, che l'altoparlante del telefono da solo non riproduce.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Regolazione("Calore (saturazione)", "${(imp.calore * 100).roundToInt()}%", imp.calore, 0f..1f) {
                     cambia(imp.copy(calore = it))
                 }
@@ -802,6 +855,16 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+                Regolazione("Sensibilità", "${(imp.sensibilita * 100).roundToInt()}%", imp.sensibilita, 0f..1f) {
+                    cambia(imp.copy(sensibilita = it))
+                }
+                Text(
+                    "Alzala se la mano non viene trovata (sfondo chiaro o simile alla pelle), abbassala se il " +
+                        "punto si muove da solo. Dopo aver cambiato luce o posizione del telefono premi Ricalibra " +
+                        "con la mano fuori campo.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Regolazione(
                     "Margine ai bordi", "${(imp.margine * 100).roundToInt()}%",
                     imp.margine, 0f..0.3f,
@@ -881,7 +944,9 @@ class MainActivity : ComponentActivity() {
                     .build()
                     .also { it.setAnalyzer(esecutoreAnalisi, HandAnalyzer(tracker, ::suPosizione)) }
                 provider.unbindAll()
-                provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_FRONT_CAMERA, anteprima, analisi)
+                camera = provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_FRONT_CAMERA, anteprima, analisi)
+                // Nuova sessione della fotocamera: esposizione di nuovo automatica e sfondo da reimparare
+                ricalibra()
             }, ContextCompat.getMainExecutor(context))
             onDispose {
                 if (futuro.isDone) futuro.get().unbindAll()
