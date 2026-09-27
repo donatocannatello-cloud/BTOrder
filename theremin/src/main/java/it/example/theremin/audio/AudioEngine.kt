@@ -17,6 +17,11 @@ class AudioEngine {
 
     val sampleRate: Int = AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC)
     val synth = ThereminSynth(sampleRate)
+    /** Seconda voce, usata nella modalità "Due voci" (una nota per mano). */
+    val synth2 = ThereminSynth(sampleRate)
+
+    /** Con due voci attive entrambe vengono attenuate, così la somma non satura. */
+    @Volatile var dueVoci = false
 
     private val storico = FloatArray(DIM_STORICO)
     @Volatile private var posStorico = 0
@@ -72,10 +77,19 @@ class AudioEngine {
             .build()
 
         val blocco = FloatArray(BLOCCO)
+        val blocco2 = FloatArray(BLOCCO)
         track.play()
         try {
             while (inEsecuzione) {
                 synth.render(blocco)
+                // La seconda voce si calcola solo se serve (o finché sta ancora sfumando)
+                if (dueVoci || synth2.volumeCorrente > 0.0001f) {
+                    synth2.render(blocco2)
+                    val guadagno = if (dueVoci) 0.6f else 1f
+                    for (i in blocco.indices) {
+                        blocco[i] = ((blocco[i] + blocco2[i]) * guadagno).coerceIn(-1f, 1f)
+                    }
+                }
                 track.write(blocco, 0, blocco.size, AudioTrack.WRITE_BLOCKING)
                 var p = posStorico
                 for (c in blocco) {

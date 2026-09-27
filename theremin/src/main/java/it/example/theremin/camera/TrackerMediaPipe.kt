@@ -29,20 +29,27 @@ class TrackerMediaPipe(context: Context) : Closeable {
             .build()
     )
 
-    private val filtroX = FiltroOneEuro()
-    private val filtroY = FiltroOneEuro()
-    private var presenza = 0f
-    private var fotogrammiSenzaMano = 0
+    private val voce0 = InseguitoreVoce()
+    private val voce1 = InseguitoreVoce()
     private var ultimoMs = 0L
-    private var x = 0.5f
-    private var y = 0.5f
+
+    /**
+     * false: una mano fa tutto, oppure destra = nota e sinistra = volume (theremin classico).
+     * true: "Due voci", ogni mano suona la propria nota; la seconda è in [secondaVoce].
+     */
+    @Volatile var dueVoci = false
 
     /** Ultime mani riconosciute, per disegnarle nell'anteprima. */
     var ultimeMani: List<List<PuntoMano2D>> = emptyList()
         private set
 
+    /** Posizione della seconda voce (solo in modalità Due voci), altrimenti null. */
+    var secondaVoce: PosizioneMano? = null
+        private set
+
     /**
      * Analizza un fotogramma già raddrizzato e specchiato come l'anteprima.
+     * Restituisce la voce principale (in Due voci: la mano più a sinistra).
      * @param timestampMs istante del fotogramma, in millisecondi
      */
     fun elabora(bitmap: Bitmap, timestampMs: Long): PosizioneMano {
@@ -55,23 +62,15 @@ class TrackerMediaPipe(context: Context) : Closeable {
         val mani = risultato.landmarks().map { mano -> mano.map { PuntoMano2D(it.x(), it.y()) } }
         ultimeMani = mani
 
-        val comandi = SceltaMani.comandi(mani)
-        if (comandi != null) {
-            val (cx, cy) = comandi
-            if (presenza < 0.3f) {
-                // Mano appena comparsa: si parte da dove si trova
-                filtroX.reimposta(cx)
-                filtroY.reimposta(cy)
-            }
-            x = filtroX.filtra(cx.coerceIn(0f, 1f), dt)
-            y = filtroY.filtra(cy.coerceIn(0f, 1f), dt)
-            fotogrammiSenzaMano = 0
-            presenza = minOf(1f, presenza + 0.5f)
-        } else {
-            fotogrammiSenzaMano++
-            if (fotogrammiSenzaMano >= 2) presenza = 0f
+        if (!dueVoci) {
+            secondaVoce = null
+            voce1.aggiorna(null, dt)
+            return voce0.aggiorna(SceltaMani.comandi(mani), dt)
         }
-        return PosizioneMano(x, y, presenza)
+        val punte = SceltaMani.voci(mani, floatArrayOf(voce0.x, voce1.x))
+        val principale = voce0.aggiorna(punte[0]?.let { it.x to it.y }, dt)
+        secondaVoce = voce1.aggiorna(punte[1]?.let { it.x to it.y }, dt)
+        return principale
     }
 
     override fun close() = landmarker.close()

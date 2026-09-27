@@ -116,6 +116,7 @@ import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
 import androidx.compose.material3.Switch
 import androidx.lifecycle.Lifecycle
+import it.example.theremin.audio.ModoDueMani
 import it.example.theremin.audio.Rilevatore
 import it.example.theremin.camera.PuntoMano2D
 import it.example.theremin.camera.SceltaMani
@@ -146,6 +147,8 @@ class MainActivity : ComponentActivity() {
     @Volatile private var mediaPipe: TrackerMediaPipe? = null
     private var erroreMediaPipe by mutableStateOf<String?>(null)
     private var maniUi by mutableStateOf<List<List<PuntoMano2D>>>(emptyList())
+    /** Seconda voce (modalità Due voci), null se non attiva. */
+    private var secondaVoceUi by mutableStateOf<PosizioneMano?>(null)
 
     /** Mano sul sensore di prossimità: silenzio immediato (se l'opzione è attiva). */
     @Volatile private var sensoreCoperto = false
@@ -345,6 +348,7 @@ class MainActivity : ComponentActivity() {
         impostazioni = nuove
         impostazioniUi = nuove
         engine.synth.applica(nuove)
+        engine.synth2.applica(nuove)
         tracker.punto = nuove.puntoMano
         tracker.sensibilita = nuove.sensibilita
         if (nuove.rilevatore != vecchie.rilevatore || !salva) {
@@ -363,7 +367,13 @@ class MainActivity : ComponentActivity() {
      *
      * In modalità Impara la stessa nota fa anche avanzare la lezione.
      */
-    private fun suPosizione(p: PosizioneMano, mani: List<List<PuntoMano2D>>) {
+    /** Due voci attive: riconoscimento IA, opzione scelta e modalità Suona (in Impara si segue una sola nota). */
+    private fun dueVociAttive() =
+        impostazioni.rilevatore == Rilevatore.MANO_IA &&
+            impostazioni.modoDueMani == ModoDueMani.DUE_VOCI &&
+            modalita == Modalita.SUONA
+
+    private fun suPosizione(p: PosizioneMano, mani: List<List<PuntoMano2D>>, seconda: PosizioneMano?) {
         // Col rilevamento per movimento, appena lo sfondo è imparato si blocca l'esposizione: così,
         // quando la mano entra (specie su uno sfondo bianco), la fotocamera non si riadatta
         val calibrato = tracker.calibrato
@@ -381,6 +391,15 @@ class MainActivity : ComponentActivity() {
             engine.synth.frequenzaBersaglio = hzSuonati(midi)
             engine.synth.volumeBersaglio = volume
         }
+        // Seconda voce: stessa mappatura (nota da sinistra a destra, volume dall'altezza)
+        val dueVoci = dueVociAttive() && seconda != null
+        engine.dueVoci = dueVoci
+        if (dueVoci && seconda != null) {
+            engine.synth2.frequenzaBersaglio = hzSuonati(midiDa(seconda.x, modalita, lezione.brano, scala, impostazioni))
+            engine.synth2.volumeBersaglio = if (muto) 0f else seconda.presenza * volumeDaAltezza(seconda.y)
+        } else {
+            engine.synth2.volumeBersaglio = 0f
+        }
 
         val l = lezione
         if (modalita == Modalita.IMPARA && !inDimostrazione) {
@@ -391,6 +410,7 @@ class MainActivity : ComponentActivity() {
         runOnUiThread {
             posizioneUi = p
             maniUi = mani
+            secondaVoceUi = if (dueVoci) seconda else null
             indiceUi = indice
             progressoNotaUi = progresso
         }
@@ -473,7 +493,10 @@ class MainActivity : ComponentActivity() {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                     Column(Modifier.weight(1f)) {
                         if (modalitaUi == Modalita.SUONA) {
-                            InfoSuona(suona, midi + 12f * imp.ottava)
+                            val seconda = secondaVoceUi
+                            val midi2 = seconda?.takeIf { it.presenza > 0.3f && !inPausa }
+                                ?.let { midiDa(it.x, modalitaUi, branoUi, scalaUi, imp) + 12f * imp.ottava }
+                            InfoSuona(suona, midi + 12f * imp.ottava, midi2)
                         } else {
                             InfoImpara(suona, midi, guida)
                         }
@@ -734,15 +757,18 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun InfoSuona(suona: Boolean, midi: Float) {
+    private fun InfoSuona(suona: Boolean, midi: Float, midi2: Float? = null) {
+        // In Due voci si mostrano entrambe le note (prima quella della mano sinistra)
+        val note = listOfNotNull(if (suona) midi else null, midi2)
         Text(
-            if (suona) Note.nome(midi) else "—",
+            if (note.isEmpty()) "—" else note.joinToString(" + ") { Note.nome(it) },
             color = Color.White,
-            fontSize = 56.sp,
+            fontSize = if (note.size > 1) 40.sp else 56.sp,
             fontWeight = FontWeight.Light,
         )
         Text(
-            if (suona) "%.1f Hz".format(Note.midiToHz(midi)) else "Muovi la mano davanti alla fotocamera",
+            if (note.isNotEmpty()) note.joinToString(" + ") { "%.1f Hz".format(Note.midiToHz(it)) }
+            else "Muovi la mano davanti alla fotocamera",
             color = Color.White.copy(alpha = 0.75f),
             fontSize = 14.sp,
         )
@@ -905,8 +931,24 @@ class MainActivity : ComponentActivity() {
                 erroreMediaPipe?.let {
                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
+                if (imp.rilevatore == Rilevatore.MANO_IA) {
+                    Spacer(Modifier.height(8.dp))
+                    Text("Con due mani", style = MaterialTheme.typography.labelLarge)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        for (m in ModoDueMani.entries) {
+                            FilterChip(
+                                selected = imp.modoDueMani == m,
+                                onClick = { cambia(imp.copy(modoDueMani = m)) },
+                                label = { Text(m.etichetta) },
+                            )
+                        }
+                    }
+                }
                 Text(
-                    if (imp.rilevatore == Rilevatore.MANO_IA) {
+                    if (imp.rilevatore == Rilevatore.MANO_IA && imp.modoDueMani == ModoDueMani.DUE_VOCI) {
+                        "Ogni mano suona la sua nota con la punta dell'indice e ne regola il volume con " +
+                            "l'altezza: due voci insieme (nella modalità Impara si segue una sola nota)."
+                    } else if (imp.rilevatore == Rilevatore.MANO_IA) {
                         "Riconosce la forma della mano con qualunque sfondo e luce. Con una mano, la punta " +
                             "dell'indice decide nota e volume; con due mani, come un theremin vero, la destra " +
                             "suona la nota e l'altezza della sinistra regola il volume."
@@ -1042,7 +1084,10 @@ class MainActivity : ComponentActivity() {
                             esecutoreAnalisi,
                             HandAnalyzer(
                                 tracker,
-                                mediaPipe = { mediaPipe?.takeIf { impostazioni.rilevatore == Rilevatore.MANO_IA } },
+                                mediaPipe = {
+                                    mediaPipe?.takeIf { impostazioni.rilevatore == Rilevatore.MANO_IA }
+                                        ?.also { it.dueVoci = dueVociAttive() }
+                                },
                                 suPosizione = ::suPosizione,
                             ),
                         )
@@ -1123,6 +1168,12 @@ class MainActivity : ComponentActivity() {
                     val centro = Offset(p.x * size.width, p.y * size.height)
                     drawCircle(Color.White, radius = 10.dp.toPx(), center = centro, style = Stroke(3.dp.toPx()))
                     drawCircle(Color.White.copy(alpha = 0.35f), radius = 10.dp.toPx(), center = centro)
+                }
+                // Cursore della seconda voce, in azzurro
+                secondaVoceUi?.takeIf { it.presenza > 0.3f }?.let { v ->
+                    val centro = Offset(v.x * size.width, v.y * size.height)
+                    drawCircle(Color(0xFF40C4FF), radius = 10.dp.toPx(), center = centro, style = Stroke(3.dp.toPx()))
+                    drawCircle(Color(0xFF40C4FF).copy(alpha = 0.35f), radius = 10.dp.toPx(), center = centro)
                 }
             }
         }

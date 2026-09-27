@@ -180,8 +180,15 @@ dell'indice in giallo). Non dipende da sfondo o luce, non scambia viso o corpo
 per una mano e non serve ricalibrare.
 
 - **una mano**: la punta dell'indice decide nota (orizzontale) e volume (altezza);
-- **due mani**, come un theremin vero: la destra suona la nota con l'indice,
-  l'altezza del palmo sinistro regola il volume (`camera/SceltaMani.kt`).
+- **due mani**, a scelta nel pannello 🎛 (*Con due mani*):
+  - *Destra nota, sinistra volume* (predefinito), come un theremin vero: la
+    destra suona la nota con l'indice, l'altezza del palmo sinistro regola il
+    volume;
+  - *Due voci*: ogni mano suona la propria nota con l'indice e ne regola il
+    volume con l'altezza, su una seconda voce del synth (`synth2`); le mani sono
+    assegnate alle voci da sinistra a destra, senza scambi quando una esce
+    (`camera/SceltaMani.kt`, `camera/InseguitoreVoce.kt`). Nell'anteprima la
+    seconda voce ha il cursore azzurro. In Impara si segue una sola nota.
 
 Il modello (`hand_landmarker.task`, 7,8 MB) non è nel repository: il task
 Gradle `scaricaModelloMano` lo scarica dal server ufficiale di Google negli

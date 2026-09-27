@@ -16,7 +16,8 @@ import androidx.camera.core.ImageProxy
 class HandAnalyzer(
     private val tracker: MotionTracker,
     private val mediaPipe: () -> TrackerMediaPipe?,
-    private val suPosizione: (PosizioneMano, List<List<PuntoMano2D>>) -> Unit,
+    /** Posizione principale, mani riconosciute e (solo in Due voci) posizione della seconda voce. */
+    private val suPosizione: (PosizioneMano, List<List<PuntoMano2D>>, PosizioneMano?) -> Unit,
 ) : ImageAnalysis.Analyzer {
 
     private var buffer = ByteArray(0)
@@ -27,7 +28,7 @@ class HandAnalyzer(
             if (mp != null) {
                 val raddrizzata = raddrizza(it.toBitmap(), it.imageInfo.rotationDegrees)
                 val posizione = mp.elabora(raddrizzata, it.imageInfo.timestamp / 1_000_000)
-                suPosizione(posizione, mp.ultimeMani)
+                suPosizione(posizione, mp.ultimeMani, mp.secondaVoce)
                 return
             }
 
@@ -48,7 +49,7 @@ class HandAnalyzer(
                 // Con 4 byte per pixel (RGBA) si legge il verde; con la sola luminanza, il byte stesso
                 offsetCanale = if (piano.pixelStride >= 3) 1 else 0,
             )
-            suPosizione(posizione, emptyList())
+            suPosizione(posizione, emptyList(), null)
         }
     }
 

@@ -10,6 +10,14 @@ enum class Rilevatore(val etichetta: String) {
     MOVIMENTO("Movimento sullo sfondo"),
 }
 
+/** Cosa fanno due mani insieme (solo con il riconoscimento IA). */
+enum class ModoDueMani(val etichetta: String) {
+    /** Come un theremin vero: la destra suona la nota, l'altezza della sinistra regola il volume. */
+    CLASSICO("Destra nota, sinistra volume"),
+    /** Ogni mano suona la propria nota, con il proprio volume: due voci insieme. */
+    DUE_VOCI("Due voci (una nota per mano)"),
+}
+
 /**
  * Parametri regolabili dall'utente, per il suono e per la lettura della mano.
  * Classe immutabile: ogni modifica produce una copia, che viene applicata al synth e salvata.
@@ -45,6 +53,7 @@ data class Impostazioni(
     val volumeBase: Float = 0.6f,
     // --- Lettura della mano ---
     val rilevatore: Rilevatore = Rilevatore.MANO_IA,
+    val modoDueMani: ModoDueMani = ModoDueMani.CLASSICO,
     /** Mano (o dito) sul sensore di prossimità, in alto vicino all'altoparlante = silenzio immediato. */
     val prossimitaMuta: Boolean = false,
     /** Fascia ai due lati dell'inquadratura (0..0.3) esclusa dalla tastiera: le note estreme si raggiungono prima del bordo. */
