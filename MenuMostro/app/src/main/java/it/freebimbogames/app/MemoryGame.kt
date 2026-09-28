@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -117,6 +118,7 @@ fun SchermataHomeMemory(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .navigationBarsPadding()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Bottom
@@ -189,11 +191,15 @@ fun SchermataGiocoMemory(livello: LivelloMemory, onCompletato: (Int) -> Unit, on
         if (girate.size == 2) tentativi += 1
     }
 
+    // Riparte dall'inizio della schermata ad ogni nuovo livello (griglia diversa).
+    val statoScroll = rememberScrollState()
+    LaunchedEffect(livello) { statoScroll.scrollTo(0) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(SfondoChiaro)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(statoScroll)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

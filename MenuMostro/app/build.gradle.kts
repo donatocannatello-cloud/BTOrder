@@ -11,8 +11,8 @@ android {
         applicationId = "it.freebimbogames.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 18
-        versionName = "6.2"
+        versionCode = 19
+        versionName = "6.3"
     }
 
     // Keystore di debug fisso e versionato (debug.keystore, credenziali di default

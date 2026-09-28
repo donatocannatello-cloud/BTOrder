@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -116,6 +117,7 @@ fun SchermataHomeParcheggio(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .navigationBarsPadding()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Bottom
@@ -167,11 +169,15 @@ fun SchermataGiocoParcheggio(livello: LivelloParcheggio, onRisolto: (Int) -> Uni
 
     val selezionata = auto.firstOrNull { it.id == selezionataId }
 
+    // Riparte dall'inizio della schermata ad ogni nuovo livello (griglia diversa).
+    val statoScroll = rememberScrollState()
+    LaunchedEffect(livello) { statoScroll.scrollTo(0) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(SfondoChiaro)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(statoScroll)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -137,6 +138,7 @@ fun SchermataHomeVestiti(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .navigationBarsPadding()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Bottom
@@ -192,6 +194,10 @@ fun SchermataGiocoVestiti(
 
     val vestitoCompleto = livello.tipiAttivi.all { scelte[it] != null }
 
+    // Riparte dall'inizio della schermata ad ogni nuovo commensale.
+    val statoScroll = rememberScrollState()
+    LaunchedEffect(numeroManche, livello) { statoScroll.scrollTo(0) }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -200,7 +206,7 @@ fun SchermataGiocoVestiti(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(statoScroll)
                 .padding(16.dp)
         ) {
             BottoneTornaAiGiochi(onClick = onTornaAiGiochi)

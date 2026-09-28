@@ -194,7 +194,36 @@ val elencoIngredientiPanino: List<Piatto> = listOf(
     Piatto("Formaggio Puzzolente", "🧀", schifezza = true, colore = "verde", categorie = setOf("formaggio")),
     Piatto("Bava di Lumaca", "🐌", schifezza = true, colore = "marrone", categorie = setOf("viscido")),
     Piatto("Fango Croccante", "🟤", schifezza = true, colore = "marrone"),
-    Piatto("Formica Gigante", "🐜", schifezza = true, colore = "marrone")
+    Piatto("Formica Gigante", "🐜", schifezza = true, colore = "marrone"),
+    // Ingredienti aggiunti per garantire che ogni richiesta condivisa (colore o
+    // categoria) abbia sempre abbastanza ingredienti adatti nel banco da poter
+    // essere soddisfatta al 100% anche al livello più alto (6 ingredienti): con
+    // il banco originale, richieste come "tanta frutta" o "mi piace l'insalata"
+    // avevano solo 1 ingrediente adatto su 16, quindi diventavano impossibili da
+    // vincere già dal secondo livello in poi.
+    Piatto("Fragola", "🍓", schifezza = false, colore = "rosso", categorie = setOf("frutta")),
+    Piatto("Banana", "🍌", schifezza = false, colore = "giallo", categorie = setOf("frutta")),
+    Piatto("Pera Verde", "🍐", schifezza = false, colore = "verde", categorie = setOf("frutta")),
+    Piatto("Mela Marcia", "🍏", schifezza = true, colore = "verde", categorie = setOf("frutta")),
+    Piatto("Kiwi Peloso", "🥝", schifezza = true, colore = "verde", categorie = setOf("frutta")),
+    Piatto("Peperoncino Rosso", "🌶️", schifezza = false, colore = "rosso", categorie = setOf("piccante")),
+    Piatto("Salsa Piccante Verde", "🥫", schifezza = false, colore = "verde", categorie = setOf("piccante")),
+    Piatto("Wurstel Piccante", "🌭", schifezza = false, colore = "rosso", categorie = setOf("carne", "piccante")),
+    Piatto("Bresaola", "🥓", schifezza = false, colore = "rosso", categorie = setOf("carne")),
+    Piatto("Pancetta Croccante", "🥓", schifezza = false, colore = "rosa", categorie = setOf("carne")),
+    Piatto("Sottaceti Verdi", "🥒", schifezza = false, colore = "verde", categorie = setOf("insalata")),
+    Piatto("Cetriolo", "🥒", schifezza = false, colore = "verde", categorie = setOf("insalata")),
+    Piatto("Rucola", "🌿", schifezza = false, colore = "verde", categorie = setOf("insalata")),
+    Piatto("Pomodorini Rossi", "🍅", schifezza = false, colore = "rosso", categorie = setOf("insalata")),
+    Piatto("Mais Dorato", "🌽", schifezza = false, colore = "giallo", categorie = setOf("insalata")),
+    Piatto("Provola Gialla", "🧀", schifezza = false, colore = "giallo", categorie = setOf("formaggio")),
+    Piatto("Cheddar Fuso", "🧀", schifezza = false, colore = "giallo", categorie = setOf("formaggio")),
+    Piatto("Crema di Formaggio Verde", "🧀", schifezza = true, colore = "verde", categorie = setOf("formaggio")),
+    Piatto("Lumacone Bavoso", "🐌", schifezza = true, colore = "verde", categorie = setOf("viscido")),
+    Piatto("Gelatina di Palude", "🟢", schifezza = true, colore = "verde", categorie = setOf("viscido")),
+    Piatto("Salame Rosso Piccante", "🌭", schifezza = false, colore = "rosso", categorie = setOf("carne", "piccante")),
+    Piatto("Formaggio Blu Puzzolente", "🧀", schifezza = true, colore = "viola", categorie = setOf("formaggio")),
+    Piatto("Melma Gialla Bavosa", "🟡", schifezza = true, colore = "giallo", categorie = setOf("viscido"))
 )
 
 /** Un livello di difficoltà per Monster Panino: quanti ingredienti bisogna scegliere. */

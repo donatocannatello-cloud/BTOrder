@@ -3,6 +3,7 @@ package it.freebimbogames.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,8 +17,10 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -60,6 +63,7 @@ fun String.maiuscolo(): String = uppercase(Locale.ITALIAN)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         SuoniGioco.inizializza(this)
         setContent {
             MenuMostroTheme {
@@ -190,6 +194,7 @@ fun SchermataHub(onSeleziona: (Gioco) -> Unit) {
 fun BottoneTornaAiGiochi(onClick: () -> Unit, modifier: Modifier = Modifier, sfondo: Color = Color(0x33000000)) {
     Box(
         modifier = modifier
+            .statusBarsPadding()
             .size(48.dp)
             .clip(CircleShape)
             .background(sfondo)
@@ -199,7 +204,9 @@ fun BottoneTornaAiGiochi(onClick: () -> Unit, modifier: Modifier = Modifier, sfo
             },
         contentAlignment = Alignment.Center
     ) {
-        Text(text = "⬅️", fontSize = 22.sp)
+        // Freccia di testo semplice invece dell'emoji ⬅️: l'emoji ha un contorno nero
+        // pesante nel font colorato di sistema, che stona sul cerchio scuro del bottone.
+        Text(text = "←", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -294,6 +301,7 @@ fun SchermataHome(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .navigationBarsPadding()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Bottom
@@ -349,6 +357,12 @@ fun SchermataGioco(
 
     val menuCompleto = livello.portate.all { scelte[it] != null }
 
+    // Riparte dall'inizio della schermata ad ogni nuovo commensale: senza questo, lo
+    // scroll resta dove l'ultimo commensale l'aveva lasciato (in fondo, dopo aver
+    // scelto tutte le portate), e il nuovo commensale sembra apparire "da sotto".
+    val statoScroll = rememberScrollState()
+    LaunchedEffect(numeroManche, livello) { statoScroll.scrollTo(0) }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -357,7 +371,7 @@ fun SchermataGioco(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(statoScroll)
                 .padding(16.dp)
         ) {
             BottoneTornaAiGiochi(onClick = onTornaAiGiochi)
@@ -774,6 +788,7 @@ fun SchermataHomePanino(onGioca: () -> Unit, onTornaAiGiochi: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .navigationBarsPadding()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Bottom
@@ -831,6 +846,10 @@ fun SchermataGiocoPanino(
 
     val pronto = selezione.size == livello.numeroIngredienti
 
+    // Riparte dall'inizio della schermata ad ogni nuovo commensale, come in Monster Restaurant.
+    val statoScroll = rememberScrollState()
+    LaunchedEffect(numeroManche, livello) { statoScroll.scrollTo(0) }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -839,7 +858,7 @@ fun SchermataGiocoPanino(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(statoScroll)
                 .padding(16.dp)
         ) {
             BottoneTornaAiGiochi(onClick = onTornaAiGiochi)
