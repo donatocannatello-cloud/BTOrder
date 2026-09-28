@@ -1,8 +1,11 @@
 package it.example.forme.gioco
 
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.floor
 import kotlin.math.min
+import kotlin.math.sin
 import kotlin.random.Random
 
 /** Ciò che succede durante un aggiornamento della partita: serve a suoni, effetti e messaggi. */
@@ -13,6 +16,8 @@ sealed interface Evento {
     data class ServonoDueMani(val pezzo: Pezzo) : Evento
     data class LivelloCompletato(val livello: Int, val bonus: Int) : Evento
     data class NuovoLivello(val livello: Int) : Evento
+    /** La forma si è trasformata in un'altra (livelli con le trasformazioni). */
+    data class Cambio(val pezzo: Pezzo, val tenuto: Boolean) : Evento
 }
 
 enum class StatoPartita { IN_CORSO, LIVELLO_COMPLETATO }
@@ -24,7 +29,9 @@ enum class StatoPartita { IN_CORSO, LIVELLO_COMPLETATO }
  * fra pollice e indice (o chiudendo la mano), la si porta nel suo incavo e si apre la mano: se l'incavo è quello
  * giusto la forma si incastra, se è sbagliato torna al suo posto. Le forme pesanti si sollevano
  * solo con tutte e due le mani. Completati tutti gli incastri si passa al livello successivo,
- * con più forme.
+ * con più forme. Dal livello 2 le forme si muovono da sole, al 3 si trasformano ogni pochi
+ * secondi in un'altra forma (se non si arriva in tempo all'incavo bisogna cambiare incavo),
+ * dal 4 si muovono e si trasformano.
  *
  * @param margineAlto frazione dell'altezza lasciata libera in alto per punteggio e pulsanti
  */
@@ -51,6 +58,16 @@ class Partita(
         private set
     var slot: List<Slot> = emptyList()
         private set
+    /** Le forme del livello si muovono da sole. */
+    var movimento = false
+        private set
+    /** Le forme del livello si trasformano ogni pochi secondi. */
+    var trasformazione = false
+        private set
+    private val lato get() = min(larghezza, altezza)
+    /** Zona in cui si muovono le forme: tutto lo schermo tranne la fascia di punteggio e pulsanti. */
+    private val campo get() = Rettangolo(0f, altezza * margineAlto, larghezza, altezza * (1f - margineBasso))
+
     /** Forme sotto una mano aperta, da evidenziare perché si possono prendere. */
     var evidenziati: Set<Int> = emptySet()
         private set
@@ -99,12 +116,13 @@ class Partita(
         }
         val pesanti = tipi.shuffled(casuale).take(numeroPesanti).toSet()
 
-        val lato = min(larghezza, altezza)
+        movimento = n == 2 || n >= 4
+        trasformazione = n >= 3
         var raggio = lato * when {
-            quante <= 3 -> 0.12f
-            quante <= 5 -> 0.105f
-            quante <= 7 -> 0.095f
-            else -> 0.085f
+            quante <= 3 -> 0.06f
+            quante <= 5 -> 0.0525f
+            quante <= 7 -> 0.0475f
+            else -> 0.0425f
         }
         val fattoreCella = if (pesanti.isEmpty()) 1f else FATTORE_PESANTE
         val meta = altezza / 2f
@@ -131,6 +149,22 @@ class Partita(
                 raggio = if (tipo in pesanti) raggio * FATTORE_PESANTE else raggio,
                 pesante = tipo in pesanti,
             ).also { it.rimbalzo = 1f }
+        }
+        if (movimento) {
+            // Più veloci a ogni livello, fino a un massimo
+            val v = lato * (0.07f + 0.012f * (n - 2)).coerceAtMost(0.16f)
+            for (pz in pezzi) {
+                val a = casuale.nextDouble(0.0, 2 * PI)
+                pz.velocita = Punto((cos(a) * v).toFloat(), (sin(a) * v).toFloat())
+            }
+        }
+        if (trasformazione) {
+            // Trasformazioni più frequenti a ogni livello; ogni forma ha i suoi tempi
+            val periodo = (4.5f - 0.3f * (n - 3)).coerceAtLeast(2.5f)
+            for (pz in pezzi) {
+                pz.periodoCambio = periodo * (0.85f + casuale.nextFloat() * 0.3f)
+                pz.tempoAlCambio = pz.periodoCambio * (0.5f + casuale.nextFloat() * 0.5f)
+            }
         }
     }
 
@@ -208,6 +242,8 @@ class Partita(
             }
         }
 
+        muovi(dt, perId)
+        trasforma(dt, eventi)
         anima(dt)
         evidenziati = mani.filter { it.presente && !it.afferra }
             .mapNotNull { formaSotto(it.posizione)?.id }
@@ -217,8 +253,56 @@ class Partita(
 
     /** La forma libera più vicina a [p], se è abbastanza vicina da essere presa. */
     fun formaSotto(p: Punto): Pezzo? = pezzi
-        .filter { !it.incastrato && it.posizione.distanza(p) < it.raggio * RAGGIO_PRESA }
+        .filter { !it.incastrato && it.posizione.distanza(p) < raggioPresa(it) }
         .minByOrNull { it.posizione.distanza(p) }
+
+    /** Le forme libere vagano per il campo e rimbalzano sui bordi; quelle in mano stanno ferme. */
+    private fun muovi(dt: Float, perId: Map<Int, ManoGioco>) {
+        if (!movimento) return
+        val c = campo
+        for (p in pezzi) {
+            if (p.incastrato || p.tornaACasa || tenutoDa(p).any { perId[it]?.presente == true }) continue
+            var x = p.posizione.x + p.velocita.x * dt
+            var y = p.posizione.y + p.velocita.y * dt
+            var vx = p.velocita.x
+            var vy = p.velocita.y
+            val r = p.raggio
+            if (x < c.sinistra + r) { x = c.sinistra + r; vx = kotlin.math.abs(vx) }
+            if (x > c.destra - r) { x = c.destra - r; vx = -kotlin.math.abs(vx) }
+            if (y < c.alto + r) { y = c.alto + r; vy = kotlin.math.abs(vy) }
+            if (y > c.basso - r) { y = c.basso - r; vy = -kotlin.math.abs(vy) }
+            p.posizione = Punto(x, y)
+            p.velocita = Punto(vx, vy)
+        }
+    }
+
+    /**
+     * Allo scadere del suo tempo ogni forma libera diventa un'altra, scelta fra quelle che hanno
+     * ancora l'incavo libero (e della stessa taglia): così il livello resta sempre risolvibile.
+     * Si trasforma anche mentre è in mano, ed è proprio questa la sfida.
+     */
+    private fun trasforma(dt: Float, eventi: MutableList<Evento>) {
+        if (!trasformazione) return
+        for (p in pezzi) {
+            if (p.incastrato || p.periodoCambio <= 0f) continue
+            p.tempoAlCambio -= dt
+            if (p.tempoAlCambio > 0f) continue
+            p.tempoAlCambio += p.periodoCambio
+            cambiaTipo(p, eventi)
+        }
+    }
+
+    private fun cambiaTipo(p: Pezzo, eventi: MutableList<Evento>) {
+        val possibili = slot.filter { !it.occupato && it.pesante == p.pesante }.map { it.tipo }.distinct()
+        val altri = possibili.filter { it != p.tipo }
+        if (altri.isEmpty()) return
+        p.tipo = altri.random(casuale)
+        p.rimbalzo = 1f
+        eventi += Evento.Cambio(p, tenutoDa(p).isNotEmpty())
+    }
+
+    /** Distanza entro cui una mano prende la forma: non troppo piccola anche per le forme piccole. */
+    fun raggioPresa(p: Pezzo) = maxOf(p.raggio * RAGGIO_PRESA, lato * PRESA_MINIMA)
 
     private fun ricordaMani(mani: List<ManoGioco>) {
         for (m in mani) afferravaPrima[m.id] = m.presente && m.afferra
@@ -226,7 +310,7 @@ class Partita(
 
     private fun prendi(mano: ManoGioco, eventi: MutableList<Evento>): Boolean {
         val candidati = pezzi
-            .filter { !it.incastrato && it.posizione.distanza(mano.posizione) < it.raggio * RAGGIO_PRESA }
+            .filter { !it.incastrato && it.posizione.distanza(mano.posizione) < raggioPresa(it) }
             .sortedBy { it.posizione.distanza(mano.posizione) }
         for (pezzo in candidati) {
             val altre = tenutoDa(pezzo)
@@ -259,7 +343,7 @@ class Partita(
     /** Una forma appena lasciata: si incastra, torna indietro (incavo sbagliato) o resta lì. */
     private fun verificaPosizione(pezzo: Pezzo, eventi: MutableList<Evento>) {
         val giusto = slotDi(pezzo)
-        if (!giusto.occupato && pezzo.posizione.distanza(giusto.centro) < giusto.raggio * TOLLERANZA_RILASCIO) {
+        if (!giusto.occupato && pezzo.posizione.distanza(giusto.centro) < maxOf(giusto.raggio * TOLLERANZA_RILASCIO, lato * RILASCIO_MINIMO)) {
             incastra(pezzo, giusto, eventi)
             return
         }
@@ -283,6 +367,10 @@ class Partita(
         val punti = if (pezzo.pesante) PUNTI_PESANTE else PUNTI_INCASTRO
         punteggio += punti
         eventi += Evento.Incastro(pezzo, punti)
+        // Un'altra forma libera trasformata nello stesso tipo non ha più un incavo: cambia subito
+        for (altra in pezzi) {
+            if (!altra.incastrato && altra.tipo == pezzo.tipo) cambiaTipo(altra, eventi)
+        }
 
         if (pezzi.all { it.incastrato }) {
             val bonus = ((TEMPO_PER_FORMA_S * pezzi.size - tempoLivello).coerceAtLeast(0f) * PUNTI_PER_SECONDO).toInt()
@@ -350,6 +438,9 @@ class Partita(
         /** Una mano prende una forma se il punto fra pollice e indice è entro questo multiplo del raggio. */
         const val RAGGIO_PRESA = 1.5f
         const val FINESTRA_PRESA_S = 0.6f
+        /** Minimi (in frazione del lato corto dello schermo) per presa e incastro delle forme piccole. */
+        const val PRESA_MINIMA = 0.085f
+        const val RILASCIO_MINIMO = 0.06f
         const val CALAMITA = 0.3f
         const val TOLLERANZA_RILASCIO = 0.8f
         const val TOLLERANZA_SBAGLIATO = 0.75f

@@ -192,13 +192,13 @@ class MainActivity : ComponentActivity() {
                     suoni.suona(Suoni.Effetto.INCASTRO)
                     val centro = p.slotDi(e.pezzo).centro.offset()
                     val colore = Color(e.pezzo.tipo.colore)
-                    particelle.esplodi(centro, colore, if (e.pezzo.pesante) 60 else 32, e.pezzo.raggio * 5f, 5f * dp)
+                    particelle.esplodi(centro, colore, if (e.pezzo.pesante) 60 else 32, p.larghezza * 0.35f, 4f * dp)
                     galleggianti += Galleggiante("+${e.punti}", centro, 1.2f, colore)
                     if (e.pezzo.pesante) messaggio = Messaggio("Gran lavoro di squadra, mani!")
                 }
                 is Evento.Sbagliato -> {
                     suoni.suona(Suoni.Effetto.SBAGLIATO)
-                    messaggio = Messaggio("Non è il posto del ${e.pezzo.tipo.nome.lowercase()}!")
+                    messaggio = Messaggio("Non è l'incavo giusto per questa forma!")
                 }
                 is Evento.ServonoDueMani -> {
                     suoni.suona(Suoni.Effetto.PESANTE)
@@ -219,8 +219,16 @@ class MainActivity : ComponentActivity() {
                 }
                 is Evento.NuovoLivello -> {
                     livelloFinito = null
-                    messaggio = Messaggio("Livello ${e.livello}: ${p.pezzi.size} forme")
+                    val novita = when {
+                        p.movimento && p.trasformazione -> "si muovono e si trasformano!"
+                        p.trasformazione -> "le forme si trasformano, sbrigati!"
+                        p.movimento -> "le forme si muovono!"
+                        else -> "${p.pezzi.size} forme"
+                    }
+                    messaggio = Messaggio("Livello ${e.livello}: $novita")
                 }
+                // Si sente solo per la forma che si ha in mano: è lei che cambia destinazione
+                is Evento.Cambio -> if (e.tenuto) suoni.suona(Suoni.Effetto.CAMBIO)
             }
         }
 
@@ -423,6 +431,8 @@ class MainActivity : ComponentActivity() {
                     "Portala nell'incavo con la stessa sagoma e apri le dita per lasciarla.",
                     "Con due mani puoi spostare due forme insieme. Le forme ✋✋ sono pesanti: " +
                         "servono tutte e due le mani!",
+                    "Livello 2: le forme si muovono. Livello 3: si trasformano quando il cerchio " +
+                        "intorno si svuota, anche in mano! Dal livello 4: tutte e due le cose.",
                 )
                 for (r in regole) {
                     Text("• $r", color = Color.White.copy(alpha = 0.9f), fontSize = 16.sp, modifier = Modifier.fillMaxWidth())

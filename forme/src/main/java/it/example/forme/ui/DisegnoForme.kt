@@ -130,9 +130,9 @@ fun DrawScope.disegnaSlot(slot: Slot, aiutoColore: Boolean, dp: Float) {
     drawPath(sagoma, Color.Black.copy(alpha = 0.5f))
     if (aiutoColore) drawPath(sagoma, colore.copy(alpha = 0.22f))
     val tratteggio = Stroke(
-        width = 3f * dp,
+        width = 2.5f * dp,
         cap = StrokeCap.Round,
-        pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f * dp, 8f * dp)),
+        pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f * dp, 6f * dp)),
     )
     val bordo = if (aiutoColore) lerp(colore, Color.White, 0.4f) else Color.White.copy(alpha = 0.9f)
     if (slot.tipo == TipoForma.CUBO) {
@@ -160,10 +160,10 @@ fun DrawScope.disegnaPezzo(pezzo: Pezzo, tenuto: Boolean, evidenziato: Boolean, 
     val sagoma = percorsoForma(pezzo.tipo, c, r)
 
     if (tenuto) {
-        translate(6f * dp, 12f * dp) { drawPath(sagoma, Color.Black.copy(alpha = 0.35f)) }
+        translate(4f * dp, 8f * dp) { drawPath(sagoma, Color.Black.copy(alpha = 0.35f)) }
     }
     if (evidenziato) {
-        drawPath(sagoma, Color.White.copy(alpha = 0.55f), style = Stroke(12f * dp))
+        drawPath(sagoma, Color.White.copy(alpha = 0.55f), style = Stroke(8f * dp))
     }
     if (pezzo.tipo == TipoForma.CUBO) {
         val (sopra, destra, sinistra) = facceCubo(c, r)
@@ -186,6 +186,22 @@ fun DrawScope.disegnaPezzo(pezzo: Pezzo, tenuto: Boolean, evidenziato: Boolean, 
         }
     }
     val bordo = if (pezzo.pesante) Color(0xFF37474F) else Color.White
-    drawPath(sagoma, bordo, style = Stroke((if (tenuto || pezzo.pesante) 4f else 3f) * dp))
+    drawPath(sagoma, bordo, style = Stroke((if (tenuto || pezzo.pesante) 3.5f else 2.5f) * dp))
     if (pezzo.pesante) etichettaPesante(c, r, Color.White)
+
+    // Conto alla rovescia della trasformazione: l'arco si svuota, e diventa rosso alla fine
+    if (pezzo.periodoCambio > 0f && !pezzo.incastrato) {
+        val resto = (pezzo.tempoAlCambio / pezzo.periodoCambio).coerceIn(0f, 1f)
+        val urgente = pezzo.tempoAlCambio < 1f
+        val raggioArco = r * 1.3f + 4f * dp
+        drawArc(
+            color = if (urgente) Color(0xFFFF5252) else Color.White.copy(alpha = 0.85f),
+            startAngle = -90f,
+            sweepAngle = 360f * resto,
+            useCenter = false,
+            topLeft = c - Offset(raggioArco, raggioArco),
+            size = androidx.compose.ui.geometry.Size(raggioArco * 2f, raggioArco * 2f),
+            style = Stroke((if (urgente) 3.5f else 2.5f) * dp, cap = StrokeCap.Round),
+        )
+    }
 }

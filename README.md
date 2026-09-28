@@ -342,6 +342,15 @@ tratteggiati.
    le mani** e seguono il punto medio fra le mani (+250 punti).
 6. Completati tutti gli incastri si passa al livello successivo, con una forma in più
    (da 3 fino a 9) e più forme pesanti; gli incavi si alternano fra metà alta e bassa.
+   - **Livello 1**: forme ferme.
+   - **Livello 2**: le forme vagano per lo schermo e rimbalzano sui bordi (si fermano
+     quando sono in mano).
+   - **Livello 3**: ogni pochi secondi ogni forma si trasforma in un'altra, anche mentre la
+     si tiene in mano: un arco intorno alla forma fa il conto alla rovescia (rosso
+     nell'ultimo secondo). Se non si arriva in tempo all'incavo, bisogna cambiare incavo.
+     Le forme diventano solo tipi che hanno ancora l'incavo libero, quindi il livello si
+     può sempre completare.
+   - **Dal livello 4**: si muovono e si trasformano, sempre più veloci.
    Il bonus di velocità premia i livelli finiti in fretta; il record viene salvato.
 
 Il dito sullo schermo funziona come una terza mano (utile per provare il gioco, o se il

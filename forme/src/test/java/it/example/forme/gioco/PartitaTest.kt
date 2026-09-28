@@ -158,4 +158,88 @@ class PartitaTest {
         assertEquals(4, p.pezzi.size)
         assertTrue(eventi.any { it is Evento.NuovoLivello })
     }
+
+    @Test
+    fun alPrimoLivelloLeFormeStannoFermeEIntere() {
+        val p = partita()
+        assertFalse(p.movimento)
+        assertFalse(p.trasformazione)
+        val tipi = p.pezzi.map { it.tipo }
+        repeat(300) { p.aggiorna(dt, emptyList()) }
+        assertEquals(tipi, p.pezzi.map { it.tipo })
+        assertTrue(p.pezzi.all { it.posizione == it.casa })
+    }
+
+    @Test
+    fun alSecondoLivelloLeFormeSiMuovonoSenzaUscireDalCampo() {
+        val p = partita()
+        p.iniziaLivello(2)
+        assertTrue(p.movimento)
+        assertFalse(p.trasformazione)
+        repeat(600) {
+            p.aggiorna(dt, emptyList())
+            for (pz in p.pezzi) {
+                assertTrue(pz.posizione.x - pz.raggio >= -0.01f && pz.posizione.x + pz.raggio <= p.larghezza + 0.01f)
+                assertTrue(pz.posizione.y - pz.raggio >= -0.01f && pz.posizione.y + pz.raggio <= p.altezza + 0.01f)
+            }
+        }
+        assertTrue(p.pezzi.all { it.posizione != it.casa })
+    }
+
+    @Test
+    fun unaFormaInManoNonScappa() {
+        val p = partita()
+        p.iniziaLivello(2)
+        val pezzo = p.pezzi[0]
+        val qui = pezzo.posizione
+        p.aggiorna(0f, listOf(mano(0, qui, false)))
+        p.aggiorna(0f, listOf(mano(0, qui, true)))
+        repeat(60) { p.aggiorna(dt, listOf(mano(0, qui, true))) }
+        assertTrue(pezzo.posizione.distanza(qui) < 1f)
+    }
+
+    @Test
+    fun alTerzoLivelloLeFormeSiTrasformanoRestandoRisolvibili() {
+        val p = partita()
+        p.iniziaLivello(3)
+        assertTrue(p.trasformazione)
+        assertFalse(p.movimento)
+        val prima = p.pezzi.map { it.tipo }
+        val eventi = mutableListOf<Evento>()
+        repeat(30 * 10) {
+            eventi += p.aggiorna(dt, emptyList())
+            // Ogni forma ha sempre un incavo libero del suo tipo e della sua taglia
+            for (pz in p.pezzi) {
+                val s = p.slot.firstOrNull { it.tipo == pz.tipo && !it.occupato }
+                assertTrue(s != null && s.pesante == pz.pesante)
+            }
+        }
+        assertTrue(eventi.any { it is Evento.Cambio })
+        assertTrue(prima != p.pezzi.map { it.tipo })
+    }
+
+    @Test
+    fun dalQuartoLivelloSiMuovonoESiTrasformano() {
+        for (n in 4..6) {
+            val p = partita()
+            p.iniziaLivello(n)
+            assertTrue(p.movimento && p.trasformazione)
+        }
+    }
+
+    @Test
+    fun seSiIncastraUnaFormaLeGemelleCambiano() {
+        val p = partita()
+        p.iniziaLivello(4)
+        // Si forzano due forme normali allo stesso tipo, poi se ne incastra una
+        val normali = p.pezzi.filter { !it.pesante }
+        val a = normali[0]
+        val b = normali[1]
+        b.tipo = a.tipo
+        b.periodoCambio = 0f
+        a.periodoCambio = 0f
+        trascina(p, 0, a.posizione, p.slotDi(a).centro)
+        assertTrue(a.incastrato)
+        assertTrue(b.tipo != a.tipo)
+    }
 }

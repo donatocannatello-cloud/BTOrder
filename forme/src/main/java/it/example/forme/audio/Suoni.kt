@@ -17,7 +17,7 @@ import kotlin.math.sin
  */
 class Suoni(context: Context) {
 
-    enum class Effetto { PRESA, INCASTRO, SBAGLIATO, PESANTE, LIVELLO }
+    enum class Effetto { PRESA, INCASTRO, SBAGLIATO, PESANTE, LIVELLO, CAMBIO }
 
     private val pool = SoundPool.Builder()
         .setMaxStreams(6)
@@ -49,6 +49,8 @@ class Suoni(context: Context) {
     private fun campioni(e: Effetto): FloatArray = when (e) {
         // "Pop" breve che sale
         Effetto.PRESA -> glissato(520.0, 880.0, 0.07)
+        // "Magia": la forma in mano è diventata un'altra
+        Effetto.CAMBIO -> concatena(glissato(1200.0, 700.0, 0.06), glissato(700.0, 1400.0, 0.08))
         // Due note luminose (Do6 - Sol6)
         Effetto.INCASTRO -> concatena(nota(1046.5, 0.09, 20.0), nota(1568.0, 0.28, 9.0))
         // Ronzio grave

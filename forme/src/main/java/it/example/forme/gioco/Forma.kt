@@ -21,7 +21,8 @@ class Slot(val tipo: TipoForma, val centro: Punto, val raggio: Float, val pesant
 /** Una forma da prendere con le mani. */
 class Pezzo(
     val id: Int,
-    val tipo: TipoForma,
+    /** Può cambiare durante il livello, nei livelli in cui le forme si trasformano. */
+    var tipo: TipoForma,
     /** Posizione di partenza, dove torna se viene messa nell'incavo sbagliato. */
     val casa: Punto,
     val raggio: Float,
@@ -33,6 +34,11 @@ class Pezzo(
     var tornaACasa = false
     /** Secondi di "tremolio" rimasti: la forma pesante vibra se la si prova a sollevare con una mano. */
     var scossa = 0f
-    /** 0..1: animazione di comparsa a inizio livello e di "scatto" nell'incavo. */
+    /** 0..1: animazione di comparsa a inizio livello, di "scatto" nell'incavo e di trasformazione. */
     var rimbalzo = 0f
+    /** Velocità (pixel al secondo) nei livelli in cui le forme si muovono da sole. */
+    var velocita = Punto.ZERO
+    /** Ogni quanti secondi la forma si trasforma (0 = mai) e quanto manca alla prossima volta. */
+    var periodoCambio = 0f
+    var tempoAlCambio = 0f
 }
