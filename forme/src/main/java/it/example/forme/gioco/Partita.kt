@@ -60,6 +60,8 @@ class Partita(
     /** Per ogni mano (id), la forma che sta tenendo. */
     private val prese = HashMap<Int, Presa>()
     private val afferravaPrima = HashMap<Int, Boolean>()
+    /** Da quanti secondi ogni mano è chiusa senza tenere nulla (finestra per una presa "in ritardo"). */
+    private val chiusaDa = HashMap<Int, Float>()
     /** Forme pesanti sollevate con due mani: scarto fra il loro centro e il punto medio delle mani. */
     private val scartoDueMani = HashMap<Int, Punto>()
     private val avvisatoDueMani = HashSet<Int>()
@@ -159,10 +161,22 @@ class Partita(
             if (m == null || !m.presente || !m.afferra) rilascia(id, eventi)
         }
 
-        // 2. Mani che si sono appena chiuse: prendono la forma che hanno sotto
+        // 2. Mani che si sono appena chiuse prendono la forma che hanno sotto. Spesso le dita si
+        //    chiudono un attimo prima di arrivare sulla forma: per [FINESTRA_PRESA_S] secondi dopo
+        //    la chiusura la mano prende ancora la prima forma su cui passa.
         for (m in mani) {
             val ora = m.presente && m.afferra
-            if (ora && afferravaPrima[m.id] != true && m.id !in prese) prendi(m, eventi)
+            if (!ora) {
+                chiusaDa.remove(m.id)
+                continue
+            }
+            val appenaChiusa = afferravaPrima[m.id] != true
+            val da = if (appenaChiusa) 0f else (chiusaDa[m.id] ?: FINESTRA_PRESA_S) + dt
+            chiusaDa[m.id] = da
+            if (m.id !in prese && da <= FINESTRA_PRESA_S && prendi(m, eventi)) {
+                // Una presa per chiusura: dopo aver lasciato o incastrato va riaperta la mano
+                chiusaDa[m.id] = Float.MAX_VALUE
+            }
         }
         ricordaMani(mani)
 
@@ -210,7 +224,7 @@ class Partita(
         for (m in mani) afferravaPrima[m.id] = m.presente && m.afferra
     }
 
-    private fun prendi(mano: ManoGioco, eventi: MutableList<Evento>) {
+    private fun prendi(mano: ManoGioco, eventi: MutableList<Evento>): Boolean {
         val candidati = pezzi
             .filter { !it.incastrato && it.posizione.distanza(mano.posizione) < it.raggio * RAGGIO_PRESA }
             .sortedBy { it.posizione.distanza(mano.posizione) }
@@ -222,8 +236,9 @@ class Partita(
             prese[mano.id] = Presa(pezzo.id, pezzo.posizione - mano.posizione)
             pezzo.tornaACasa = false
             eventi += Evento.Presa(pezzo)
-            return
+            return true
         }
+        return false
     }
 
     private fun rilascia(idMano: Int, eventi: MutableList<Evento>) {
@@ -333,7 +348,8 @@ class Partita(
         /** Lato della cella della griglia, in raggi: lascia spazio fra una forma e l'altra. */
         const val PASSO = 2.3f
         /** Una mano prende una forma se il punto fra pollice e indice è entro questo multiplo del raggio. */
-        const val RAGGIO_PRESA = 1.3f
+        const val RAGGIO_PRESA = 1.5f
+        const val FINESTRA_PRESA_S = 0.6f
         const val CALAMITA = 0.3f
         const val TOLLERANZA_RILASCIO = 0.8f
         const val TOLLERANZA_SBAGLIATO = 0.75f

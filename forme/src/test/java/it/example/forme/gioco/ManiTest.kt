@@ -79,9 +79,11 @@ class ManiTest {
         inseguitore.aggiorna(emptyList(), 1f / 30f)
         assertTrue(inseguitore.mani().any { it.afferra })
 
-        // Mano aperta per un fotogramma solo: ancora presa; per due: rilasciata
-        inseguitore.aggiorna(listOf(mano(c)), 1f / 30f)
-        assertTrue(inseguitore.mani().any { it.afferra })
+        // Mano aperta per uno o due fotogrammi: ancora presa (tremolio del riconoscimento); per tre: rilasciata
+        repeat(InseguitoreMani.FOTOGRAMMI_RILASCIO - 1) {
+            inseguitore.aggiorna(listOf(mano(c)), 1f / 30f)
+            assertTrue(inseguitore.mani().any { it.afferra })
+        }
         inseguitore.aggiorna(listOf(mano(c)), 1f / 30f)
         assertFalse(inseguitore.mani().any { it.afferra })
 

@@ -523,14 +523,22 @@ class MainActivity : ComponentActivity() {
                 drawLine(Color.White.copy(alpha = 0.5f), punti[a].offset(), punti[b].offset(), 2.5f * dp, StrokeCap.Round)
             }
             for (pt in punti) drawCircle(colore.copy(alpha = 0.85f), 3.5f * dp, pt.offset())
+            // Le due dita che prendono, evidenziate
+            drawLine(colore.copy(alpha = 0.7f), punti[Gesti.PUNTA_POLLICE].offset(), punti[Gesti.PUNTA_INDICE].offset(), 3f * dp, StrokeCap.Round)
+            drawCircle(colore, 6f * dp, punti[Gesti.PUNTA_POLLICE].offset())
+            drawCircle(colore, 6f * dp, punti[Gesti.PUNTA_INDICE].offset())
         }
         val c = posto.posizione.offset()
         if (posto.afferra) {
-            drawCircle(colore.copy(alpha = 0.45f), 20f * dp, c)
-            drawCircle(colore, 20f * dp, c, style = Stroke(4f * dp))
+            drawCircle(colore.copy(alpha = 0.55f), 18f * dp, c)
+            drawCircle(colore, 18f * dp, c, style = Stroke(4f * dp))
         } else {
-            drawCircle(colore.copy(alpha = 0.15f), 28f * dp, c)
-            drawCircle(colore, 28f * dp, c, style = Stroke(3f * dp))
+            // Il cerchio si stringe mentre pollice e indice si avvicinano: a 18 dp scatta la presa
+            val t = ((posto.pizzico - Gesti.PIZZICO_PRESA) / (1f - Gesti.PIZZICO_PRESA)).coerceIn(0f, 1f)
+            val r = (18f + 16f * t) * dp
+            drawCircle(colore.copy(alpha = 0.15f), r, c)
+            drawCircle(colore, r, c, style = Stroke(3f * dp))
+            drawCircle(colore, 3f * dp, c)
         }
     }
 

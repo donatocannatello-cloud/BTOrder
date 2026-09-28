@@ -77,14 +77,44 @@ class PartitaTest {
     }
 
     @Test
-    fun unaManoGiaChiusaNonPrendeLeForme() {
+    fun unaManoChiusaDaTempoNonPrendeLeForme() {
         val p = partita()
         val pezzo = p.pezzi[0]
-        // La mano arriva già chiusa sulla forma: non c'è il gesto di presa
-        p.aggiorna(dt, listOf(mano(0, Punto(0f, 0f), true)))
+        // La mano resta chiusa lontano per un secondo, poi passa sulla forma: non la prende
+        p.aggiorna(dt, listOf(mano(0, Punto(0f, 0f), false)))
+        repeat(30) { p.aggiorna(dt, listOf(mano(0, Punto(0f, 0f), true))) }
         p.aggiorna(dt, listOf(mano(0, pezzo.casa, true)))
         p.aggiorna(dt, listOf(mano(0, pezzo.casa + Punto(200f, 0f), true)))
         assertEquals(pezzo.casa, pezzo.posizione)
+    }
+
+    @Test
+    fun leDitaChiuseUnAttimoPrimaDiArrivarePrendonoLaForma() {
+        val p = partita()
+        val pezzo = p.pezzi[0]
+        val lontano = pezzo.casa + Punto(0f, -pezzo.raggio * 3f)
+        p.aggiorna(dt, listOf(mano(0, lontano, false)))
+        // Il pizzico scatta a qualche fotogramma dalla forma, poi la mano ci arriva sopra
+        for (k in 0..6) p.aggiorna(dt, listOf(mano(0, lontano.verso(pezzo.casa, k / 6f), true)))
+        val eventi = p.aggiorna(dt, listOf(mano(0, pezzo.casa + Punto(150f, 0f), true)))
+        assertTrue(p.tenutoDa(pezzo).isNotEmpty())
+        assertTrue(pezzo.posizione != pezzo.casa || eventi.isNotEmpty())
+    }
+
+    @Test
+    fun laManoRiapertaPrendeUnAltraForma() {
+        val p = partita()
+        val a = p.pezzi[0]
+        val b = p.pezzi[1]
+        p.aggiorna(dt, listOf(mano(0, a.casa, false)))
+        p.aggiorna(dt, listOf(mano(0, a.casa, true)))
+        assertTrue(p.tenutoDa(a).isNotEmpty())
+        // Si lascia a dov'è, si riapre la mano, la si porta su b e la si richiude
+        p.aggiorna(dt, listOf(mano(0, a.casa, false)))
+        p.aggiorna(dt, listOf(mano(0, b.casa, false)))
+        p.aggiorna(dt, listOf(mano(0, b.casa, true)))
+        assertTrue(p.tenutoDa(b).isNotEmpty())
+        assertTrue(p.tenutoDa(a).isEmpty())
     }
 
     @Test

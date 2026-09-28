@@ -31,6 +31,8 @@ class InseguitoreMani(numero: Int = 2) {
         var punti: List<Punto> = emptyList()
         var assenteDa = 0f
         var fotogrammiAperta = 0
+        /** Distanza pollice-indice in rapporto alla mano: serve a mostrare quanto manca al pizzico. */
+        var pizzico = 1f
 
         fun comeMano() = ManoGioco(id, posizione, presente, afferra && presente)
     }
@@ -66,6 +68,7 @@ class InseguitoreMani(numero: Int = 2) {
             posto.presente = true
             posto.assenteDa = 0f
             posto.punti = mano
+            posto.pizzico = Gesti.pizzico(mano)
 
             val chiusa = Gesti.afferra(mano, posto.afferra)
             when {
@@ -109,7 +112,7 @@ class InseguitoreMani(numero: Int = 2) {
     companion object {
         const val LEVIGATURA_S = 0.045f
         const val TOLLERANZA_S = 0.35f
-        const val FOTOGRAMMI_RILASCIO = 2
+        const val FOTOGRAMMI_RILASCIO = 3
         /** Costo per dare una mano a un posto vuoto: più alto di qualunque distanza sullo schermo. */
         private const val COSTO_POSTO_LIBERO = 1e6f
     }

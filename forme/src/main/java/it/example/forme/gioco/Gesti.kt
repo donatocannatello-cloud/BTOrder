@@ -31,8 +31,8 @@ object Gesti {
     )
 
     // Distanza pollice-indice in rapporto alla grandezza della mano
-    const val PIZZICO_PRESA = 0.30f
-    const val PIZZICO_RILASCIO = 0.45f
+    const val PIZZICO_PRESA = 0.38f
+    const val PIZZICO_RILASCIO = 0.55f
     // Distanza punte-polso in rapporto a nocche-polso: mano aperta ≈ 1,9, pugno ≈ 1
     const val PUGNO_PRESA = 1.25f
     const val PUGNO_RILASCIO = 1.45f
