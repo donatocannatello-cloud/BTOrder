@@ -49,6 +49,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import it.freebimbogames.app.ui.theme.MenuMostroTheme
 import it.freebimbogames.app.ui.theme.SfondoChiaro
 import it.freebimbogames.app.ui.theme.palettePiatti
@@ -64,6 +67,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        nascondiBarreSistema()
         SuoniGioco.inizializza(this)
         setContent {
             MenuMostroTheme {
@@ -72,6 +76,22 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    // Un gioco per bambini funziona meglio a schermo intero, senza le barre di sistema
+    // (orologio, batteria, tasti indietro/home) che distraggono: restano richiamabili
+    // con uno swipe dal bordo, ma tornano subito nascoste. Vanno riapplicate ad ogni
+    // ripresa del focus perché Android le rimostra da solo (es. tornando dall'app switcher).
+    private fun nascondiBarreSistema() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        controller.hide(WindowInsetsCompat.Type.systemBars())
+        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BY_SWIPE
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) nascondiBarreSistema()
     }
 }
 
