@@ -93,7 +93,7 @@ private fun vertice(c: Offset, r: Float, lati: Int, k: Int): Offset {
     return Offset(c.x + (cos(a) * r).toFloat(), c.y + (sin(a) * r).toFloat())
 }
 
-private fun facce(vararg p: Offset) = Path().apply {
+private fun facce(p: List<Offset>) = Path().apply {
     moveTo(p[0].x, p[0].y)
     for (i in 1 until p.size) lineTo(p[i].x, p[i].y)
     close()
@@ -103,9 +103,9 @@ private fun facce(vararg p: Offset) = Path().apply {
 private fun facceCubo(c: Offset, r: Float): List<Path> {
     val v = (0 until 6).map { vertice(c, r * 1.05f, 6, it) }
     return listOf(
-        facce(v[0], v[1], c, v[5]),
-        facce(c, v[1], v[2], v[3]),
-        facce(c, v[3], v[4], v[5]),
+        facce(listOf(v[0], v[1], c, v[5])),
+        facce(listOf(c, v[1], v[2], v[3])),
+        facce(listOf(c, v[3], v[4], v[5])),
     )
 }
 
