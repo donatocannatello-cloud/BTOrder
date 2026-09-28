@@ -16,3 +16,4 @@ local.properties
 upload*.keystore
 /forme/build
 /forme/src/main/assets/hand_landmarker.task
+/apk
