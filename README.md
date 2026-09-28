@@ -319,17 +319,23 @@ fotocamera occupa **tutto lo schermo** e sopra compaiono forme colorate (stella,
 cubo, cerchio, triangolo, quadrato, cuore, rombo, luna, croce) e i loro incavi
 tratteggiati.
 
-- **Package**: `it.donatocannatello.incastraforme` (debug: `….debug`)
-- **APK dell'ultima build**: release `forme-latest` del repository
-  (`incastra-le-forme-debug.apk`)
+- **Package**: `it.donatocannatello.incastraforme` — fisso, non va più cambiato
+- **APK dell'ultima versione**: release `forme-latest` del repository
+  (`incastra-le-forme.apk`), compilato in modalità release
+- **Aggiornamenti**: ogni build ha un `versionCode` più alto ed è firmata sempre con la
+  stessa chiave (`forme/firma.keystore`), quindi il nuovo APK si installa sopra il
+  precedente mantenendo il record
 
 ## Come si gioca
 
 1. Ci si mette davanti al telefono (in verticale) e si mostrano le mani alla fotocamera:
-   sullo schermo compaiono lo scheletro di ogni mano e un cerchio sul palmo.
-2. **Afferrare**: si chiude la mano a pugno (o si uniscono pollice e indice) sopra una forma.
-3. **Spostare**: la forma segue il palmo; con due mani si spostano due forme insieme.
-4. **Lasciare**: si apre la mano. Se la forma è sopra il suo incavo si incastra
+   sullo schermo compaiono lo scheletro di ogni mano e un cerchio fra pollice e indice:
+   è il punto di presa.
+2. **Afferrare**: si porta il punto di presa sopra una forma e si uniscono pollice e indice
+   (funziona anche chiudendo la mano a pugno).
+3. **Spostare**: la forma segue il punto fra pollice e indice; con due mani si spostano due
+   forme insieme.
+4. **Lasciare**: si aprono le dita. Se la forma è sopra il suo incavo si incastra
    (+100 punti, coriandoli), se è sopra un incavo sbagliato torna al suo posto;
    altrove resta dove è stata lasciata. Vicino al centro del suo incavo entra da sola.
 5. Le forme con **✋✋** sono pesanti: si sollevano solo afferrandole con **tutte e due

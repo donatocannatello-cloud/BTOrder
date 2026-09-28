@@ -53,10 +53,13 @@ jobs:
           name: theremin-cromatico-debug-apk
           path: theremin/build/outputs/apk/debug/*.apk
 
+      - name: Compila APK finale di Incastra le Forme
+        run: ./gradlew --no-daemon :forme:assembleRelease
+
       - uses: actions/upload-artifact@v4
         with:
-          name: incastra-le-forme-debug-apk
-          path: forme/build/outputs/apk/debug/*.apk
+          name: incastra-le-forme-apk
+          path: forme/build/outputs/apk/release/*.apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -82,16 +85,16 @@ jobs:
             theremin-cromatico-release.aab
 
       # Link diretto e stabile all'ultimo APK del gioco delle forme:
-      # https://github.com/<owner>/<repo>/releases/download/forme-latest/incastra-le-forme-debug.apk
+      # https://github.com/<owner>/<repo>/releases/download/forme-latest/incastra-le-forme.apk
       - name: Prepara APK del gioco per la release
         if: github.event_name != 'pull_request'
-        run: cp forme/build/outputs/apk/debug/forme-debug.apk incastra-le-forme-debug.apk
+        run: cp forme/build/outputs/apk/release/forme-release.apk incastra-le-forme.apk
 
       - name: Pubblica APK nella release "forme-latest"
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: forme-latest
-          name: Incastra le Forme (ultima build)
+          name: Incastra le Forme (ultima versione)
           prerelease: true
-          files: incastra-le-forme-debug.apk
+          files: incastra-le-forme.apk

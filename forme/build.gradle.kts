@@ -13,7 +13,8 @@ android {
         minSdk = 26
         targetSdk = 36
         manifestPlaceholders["nomeApp"] = "Incastra le Forme"
-        // Cresce a ogni build su GitHub Actions, così ogni APK si installa come aggiornamento
+        // Identità fissa dell'app: non va più cambiata, altrimenti gli aggiornamenti non si installano
+        // sopra la versione precedente. Il versionCode cresce a ogni build su GitHub Actions.
         versionCode = (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0) + 1
         versionName = "1.0.${System.getenv("GITHUB_RUN_NUMBER") ?: "dev"}"
 
@@ -25,9 +26,11 @@ android {
     }
 
     signingConfigs {
-        // Chiave di debug fissa (la stessa del theremin): ogni APK di CI si installa come aggiornamento
-        getByName("debug") {
-            storeFile = file("debug.keystore")
+        // Chiave fissa salvata nel repository: tutte le versioni sono firmate allo stesso modo,
+        // quindi ogni nuovo APK si installa come aggiornamento di quello precedente.
+        // (Per il Play Store servirà una chiave di caricamento privata, come per il theremin.)
+        create("distribuzione") {
+            storeFile = file("firma.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
@@ -35,11 +38,12 @@ android {
     }
 
     buildTypes {
+        // Nessun suffisso né nome diverso: anche le build di sviluppo sono la stessa app
         debug {
-            applicationIdSuffix = ".debug"
-            manifestPlaceholders["nomeApp"] = "Incastra le Forme (prova)"
+            signingConfig = signingConfigs.getByName("distribuzione")
         }
         release {
+            signingConfig = signingConfigs.getByName("distribuzione")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

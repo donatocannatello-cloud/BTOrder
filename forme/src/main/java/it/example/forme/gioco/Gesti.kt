@@ -18,7 +18,6 @@ object Gesti {
     const val NOCCA_MEDIO = 9
     const val PUNTI_MANO = 21
 
-    private val PALMO = intArrayOf(0, 5, 9, 13, 17)
     private val PUNTE = intArrayOf(8, 12, 16, 20)
     private val NOCCHE = intArrayOf(5, 9, 13, 17)
 
@@ -38,8 +37,8 @@ object Gesti {
     const val PUGNO_PRESA = 1.25f
     const val PUGNO_RILASCIO = 1.45f
 
-    /** Il punto con cui la mano "tiene" le forme: il centro del palmo, stabile sia aperta sia chiusa. */
-    fun centroPalmo(mano: List<Punto>): Punto = Punto.media(PALMO.map { mano[it] })
+    /** Il punto con cui la mano prende le forme: a metà fra la punta del pollice e quella dell'indice. */
+    fun puntoPresa(mano: List<Punto>): Punto = mano[PUNTA_POLLICE].verso(mano[PUNTA_INDICE], 0.5f)
 
     /** Grandezza della mano sullo schermo: dal polso alla nocca del medio. */
     fun misura(mano: List<Punto>): Float =

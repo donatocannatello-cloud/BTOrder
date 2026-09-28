@@ -20,8 +20,8 @@ enum class StatoPartita { IN_CORSO, LIVELLO_COMPLETATO }
 /**
  * Regole del gioco, indipendenti da Android (tutte le misure sono in pixel dello schermo).
  *
- * Su metà schermo ci sono gli incavi, sull'altra metà le forme. Si afferra una forma chiudendo
- * la mano sopra di essa, la si porta nel suo incavo e si apre la mano: se l'incavo è quello
+ * Su metà schermo ci sono gli incavi, sull'altra metà le forme. Si afferra una forma pizzicandola
+ * fra pollice e indice (o chiudendo la mano), la si porta nel suo incavo e si apre la mano: se l'incavo è quello
  * giusto la forma si incastra, se è sbagliato torna al suo posto. Le forme pesanti si sollevano
  * solo con tutte e due le mani. Completati tutti gli incastri si passa al livello successivo,
  * con più forme.
@@ -332,7 +332,7 @@ class Partita(
         const val FATTORE_PESANTE = 1.2f
         /** Lato della cella della griglia, in raggi: lascia spazio fra una forma e l'altra. */
         const val PASSO = 2.3f
-        /** Una mano prende una forma se il palmo è entro questo multiplo del raggio. */
+        /** Una mano prende una forma se il punto fra pollice e indice è entro questo multiplo del raggio. */
         const val RAGGIO_PRESA = 1.3f
         const val CALAMITA = 0.3f
         const val TOLLERANZA_RILASCIO = 0.8f

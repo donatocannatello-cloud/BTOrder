@@ -65,7 +65,7 @@ class ManiTest {
         val idA = inseguitore.posti.minBy { it.posizione.distanza(a) }.id
         repeat(5) { inseguitore.aggiorna(listOf(mano(b), mano(a)), 1f / 30f) }
         val postoA = inseguitore.posti.first { it.id == idA }
-        assertTrue(postoA.posizione.distanza(Gesti.centroPalmo(mano(a))) < 5f)
+        assertTrue(postoA.posizione.distanza(Gesti.puntoPresa(mano(a))) < 5f)
     }
 
     @Test

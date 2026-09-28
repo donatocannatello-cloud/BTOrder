@@ -98,8 +98,8 @@ import java.util.concurrent.Executors
 
 /**
  * Incastra le Forme: la fotocamera anteriore riempie lo schermo e sopra l'immagine compaiono
- * forme colorate e i loro incavi. Si prendono le forme chiudendo la mano (o pizzicando con
- * pollice e indice), si portano nell'incavo giusto e si lasciano aprendo la mano.
+ * forme colorate e i loro incavi. Si prendono le forme con il punto fra pollice e indice,
+ * unendo le due dita (o chiudendo la mano), si portano nell'incavo giusto e si lasciano aprendo le dita.
  * Le due mani vengono riconosciute insieme: si possono spostare due forme alla volta, e le
  * forme pesanti si sollevano solo con entrambe.
  */
@@ -324,7 +324,7 @@ class MainActivity : ComponentActivity() {
                     partita?.ricomincia()
                     livelloFinito = null
                     schermata = Schermata.GIOCO
-                    messaggio = Messaggio("Livello 1: prendi una forma chiudendo la mano")
+                    messaggio = Messaggio("Livello 1: prendi una forma con pollice e indice")
                 }
                 Schermata.GIOCO -> Intestazione(hud, record) { schermata = Schermata.PAUSA }
                 Schermata.PAUSA -> Pausa(
@@ -419,8 +419,8 @@ class MainActivity : ComponentActivity() {
                 Spacer(Modifier.height(16.dp))
                 val regole = listOf(
                     "Mettiti davanti al telefono e mostra le mani alla fotocamera.",
-                    "Chiudi la mano (o unisci pollice e indice) sopra una forma per prenderla.",
-                    "Portala nell'incavo con la stessa sagoma e apri la mano per lasciarla.",
+                    "Porta il punto fra pollice e indice sopra una forma e unisci le due dita (o chiudi la mano) per prenderla.",
+                    "Portala nell'incavo con la stessa sagoma e apri le dita per lasciarla.",
                     "Con due mani puoi spostare due forme insieme. Le forme ✋✋ sono pesanti: " +
                         "servono tutte e due le mani!",
                 )
@@ -515,7 +515,7 @@ class MainActivity : ComponentActivity() {
         AndroidView({ previewView }, modifier)
     }
 
-    /** Scheletro della mano riconosciuta e, sul palmo, il cerchio che prende le forme. */
+    /** Scheletro della mano riconosciuta e, fra pollice e indice, il cerchio che prende le forme. */
     private fun DrawScope.disegnaMano(posto: InseguitoreMani.Posto, colore: Color, dp: Float) {
         val punti = posto.punti
         if (punti.size >= Gesti.PUNTI_MANO) {

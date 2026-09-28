@@ -45,7 +45,7 @@ class InseguitoreMani(numero: Int = 2) {
      */
     fun aggiorna(rilevate: List<List<Punto>>, dt: Float) {
         val mani = rilevate.filter { it.size >= Gesti.PUNTI_MANO }.take(posti.size)
-        val centri = mani.map { Gesti.centroPalmo(it) }
+        val centri = mani.map { Gesti.puntoPresa(it) }
         val assegnazione = assegna(centri)
         val alfa = 1f - exp(-dt / LEVIGATURA_S)
 
