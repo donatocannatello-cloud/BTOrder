@@ -310,3 +310,53 @@ raggiungibili dal sandbox).
   sfondo fermo e ben illuminato (es. telefono appoggiato rivolto al soffitto).
 - Latenza complessiva tipica 60–120 ms (fotocamera + buffer audio), dipende dal
   dispositivo.
+
+# Incastra le Forme (modulo `:forme`)
+
+Gioco nato dal Theremin Cromatico: usa la stessa fotocamera anteriore e lo stesso
+riconoscimento delle mani con MediaPipe (due mani insieme), ma l'immagine della
+fotocamera occupa **tutto lo schermo** e sopra compaiono forme colorate (stella,
+cubo, cerchio, triangolo, quadrato, cuore, rombo, luna, croce) e i loro incavi
+tratteggiati.
+
+- **Package**: `it.donatocannatello.incastraforme` (debug: `….debug`)
+- **APK dell'ultima build**: release `forme-latest` del repository
+  (`incastra-le-forme-debug.apk`)
+
+## Come si gioca
+
+1. Ci si mette davanti al telefono (in verticale) e si mostrano le mani alla fotocamera:
+   sullo schermo compaiono lo scheletro di ogni mano e un cerchio sul palmo.
+2. **Afferrare**: si chiude la mano a pugno (o si uniscono pollice e indice) sopra una forma.
+3. **Spostare**: la forma segue il palmo; con due mani si spostano due forme insieme.
+4. **Lasciare**: si apre la mano. Se la forma è sopra il suo incavo si incastra
+   (+100 punti, coriandoli), se è sopra un incavo sbagliato torna al suo posto;
+   altrove resta dove è stata lasciata. Vicino al centro del suo incavo entra da sola.
+5. Le forme con **✋✋** sono pesanti: si sollevano solo afferrandole con **tutte e due
+   le mani** e seguono il punto medio fra le mani (+250 punti).
+6. Completati tutti gli incastri si passa al livello successivo, con una forma in più
+   (da 3 fino a 9) e più forme pesanti; gli incavi si alternano fra metà alta e bassa.
+   Il bonus di velocità premia i livelli finiti in fretta; il record viene salvato.
+
+Il dito sullo schermo funziona come una terza mano (utile per provare il gioco, o se il
+riconoscimento IA non è disponibile sul telefono).
+
+## Come funziona
+
+- `camera/TrackerMani.kt`, `camera/AnalizzatoreMani.kt`: CameraX (16:9, come lo schermo
+  del telefono) → fotogramma raddrizzato e specchiato → MediaPipe Hand Landmarker (2 mani).
+- `gioco/Geometria.kt` (`MappaturaSchermo`): riporta i punti dell'immagine sullo schermo con
+  la stessa regola dell'anteprima a tutto schermo (`FILL_CENTER`, che taglia i lati).
+- `gioco/Gesti.kt`: pugno e pizzico, con soglie diverse per presa e rilascio (isteresi).
+- `gioco/InseguitoreMani.kt`: assegna ogni mano al suo "posto" anche se MediaPipe le scambia
+  fra un fotogramma e l'altro, leviga la posizione e tollera brevi perdite della mano.
+- `gioco/Partita.kt`: regole, livelli, disposizione su griglia senza sovrapposizioni, punteggio.
+  Non dipende da Android ed è coperta dai test in `forme/src/test`.
+- `ui/DisegnoForme.kt`, `ui/Particelle.kt`, `audio/Suoni.kt`: grafica delle forme e degli
+  incavi, coriandoli, effetti sonori sintetizzati all'avvio.
+
+## Test
+
+```bash
+./gradlew :forme:testDebugUnitTest
+```

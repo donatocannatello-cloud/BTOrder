@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Una stella gialla che sta per entrare nel suo incavo tratteggiato -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M64,52 L67.5,61.2 L77.3,61.7 L69.6,67.8 L72.2,77.3 L64,71.9 L55.8,77.3 L58.4,67.8 L50.7,61.7 L60.5,61.2 Z"
+        android:strokeWidth="2"
+        android:strokeColor="#FFFFFF"
+        android:strokeAlpha="0.8"
+        android:fillColor="#33FFFFFF" />
+    <path
+        android:pathData="M46,30 L50.6,42.1 L63.5,42.7 L53.4,50.8 L56.8,63.3 L46,56.2 L35.2,63.3 L38.6,50.8 L28.5,42.7 L41.4,42.1 Z"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FFFFFF"
+        android:fillColor="#FFD54F" />
+    <path
+        android:pathData="M34,74 h10 v10 h-10 z"
+        android:fillColor="#42A5F5" />
+    <path
+        android:pathData="M76,34 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0"
+        android:fillColor="#EF5350" />
+</vector>

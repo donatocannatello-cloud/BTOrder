@@ -17,3 +17,4 @@ dependencyResolutionManagement {
 rootProject.name = "ChiamateBT"
 include(":app")
 include(":theremin")
+include(":forme")

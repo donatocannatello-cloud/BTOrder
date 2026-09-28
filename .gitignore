@@ -14,3 +14,5 @@ local.properties
 # Chiavi di firma per il Play Store: mai nel repository
 *.jks
 upload*.keystore
+/forme/build
+/forme/src/main/assets/hand_landmarker.task

@@ -28,7 +28,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Test unitari
-        run: ./gradlew --no-daemon :theremin:testDebugUnitTest
+        run: ./gradlew --no-daemon :theremin:testDebugUnitTest :forme:testDebugUnitTest
 
       - name: Compila APK di debug
         run: ./gradlew --no-daemon assembleDebug
@@ -55,6 +55,11 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          name: incastra-le-forme-debug-apk
+          path: forme/build/outputs/apk/debug/*.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
           name: chiamatebt-debug-apk
           path: app/build/outputs/apk/debug/*.apk
 
@@ -75,3 +80,18 @@ jobs:
           files: |
             theremin-cromatico-debug.apk
             theremin-cromatico-release.aab
+
+      # Link diretto e stabile all'ultimo APK del gioco delle forme:
+      # https://github.com/<owner>/<repo>/releases/download/forme-latest/incastra-le-forme-debug.apk
+      - name: Prepara APK del gioco per la release
+        if: github.event_name != 'pull_request'
+        run: cp forme/build/outputs/apk/debug/forme-debug.apk incastra-le-forme-debug.apk
+
+      - name: Pubblica APK nella release "forme-latest"
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: forme-latest
+          name: Incastra le Forme (ultima build)
+          prerelease: true
+          files: incastra-le-forme-debug.apk
