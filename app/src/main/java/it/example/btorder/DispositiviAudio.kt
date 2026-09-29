@@ -30,8 +30,13 @@ object DispositiviAudio {
      * aspettava, senza dover leggere i log del dispositivo.
      */
     sealed class EsitoInstradamento {
-        /** Il dispositivo [id] è stato trovato disponibile ed è stato impostato con successo. */
-        data class Applicato(val id: String) : EsitoInstradamento()
+        /**
+         * Il dispositivo [id] è stato trovato disponibile ed è stato impostato con successo.
+         * [dispositiviVisti] elenca comunque tutto ciò che il sistema riportava in quel momento:
+         * se [id] non è quello atteso (es. il vivavoce invece del Bluetooth), permette di
+         * verificare se il dispositivo Bluetooth desiderato mancava del tutto dall'elenco.
+         */
+        data class Applicato(val id: String, val dispositiviVisti: List<String>) : EsitoInstradamento()
 
         /** Il sistema non riporta ALCUN dispositivo di comunicazione disponibile in questo momento. */
         object NessunDispositivoDisponibile : EsitoInstradamento()
@@ -73,20 +78,19 @@ object DispositiviAudio {
         val disponibili = audioManager.availableCommunicationDevices
         if (disponibili.isEmpty()) return EsitoInstradamento.NessunDispositivoDisponibile
 
+        val dispositiviVisti = disponibili.map { "${it.tipoLeggibile()}:${it.idStabile()}" }
         val ordinePrioritaNormalizzato = ordinePriorita.map { it.uppercase() }
         for (id in ordinePrioritaNormalizzato) {
             val dispositivoTrovato = disponibili.firstOrNull { it.idStabile() == id }
             if (dispositivoTrovato != null) {
                 return if (audioManager.setCommunicationDevice(dispositivoTrovato)) {
-                    EsitoInstradamento.Applicato(id)
+                    EsitoInstradamento.Applicato(id, dispositiviVisti)
                 } else {
                     EsitoInstradamento.ImpostazioneRifiutata(id)
                 }
             }
         }
-        return EsitoInstradamento.NessunoInClassificaDisponibile(
-            disponibili.map { "${it.tipoLeggibile()}:${it.idStabile()}" }
-        )
+        return EsitoInstradamento.NessunoInClassificaDisponibile(dispositiviVisti)
     }
 
     /**

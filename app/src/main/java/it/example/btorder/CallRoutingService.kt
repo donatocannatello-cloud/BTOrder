@@ -149,7 +149,10 @@ class CallRoutingService : Service() {
                 if (!chiamataInCorso) return@launch
                 when (val esito = DispositiviAudio.applicaPrimoDispositivoDisponibile(audioManager, ordineSalvato)) {
                     is DispositiviAudio.EsitoInstradamento.Applicato -> {
-                        aggiornaNotifica("Ultima chiamata instradata su: ${etichettaDispositivo(esito.id)}")
+                        aggiornaNotifica(
+                            "Ultima chiamata instradata su: ${etichettaDispositivo(esito.id)} " +
+                                "(visti: ${esito.dispositiviVisti.joinToString(", ").ifBlank { "nessuno" }})"
+                        )
                         return@launch
                     }
                     is DispositiviAudio.EsitoInstradamento.ImpostazioneRifiutata -> {
@@ -216,10 +219,16 @@ class CallRoutingService : Service() {
         private const val ID_NOTIFICA = 2
         private const val ID_NOTIFICA_AVVISO = 4
 
-        /** Numero di tentativi ravvicinati subito dopo l'OFFHOOK. */
-        private const val TENTATIVI_INSTRADAMENTO = 6
+        /**
+         * Numero di tentativi ravvicinati subito dopo l'OFFHOOK. Con alcuni kit auto la
+         * negoziazione del canale vivavoce Bluetooth (HFP/SCO) può impiegare diversi secondi,
+         * non solo l'istante o i primi due-tre secondi coperti dal valore precedente (6×500ms):
+         * un margine più ampio riduce le occasioni in cui si ripiega sul vivavoce del telefono
+         * solo perché il Bluetooth non era ancora pronto.
+         */
+        private const val TENTATIVI_INSTRADAMENTO = 14
 
         /** Intervallo tra un tentativo e il successivo. */
-        private const val INTERVALLO_TENTATIVO_MS = 500L
+        private const val INTERVALLO_TENTATIVO_MS = 700L
     }
 }
