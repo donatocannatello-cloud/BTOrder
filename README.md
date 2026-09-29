@@ -328,6 +328,11 @@ tratteggiati.
 
 ## Come si gioca
 
+0. Nel menu si sceglie la **modalità**:
+   - **Una mano** — con l'altra si tiene il telefono. Si segue solo la mano in gioco (all'inizio
+     quella più vicina alla fotocamera) e non ci sono forme pesanti.
+   - **Due mani** — telefono appoggiato: si spostano due forme insieme e compaiono le forme
+     pesanti. Ogni modalità ha il suo record; l'ultima scelta viene ricordata.
 1. Ci si mette davanti al telefono (in verticale) e si mostrano le mani alla fotocamera:
    sullo schermo compaiono lo scheletro di ogni mano e un cerchio fra pollice e indice:
    è il punto di presa.
@@ -338,7 +343,7 @@ tratteggiati.
 4. **Lasciare**: si aprono le dita. Se la forma è sopra il suo incavo si incastra
    (+100 punti, coriandoli), se è sopra un incavo sbagliato torna al suo posto;
    altrove resta dove è stata lasciata. Vicino al centro del suo incavo entra da sola.
-5. Le forme con **✋✋** sono pesanti: si sollevano solo afferrandole con **tutte e due
+5. (Solo a due mani) Le forme con **✋✋** sono pesanti: si sollevano solo afferrandole con **tutte e due
    le mani** e seguono il punto medio fra le mani (+250 punti).
 6. Completati tutti gli incastri si passa al livello successivo, con una forma in più
    (da 3 fino a 9) e più forme pesanti; gli incavi si alternano fra metà alta e bassa.

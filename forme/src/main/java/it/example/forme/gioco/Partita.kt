@@ -84,11 +84,19 @@ class Partita(
     private val avvisatoDueMani = HashSet<Int>()
     private var attesa = 0f
 
+    /**
+     * Modalità a due mani (true) o a una mano (false, l'altra tiene il telefono).
+     * A una mano non ci sono forme pesanti. Si sceglie con [ricomincia].
+     */
+    var dueMani = true
+        private set
+
     init {
         iniziaLivello(1)
     }
 
-    fun ricomincia() {
+    fun ricomincia(dueMani: Boolean = this.dueMani) {
+        this.dueMani = dueMani
         punteggio = 0
         errori = 0
         iniziaLivello(1)
@@ -109,6 +117,7 @@ class Partita(
         val quante = min(2 + n, TipoForma.entries.size)
         val tipi = TipoForma.entries.shuffled(casuale).take(quante)
         val numeroPesanti = when {
+            !dueMani -> 0
             n < 3 -> 0
             n < 5 -> 1
             n < 8 -> 2

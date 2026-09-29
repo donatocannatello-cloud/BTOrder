@@ -23,6 +23,8 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -164,6 +166,13 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
+    private fun chiaveRecord(dueMani: Boolean) = if (dueMani) CHIAVE_RECORD_DUE else CHIAVE_RECORD_UNA
+
+    // Il record delle versioni precedenti (solo a due mani) diventa quello a due mani
+    private fun leggiRecord(dueMani: Boolean) =
+        if (dueMani) preferenze.getInt(CHIAVE_RECORD_DUE, preferenze.getInt(CHIAVE_RECORD_VECCHIO, 0))
+        else preferenze.getInt(CHIAVE_RECORD_UNA, 0)
+
     private fun haPermessoCamera() =
         ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
 
@@ -181,7 +190,10 @@ class MainActivity : ComponentActivity() {
         var hud by remember { mutableStateOf(Hud(1, 0, 0, 0)) }
         var messaggio by remember { mutableStateOf<Messaggio?>(null) }
         var livelloFinito by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-        var record by remember { mutableIntStateOf(preferenze.getInt(CHIAVE_RECORD, 0)) }
+        // Modalità scelta nel menu: a una mano (l'altra tiene il telefono) o a due mani
+        var dueMani by remember { mutableStateOf(preferenze.getBoolean(CHIAVE_DUE_MANI, true)) }
+        // Un record per ciascuna modalità
+        var record by remember(dueMani) { mutableIntStateOf(leggiRecord(dueMani)) }
         // Il dito sullo schermo fa da "terza mano", utile anche senza riconoscimento IA
         var tocco by remember { mutableStateOf<Offset?>(null) }
 
@@ -214,7 +226,7 @@ class MainActivity : ComponentActivity() {
                     }
                     if (p.punteggio > record) {
                         record = p.punteggio
-                        preferenze.edit().putInt(CHIAVE_RECORD, record).apply()
+                        preferenze.edit().putInt(chiaveRecord(dueMani), record).apply()
                     }
                 }
                 is Evento.NuovoLivello -> {
@@ -328,8 +340,11 @@ class MainActivity : ComponentActivity() {
             }
 
             when (schermata) {
-                Schermata.MENU -> Menu(record, hud.maniViste) {
-                    partita?.ricomincia()
+                Schermata.MENU -> Menu(hud.maniViste, dueMani) { scelta ->
+                    dueMani = scelta
+                    preferenze.edit().putBoolean(CHIAVE_DUE_MANI, scelta).apply()
+                    inseguitore.maniAttive = if (scelta) 2 else 1
+                    partita?.ricomincia(scelta)
                     livelloFinito = null
                     schermata = Schermata.GIOCO
                     messaggio = Messaggio("Livello 1: prendi una forma con pollice e indice")
@@ -342,7 +357,11 @@ class MainActivity : ComponentActivity() {
                         livelloFinito = null
                         schermata = Schermata.GIOCO
                     },
-                    onMenu = { schermata = Schermata.MENU },
+                    onMenu = {
+                        // Nel menu si guardano sempre tutte e due le mani, per la scelta della modalità
+                        inseguitore.maniAttive = 2
+                        schermata = Schermata.MENU
+                    },
                 )
             }
 
@@ -414,11 +433,12 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun Menu(record: Int, maniViste: Int, onGioca: () -> Unit) {
+    private fun Menu(maniViste: Int, ultimaDueMani: Boolean, onGioca: (dueMani: Boolean) -> Unit) {
         Box(Modifier.fillMaxSize().safeDrawingPadding().padding(20.dp), contentAlignment = Alignment.Center) {
             Column(
                 Modifier
                     .widthIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState())
                     .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(28.dp))
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -429,8 +449,9 @@ class MainActivity : ComponentActivity() {
                     "Mettiti davanti al telefono e mostra le mani alla fotocamera.",
                     "Porta il punto fra pollice e indice sopra una forma e unisci le due dita (o chiudi la mano) per prenderla.",
                     "Portala nell'incavo con la stessa sagoma e apri le dita per lasciarla.",
-                    "Con due mani puoi spostare due forme insieme. Le forme ✋✋ sono pesanti: " +
-                        "servono tutte e due le mani!",
+                    "Scegli la modalità: con una mano, se con l'altra tieni il telefono, oppure con " +
+                        "due mani (telefono appoggiato): sposti due forme insieme e ci sono le forme " +
+                        "pesanti ✋✋, che si sollevano solo con tutte e due le mani.",
                     "Livello 2: le forme si muovono. Livello 3: si trasformano quando il cerchio " +
                         "intorno si svuota, anche in mano! Dal livello 4: tutte e due le cose.",
                 )
@@ -451,13 +472,23 @@ class MainActivity : ComponentActivity() {
                     Spacer(Modifier.height(8.dp))
                     Text(it, color = Color(0xFFFFAB91), textAlign = TextAlign.Center)
                 }
-                if (record > 0) {
-                    Spacer(Modifier.height(8.dp))
-                    Text("Record: $record", color = Color(0xFFFFD54F), fontWeight = FontWeight.Bold)
-                }
                 Spacer(Modifier.height(20.dp))
-                Button(onClick = onGioca, modifier = Modifier.width(200.dp).height(52.dp)) {
-                    Text("Gioca", fontSize = 20.sp)
+                // L'ultima modalità usata è il pulsante pieno, l'altra quello a contorno
+                for (due in listOf(false, true)) {
+                    val testo = if (due) "✋✋  Due mani" else "✋  Una mano"
+                    val mod = Modifier.fillMaxWidth().height(56.dp)
+                    if (due == ultimaDueMani) {
+                        Button(onClick = { onGioca(due) }, modifier = mod) { Text(testo, fontSize = 20.sp) }
+                    } else {
+                        OutlinedButton(onClick = { onGioca(due) }, modifier = mod) { Text(testo, fontSize = 20.sp) }
+                    }
+                    val r = leggiRecord(due)
+                    Text(
+                        if (r > 0) "Record: $r" else "Nessun record",
+                        color = Color(0xFFFFD54F).copy(alpha = if (r > 0) 1f else 0.6f),
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+                    )
                 }
             }
         }
@@ -586,7 +617,10 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val ID_TOCCO = 99
-        const val CHIAVE_RECORD = "record"
+        const val CHIAVE_RECORD_VECCHIO = "record"
+        const val CHIAVE_RECORD_UNA = "record_una_mano"
+        const val CHIAVE_RECORD_DUE = "record_due_mani"
+        const val CHIAVE_DUE_MANI = "due_mani"
         val COLORI_MANI = listOf(Color(0xFFFFD54F), Color(0xFF40C4FF))
     }
 }

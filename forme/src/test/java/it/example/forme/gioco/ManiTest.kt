@@ -91,4 +91,17 @@ class ManiTest {
         repeat(20) { inseguitore.aggiorna(emptyList(), 1f / 30f) }
         assertTrue(inseguitore.mani().none { it.presente })
     }
+
+    @Test
+    fun aUnaManoSiSegueSoloLaManoInGioco() {
+        val inseguitore = InseguitoreMani()
+        inseguitore.maniAttive = 1
+        val a = Punto(300f, 1000f)
+        inseguitore.aggiorna(listOf(mano(a)), 1f / 30f)
+        // Compare anche l'altra mano (quella che tiene il telefono): va ignorata
+        repeat(5) { inseguitore.aggiorna(listOf(mano(Punto(900f, 400f)), mano(a)), 1f / 30f) }
+        assertEquals(1, inseguitore.mani().count { it.presente })
+        assertTrue(inseguitore.posti[0].posizione.distanza(Gesti.puntoPresa(mano(a))) < 5f)
+        assertFalse(inseguitore.posti[1].presente)
+    }
 }

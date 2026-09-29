@@ -242,4 +242,18 @@ class PartitaTest {
         assertTrue(a.incastrato)
         assertTrue(b.tipo != a.tipo)
     }
+
+    @Test
+    fun aUnaManoNonCiSonoFormePesanti() {
+        val p = partita()
+        p.ricomincia(dueMani = false)
+        for (n in 1..12) {
+            p.iniziaLivello(n)
+            assertTrue(p.pezzi.none { it.pesante })
+            assertTrue(p.slot.none { it.pesante })
+        }
+        p.ricomincia(dueMani = true)
+        p.iniziaLivello(3)
+        assertTrue(p.pezzi.any { it.pesante })
+    }
 }

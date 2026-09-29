@@ -39,6 +39,20 @@ class InseguitoreMani(numero: Int = 2) {
 
     val posti = List(numero) { Posto(it) }
 
+    /**
+     * Quante mani partecipano al gioco. Con una sola (l'altra tiene il telefono) si segue solo
+     * la mano già in gioco o, all'inizio, quella più vicina alla fotocamera; le altre si ignorano.
+     */
+    var maniAttive = numero
+        set(valore) {
+            field = valore.coerceIn(1, posti.size)
+            for (p in posti.drop(field)) {
+                p.presente = false
+                p.afferra = false
+                p.punti = emptyList()
+            }
+        }
+
     fun mani(): List<ManoGioco> = posti.map { it.comeMano() }
 
     /**
@@ -46,12 +60,17 @@ class InseguitoreMani(numero: Int = 2) {
      * @param dt secondi trascorsi dal fotogramma precedente
      */
     fun aggiorna(rilevate: List<List<Punto>>, dt: Float) {
-        val mani = rilevate.filter { it.size >= Gesti.PUNTI_MANO }.take(posti.size)
+        val valide = rilevate.filter { it.size >= Gesti.PUNTI_MANO }
+        val mani = if (valide.size <= maniAttive) valide else {
+            val primo = posti[0]
+            if (primo.presente) valide.sortedBy { Gesti.puntoPresa(it).distanza(primo.posizione) }.take(maniAttive)
+            else valide.sortedByDescending { Gesti.misura(it) }.take(maniAttive)
+        }
         val centri = mani.map { Gesti.puntoPresa(it) }
         val assegnazione = assegna(centri)
         val alfa = 1f - exp(-dt / LEVIGATURA_S)
 
-        for (posto in posti) {
+        for (posto in posti.take(maniAttive)) {
             val i = assegnazione[posto.id]
             if (i == null) {
                 posto.assenteDa += dt
@@ -90,9 +109,10 @@ class InseguitoreMani(numero: Int = 2) {
             if (posto.presente) posto.posizione.distanza(c) else COSTO_POSTO_LIBERO
         val risultato = HashMap<Int, Int?>()
         posti.forEach { risultato[it.id] = null }
+        val attivi = posti.take(maniAttive)
         when (centri.size) {
             0 -> Unit
-            1 -> risultato[posti.minBy { costo(it, centri[0]) }.id] = 0
+            1 -> risultato[attivi.minBy { costo(it, centri[0]) }.id] = 0
             else -> {
                 // Con due mani e due posti si prova l'abbinamento diretto e quello incrociato
                 val a = posti[0]
