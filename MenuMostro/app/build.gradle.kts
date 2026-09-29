@@ -11,8 +11,21 @@ android {
         applicationId = "it.freebimbogames.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 20
-        versionName = "6.4"
+        versionCode = 21
+        versionName = "6.5"
+
+        // MediaPipe porta librerie native pesanti: si tengono solo le architetture dei
+        // telefoni reali (niente emulatore x86), per non gonfiare l'APK.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
+    }
+
+    // Il modello di riconoscimento delle mani (hand_landmarker.task, circa 7,8 MB) non va
+    // in git: si scarica una volta sola in fase di build e va decompresso così com'è, non
+    // compresso come gli altri asset, perché MediaPipe lo apre come file mappato in memoria.
+    androidResources {
+        noCompress += "task"
     }
 
     // Keystore di debug fisso e versionato (debug.keystore, credenziali di default
@@ -98,5 +111,34 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.foundation:foundation")
 
+    // Fotocamera anteriore e riconoscimento delle mani per L'Acchiappamostri
+    implementation("androidx.camera:camera-camera2:1.4.2")
+    implementation("androidx.camera:camera-lifecycle:1.4.2")
+    implementation("androidx.camera:camera-view:1.4.2")
+    implementation("com.google.mediapipe:tasks-vision:0.10.35")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
+}
+
+// Scarica una volta sola il modello IA per il riconoscimento delle mani: troppo grande (circa
+// 7,8 MB) per stare nel repository git, e diverso da un normale asset scaricato a runtime perché
+// deve essere già pronto nell'APK installato (il gioco non ha una connessione internet propria).
+val cartellaAssetMano = layout.projectDirectory.dir("src/main/assets")
+val modelloMano = cartellaAssetMano.file("hand_landmarker.task").asFile
+
+tasks.register("scaricaModelloMano") {
+    outputs.file(modelloMano)
+    doLast {
+        if (!modelloMano.exists() || modelloMano.length() == 0L) {
+            modelloMano.parentFile.mkdirs()
+            val url = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+            uri(url).toURL().openStream().use { input ->
+                modelloMano.outputStream().use { output -> input.copyTo(output) }
+            }
+        }
+    }
+}
+
+tasks.named("preBuild") {
+    dependsOn("scaricaModelloMano")
 }

@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Fotocamera anteriore per L'Acchiappamostri. "required=false" (a differenza del
+         progetto originale) è fondamentale: senza, il Play Store nasconderebbe l'intera
+         app, con tutti gli altri otto giochi, sui telefoni senza fotocamera anteriore. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.front"
+        android:required="false" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

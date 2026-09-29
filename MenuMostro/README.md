@@ -4,7 +4,8 @@ App Android (Kotlin + Jetpack Compose) pensata per bambini di 6/7 anni: è
 una **suite di giochi**. All'avvio si apre una home ("Free Bimbo Games") da
 cui si sceglie a quale gioco giocare: **Monster Restaurant**, **Monster
 Panino**, **Monster Parking**, **Memory dei Mostri**, **Vesti il Mostro**,
-**Ritmo Mostruoso**, **Spara ai Mostri** e **Il Mostro Cerca**. Tutti i
+**Ritmo Mostruoso**, **Spara ai Mostri**, **Il Mostro Cerca** e
+**L'Acchiappamostri**. Tutti i
 testi sono in MAIUSCOLO e con parole semplici,
 pensati per essere letti da bambini che stanno imparando a leggere. Ogni
 schermata di ogni gioco — non solo la home, ma anche partita in corso e
@@ -317,10 +318,45 @@ secondi), pensato apposta per essere generoso con un bambino di 6/7 anni.
    (griglia più grande). Dopo il livello 6 si può ricominciare con "Nuova
    partita".
 
+## L'Acchiappamostri
+
+L'unico gioco della suite che usa la fotocamera anteriore invece del tocco
+sullo schermo: si vedono le proprie mani in video a tutto schermo, sopra
+compaiono mostriciattoli emoji e le loro tane, e si prendono i mostri con
+le mani vere, pizzicando pollice e indice (o chiudendo il pugno), per
+portarli nella tana con la stessa faccia. Il riconoscimento delle mani
+(21 punti per mano, tramite Google MediaPipe) avviene **interamente sul
+telefono**: l'immagine non viene mai salvata né inviata da nessuna parte,
+come spiegato anche nella schermata che chiede il permesso della
+fotocamera. Si può giocare **a una mano** (l'altra tiene il telefono) o
+**a due mani** (telefono appoggiato): con due mani si possono spostare due
+mostri insieme, e compaiono anche mostri "pesanti" ✋✋ che si sollevano
+solo afferrandoli con entrambe. Dal livello 2 i mostri si muovono da soli,
+dal 3 si trasformano ogni pochi secondi in un altro mostro (bisogna
+cambiare tana in tempo, anche mentre lo si tiene in mano), dal 4 succedono
+entrambe le cose insieme. Ha un record separato per la modalità a una e a
+due mani, salvato sul dispositivo.
+
+### Come si gioca
+
+1. Dalla home si tocca **"L'Acchiappamostri"**; se è la prima volta viene
+   chiesto il permesso della fotocamera (si può anche tornare indietro
+   senza concederlo).
+2. Nel menu si sceglie la modalità (una mano o due mani) e si vede subito
+   se la fotocamera sta già riconoscendo le mani.
+3. Si porta il punto fra pollice e indice sopra un mostro e si pizzica (o
+   si chiude la mano) per prenderlo, lo si porta sulla tana con la stessa
+   faccia e si riapre la mano per lasciarlo: se è quella giusta il mostro
+   ci si infila da solo (basta avvicinarsi abbastanza), altrimenti torna
+   al suo posto.
+4. Presi tutti i mostri del livello si passa al successivo, con più
+   mostri e via via più difficoltà (movimento, trasformazioni, mostri
+   pesanti).
+
 ## File principali
 
 - **`MainActivity.kt`** — contiene la suite (`AppSuite`, `SchermataHub`,
-  l'enum `Gioco` e l'elenco `elencoGiochi` degli 8 giochi disponibili),
+  l'enum `Gioco` e l'elenco `elencoGiochi` dei 9 giochi disponibili),
   l'estensione `String.maiuscolo()` e il composable `BottoneTornaAiGiochi`
   (la freccia ⬅️ per uscire, riusata da ogni schermata di ogni gioco)
   condivisi da tutta la suite, e tutte le schermate Compose di Monster
@@ -331,7 +367,8 @@ secondi), pensato apposta per essere generoso con un bambino di 6/7 anni.
   dell'activity. Un gioco futuro va aggiunto come un nuovo ramo del `when`
   in `AppSuite`; se non condivide meccaniche con i giochi esistenti
   conviene dargli subito un file proprio, come fatto per Monster Parking,
-  Memory, Vesti il Mostro, Ritmo, Spara ai Mostri e Il Mostro Cerca.
+  Memory, Vesti il Mostro, Ritmo, Spara ai Mostri, Il Mostro Cerca e
+  L'Acchiappamostri.
 - **`SuoniGioco.kt`** — oggetto singleton che gestisce un `SoundPool`
   condiviso da tutta la suite, con quattro suoni brevi (`tocco`, `successo`,
   `errore`, `vittoria`) richiamati da ogni gioco ad ogni interazione
@@ -391,6 +428,22 @@ secondi), pensato apposta per essere generoso con un bambino di 6/7 anni.
 - **`res/raw/nota_ritmo_0.wav`…`nota_ritmo_3.wav`** — le 4 note musicali
   (un accordo Do-Mi-Sol-Do) dei tasti di Ritmo Mostruoso, più lunghe e più
   presenti del `tocco` generico così ogni tasto si riconosce a orecchio.
+- **`acchiappamostri/`** — pacchetto separato con tutto L'Acchiappamostri,
+  isolato dal resto della suite perché usa fotocamera e riconoscimento
+  gestuale invece del tocco: `AcchiappamostriGame.kt` (composable
+  `AppAcchiappamostri` e tutte le schermate), `Partita.kt` (regole del
+  gioco, in pixel dello schermo, indipendenti da Android), `Mostro.kt`
+  (`TipoMostro`, `Slot`, `Pezzo`), `Geometria.kt`/`Gesti.kt` (punti e
+  riconoscimento del gesto di presa dai 21 punti di ogni mano),
+  `InseguitoreMani.kt` (segue le due mani da un fotogramma all'altro),
+  `TrackerMani.kt`/`AnalizzatoreMani.kt` (integrazione con CameraX e
+  Google MediaPipe Hand Landmarker), `DisegnoMostri.kt` (disegno dei
+  mostri come emoji su `Canvas`), `Particelle.kt` (coriandoli) e
+  `Suoni.kt` (effetti sonori dedicati, sintetizzati come per
+  `SuoniGioco.kt` ma separati perché il gioco ha esigenze sue: presa,
+  incastro, mostro pesante, trasformazione). Il modello IA
+  (`hand_landmarker.task`, circa 7,8 MB) non è nel repository: viene
+  scaricato in fase di build dalla gradle task `scaricaModelloMano`.
 
 ## Come compilare
 

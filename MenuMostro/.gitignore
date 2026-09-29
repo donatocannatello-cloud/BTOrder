@@ -15,3 +15,7 @@ local.properties
 # sicuro fuori dal repo; le build di release la ricevono via secret di CI.
 release.keystore
 *.jks
+
+# Modello IA per il riconoscimento delle mani (L'Acchiappamostri): scaricato in fase di
+# build dalla gradle task "scaricaModelloMano", troppo grande per stare nel repository.
+/app/src/main/assets/hand_landmarker.task
