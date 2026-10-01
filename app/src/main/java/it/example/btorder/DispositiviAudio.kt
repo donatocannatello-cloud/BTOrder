@@ -70,18 +70,29 @@ object DispositiviAudio {
      * questo momento ([AudioManager.getAvailableCommunicationDevices]), il
      * primo che compare in [ordinePriorita] e lo imposta come dispositivo di
      * comunicazione attivo per la chiamata in corso.
+     *
+     * [mappaNomeIndirizzo] (nome/alias → indirizzo di accoppiamento, da
+     * [DispositiviBluetooth.mappaNomePerIndirizzo]) serve a risolvere un caso reale osservato
+     * su alcuni telefoni: l'indirizzo che il sistema riporta qui per il canale vivavoce
+     * Bluetooth può non coincidere con quello di accoppiamento salvato in classifica. Quando
+     * l'indirizzo grezzo non combacia con nulla, si ritenta risalendo al dispositivo accoppiato
+     * con lo stesso nome.
      */
     fun applicaPrimoDispositivoDisponibile(
         audioManager: AudioManager,
-        ordinePriorita: List<String>
+        ordinePriorita: List<String>,
+        mappaNomeIndirizzo: Map<String, String> = emptyMap()
     ): EsitoInstradamento {
         val disponibili = audioManager.availableCommunicationDevices
         if (disponibili.isEmpty()) return EsitoInstradamento.NessunDispositivoDisponibile
 
-        val dispositiviVisti = disponibili.map { "${it.tipoLeggibile()}:${it.idStabile()}" }
+        val dispositiviVisti = disponibili.map {
+            "${it.tipoLeggibile()}:${it.idStabile(mappaNomeIndirizzo)}" +
+                (it.productName?.toString()?.let { nome -> " (\"$nome\")" } ?: "")
+        }
         val ordinePrioritaNormalizzato = ordinePriorita.map { it.uppercase() }
         for (id in ordinePrioritaNormalizzato) {
-            val dispositivoTrovato = disponibili.firstOrNull { it.idStabile() == id }
+            val dispositivoTrovato = disponibili.firstOrNull { it.idStabile(mappaNomeIndirizzo) == id }
             if (dispositivoTrovato != null) {
                 return if (audioManager.setCommunicationDevice(dispositivoTrovato)) {
                     EsitoInstradamento.Applicato(id, dispositiviVisti)
@@ -95,15 +106,17 @@ object DispositiviAudio {
 
     /**
      * Ricava l'ID stabile (MAC per il Bluetooth, costante fissa per l'hardware integrato/USB).
-     * Il MAC riportato da [AudioDeviceInfo.getAddress] per un dispositivo Bluetooth non è sempre
-     * garantito nello stesso formato/case di [android.bluetooth.BluetoothDevice.getAddress] (da
-     * cui viene invece l'ID salvato in classifica): normalizzato in maiuscolo per evitare che un
-     * confronto banale per case faccia fallire l'instradamento in silenzio.
+     * Per il Bluetooth, prova prima a risalire all'indirizzo di accoppiamento tramite il nome
+     * del dispositivo in [mappaNomeIndirizzo] (vedi nota su [applicaPrimoDispositivoDisponibile]);
+     * se il nome non è noto, usa comunque il MAC riportato qui, normalizzato in maiuscolo per
+     * non far fallire il confronto per un semplice problema di case.
      */
-    private fun AudioDeviceInfo.idStabile(): String = when (type) {
+    private fun AudioDeviceInfo.idStabile(mappaNomeIndirizzo: Map<String, String>): String = when (type) {
         AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> ID_AURICOLARE_TELEFONO
         AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> ID_VIVAVOCE_TELEFONO
         AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE -> ID_CUFFIE_USB
+        AudioDeviceInfo.TYPE_BLUETOOTH_SCO, AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ->
+            mappaNomeIndirizzo[productName?.toString()]?.uppercase() ?: address.uppercase()
         else -> address.uppercase()
     }
 

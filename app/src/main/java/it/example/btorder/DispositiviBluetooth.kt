@@ -115,6 +115,33 @@ object DispositiviBluetooth {
             .toSet()
     }
 
+    /**
+     * Nome/alias → indirizzo di ogni dispositivo accoppiato. Su alcuni telefoni (confermato un
+     * Samsung con stack Bluetooth Qualcomm) l'indirizzo che [android.media.AudioManager] riporta
+     * per il canale vivavoce Bluetooth durante una chiamata NON coincide con quello di
+     * accoppiamento di [android.bluetooth.BluetoothDevice.getAddress]: sembra un indirizzo
+     * "privato"/di sessione diverso usato dallo stack audio solo per il profilo HFP, non un
+     * errore di formattazione risolvibile normalizzando maiuscole/minuscole. Il nome del
+     * dispositivo resta invece affidabile, quindi viene usato come chiave di risoluzione
+     * alternativa quando l'indirizzo non combacia con nessuna voce della classifica salvata.
+     */
+    @Suppress("MissingPermission")
+    fun mappaNomePerIndirizzo(context: Context): Map<String, String> {
+        if (!haPermessoBluetooth(context)) return emptyMap()
+        val bluetoothManager =
+            context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+        val adapter = bluetoothManager?.adapter ?: return emptyMap()
+        if (!adapter.isEnabled) return emptyMap()
+
+        return adapter.bondedDevices
+            .flatMap { dispositivo ->
+                listOfNotNull(dispositivo.name, dispositivo.alias)
+                    .distinct()
+                    .map { it to dispositivo.address }
+            }
+            .toMap()
+    }
+
     /** Filtro per i broadcast di sistema emessi alla connessione/disconnessione ACL. */
     fun filtroEventiConnessione(): IntentFilter = IntentFilter().apply {
         addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
