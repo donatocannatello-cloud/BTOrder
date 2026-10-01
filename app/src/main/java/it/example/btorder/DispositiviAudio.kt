@@ -71,28 +71,31 @@ object DispositiviAudio {
      * primo che compare in [ordinePriorita] e lo imposta come dispositivo di
      * comunicazione attivo per la chiamata in corso.
      *
-     * [mappaNomeIndirizzo] (nome/alias → indirizzo di accoppiamento, da
-     * [DispositiviBluetooth.mappaNomePerIndirizzo]) serve a risolvere un caso reale osservato
-     * su alcuni telefoni: l'indirizzo che il sistema riporta qui per il canale vivavoce
-     * Bluetooth può non coincidere con quello di accoppiamento salvato in classifica. Quando
-     * l'indirizzo grezzo non combacia con nulla, si ritenta risalendo al dispositivo accoppiato
-     * con lo stesso nome.
+     * Il Bluetooth è il caso delicato: l'indirizzo che il sistema riporta qui per il canale
+     * vivavoce può non coincidere con quello di accoppiamento salvato in classifica (osservato
+     * su un telefono reale). Due risoluzioni alternative, in ordine di affidabilità:
+     * [indirizzoHfpConnesso] (il dispositivo che lo stack Bluetooth riporta come effettivamente
+     * connesso via HFP in questo momento — affidabile perché durante una chiamata ce n'è al più
+     * uno) e, se non disponibile, [mappaNomeIndirizzo] (nome/alias → indirizzo, da
+     * [DispositiviBluetooth.mappaNomePerIndirizzo]).
      */
     fun applicaPrimoDispositivoDisponibile(
         audioManager: AudioManager,
         ordinePriorita: List<String>,
-        mappaNomeIndirizzo: Map<String, String> = emptyMap()
+        mappaNomeIndirizzo: Map<String, String> = emptyMap(),
+        indirizzoHfpConnesso: String? = null
     ): EsitoInstradamento {
         val disponibili = audioManager.availableCommunicationDevices
         if (disponibili.isEmpty()) return EsitoInstradamento.NessunDispositivoDisponibile
 
         val dispositiviVisti = disponibili.map {
-            "${it.tipoLeggibile()}:${it.idStabile(mappaNomeIndirizzo)}" +
+            "${it.tipoLeggibile()}:${it.idStabile(mappaNomeIndirizzo, indirizzoHfpConnesso)}" +
                 (it.productName?.toString()?.let { nome -> " (\"$nome\")" } ?: "")
         }
         val ordinePrioritaNormalizzato = ordinePriorita.map { it.uppercase() }
         for (id in ordinePrioritaNormalizzato) {
-            val dispositivoTrovato = disponibili.firstOrNull { it.idStabile(mappaNomeIndirizzo) == id }
+            val dispositivoTrovato =
+                disponibili.firstOrNull { it.idStabile(mappaNomeIndirizzo, indirizzoHfpConnesso) == id }
             if (dispositivoTrovato != null) {
                 return if (audioManager.setCommunicationDevice(dispositivoTrovato)) {
                     EsitoInstradamento.Applicato(id, dispositiviVisti)
@@ -106,17 +109,21 @@ object DispositiviAudio {
 
     /**
      * Ricava l'ID stabile (MAC per il Bluetooth, costante fissa per l'hardware integrato/USB).
-     * Per il Bluetooth, prova prima a risalire all'indirizzo di accoppiamento tramite il nome
-     * del dispositivo in [mappaNomeIndirizzo] (vedi nota su [applicaPrimoDispositivoDisponibile]);
-     * se il nome non è noto, usa comunque il MAC riportato qui, normalizzato in maiuscolo per
-     * non far fallire il confronto per un semplice problema di case.
+     * Per il Bluetooth, vedi la nota su [applicaPrimoDispositivoDisponibile] per l'ordine di
+     * risoluzione; se nessuna delle due alternative è nota, usa comunque il MAC riportato qui,
+     * normalizzato in maiuscolo per non far fallire il confronto per un semplice problema di case.
      */
-    private fun AudioDeviceInfo.idStabile(mappaNomeIndirizzo: Map<String, String>): String = when (type) {
+    private fun AudioDeviceInfo.idStabile(
+        mappaNomeIndirizzo: Map<String, String>,
+        indirizzoHfpConnesso: String?
+    ): String = when (type) {
         AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> ID_AURICOLARE_TELEFONO
         AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> ID_VIVAVOCE_TELEFONO
         AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE -> ID_CUFFIE_USB
         AudioDeviceInfo.TYPE_BLUETOOTH_SCO, AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ->
-            mappaNomeIndirizzo[productName?.toString()]?.uppercase() ?: address.uppercase()
+            indirizzoHfpConnesso?.uppercase()
+                ?: mappaNomeIndirizzo[productName?.toString()]?.uppercase()
+                ?: address.uppercase()
         else -> address.uppercase()
     }
 

@@ -4,6 +4,9 @@ import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothHeadset
+import android.bluetooth.BluetoothProfile
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioDeviceCallback
@@ -41,6 +44,29 @@ class CallRoutingService : Service() {
      *  principale (i callback di sistema) e letta anche dalla coroutine di instradamento. */
     @Volatile
     private var chiamataInCorso = false
+
+    /**
+     * Connessione al profilo HEADSET (HFP) dello stack Bluetooth: è la fonte più affidabile per
+     * sapere QUALE dispositivo accoppiato sta fornendo l'audio vivavoce in questo momento. Si è
+     * rivelato necessario perché, su almeno un telefono reale, né l'indirizzo né il nome che
+     * [AudioDeviceInfo] riporta per il canale SCO coincidono in modo utilizzabile con quelli del
+     * dispositivo accoppiato (vedi [DispositiviAudio.applicaPrimoDispositivoDisponibile]); la
+     * connessione al profilo invece restituisce direttamente l'oggetto BluetoothDevice reale,
+     * con lo stesso indirizzo salvato in classifica. La connessione è asincrona (callback di
+     * sistema) quindi viene avviata una volta in [onCreate] e tenuta viva per tutta la vita del
+     * Service, non riconnessa a ogni chiamata.
+     */
+    private var proxyAuricolareBluetooth: BluetoothHeadset? = null
+
+    private val ascoltatoreProfiloAuricolare = object : BluetoothProfile.ServiceListener {
+        override fun onServiceConnected(profilo: Int, proxy: BluetoothProfile) {
+            proxyAuricolareBluetooth = proxy as? BluetoothHeadset
+        }
+
+        override fun onServiceDisconnected(profilo: Int) {
+            proxyAuricolareBluetooth = null
+        }
+    }
 
     private val ascoltatoreStatoChiamata = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
         override fun onCallStateChanged(state: Int) {
@@ -83,6 +109,10 @@ class CallRoutingService : Service() {
         startForeground(ID_NOTIFICA, costruisciNotifica("In ascolto per instradare l'audio delle chiamate"))
         registraAscoltatoreChiamate()
         audioManager.registerAudioDeviceCallback(ascoltatoreNuoviDispositivi, null)
+        if (DispositiviBluetooth.haPermessoBluetooth(applicationContext)) {
+            BluetoothAdapter.getDefaultAdapter()
+                ?.getProfileProxy(applicationContext, ascoltatoreProfiloAuricolare, BluetoothProfile.HEADSET)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
@@ -92,9 +122,21 @@ class CallRoutingService : Service() {
             telephonyManager.unregisterTelephonyCallback(ascoltatoreStatoChiamata)
         }
         audioManager.unregisterAudioDeviceCallback(ascoltatoreNuoviDispositivi)
+        proxyAuricolareBluetooth?.let {
+            BluetoothAdapter.getDefaultAdapter()?.closeProfileProxy(BluetoothProfile.HEADSET, it)
+        }
         ambitoCoroutine.cancel()
         super.onDestroy()
     }
+
+    /**
+     * L'indirizzo del dispositivo accoppiato che risulta connesso ORA tramite il profilo HFP,
+     * se noto: in pratica durante una chiamata ce n'è al più uno, quindi non serve altro per
+     * identificarlo con certezza.
+     */
+    @Suppress("MissingPermission")
+    private fun indirizzoAuricolareBluetoothConnesso(): String? =
+        proxyAuricolareBluetooth?.connectedDevices?.firstOrNull()?.address
 
     private fun haPermessoStatoChiamata(): Boolean =
         ActivityCompat.checkSelfPermission(
@@ -150,17 +192,20 @@ class CallRoutingService : Service() {
 
             repeat(TENTATIVI_INSTRADAMENTO) { tentativo ->
                 if (!chiamataInCorso) return@launch
+                val indirizzoHfp = indirizzoAuricolareBluetoothConnesso()
                 when (
                     val esito = DispositiviAudio.applicaPrimoDispositivoDisponibile(
                         audioManager,
                         ordineSalvato,
-                        mappaNomeIndirizzo
+                        mappaNomeIndirizzo,
+                        indirizzoHfp
                     )
                 ) {
                     is DispositiviAudio.EsitoInstradamento.Applicato -> {
                         aggiornaNotifica("Ultima chiamata instradata su: ${etichettaDispositivo(esito.id)}")
                         registra(
-                            "Tentativo ${tentativo + 1}: instradato su ${etichettaDispositivo(esito.id)} — " +
+                            "Tentativo ${tentativo + 1}: instradato su ${etichettaDispositivo(esito.id)} " +
+                                "(hfp connesso: ${indirizzoHfp ?: "nessuno"}) — " +
                                 "visti: ${esito.dispositiviVisti.joinToString(", ").ifBlank { "nessuno" }}"
                         )
                         return@launch
@@ -175,7 +220,10 @@ class CallRoutingService : Service() {
                     DispositiviAudio.EsitoInstradamento.NessunDispositivoDisponibile -> {
                         if (tentativo == TENTATIVI_INSTRADAMENTO - 1) {
                             aggiornaNotifica("Ultima chiamata: il sistema non riportava alcun dispositivo audio disponibile")
-                            registra("Tentativo ${tentativo + 1} (ultimo): nessun dispositivo audio disponibile")
+                            registra(
+                                "Tentativo ${tentativo + 1} (ultimo): nessun dispositivo audio disponibile " +
+                                    "(hfp connesso: ${indirizzoHfp ?: "nessuno"})"
+                            )
                         } else {
                             delay(INTERVALLO_TENTATIVO_MS)
                         }
@@ -184,7 +232,8 @@ class CallRoutingService : Service() {
                         if (tentativo == TENTATIVI_INSTRADAMENTO - 1) {
                             aggiornaNotifica("Ultima chiamata: nessuno dei dispositivi in classifica era disponibile")
                             registra(
-                                "Tentativo ${tentativo + 1} (ultimo): nessuno in classifica disponibile — " +
+                                "Tentativo ${tentativo + 1} (ultimo): nessuno in classifica disponibile " +
+                                    "(hfp connesso: ${indirizzoHfp ?: "nessuno"}) — " +
                                     "visti: ${esito.dispositiviVisti.joinToString(", ").ifBlank { "nessuno" }}"
                             )
                         } else {
