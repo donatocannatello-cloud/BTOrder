@@ -205,10 +205,14 @@ class CallRoutingService : Service() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(canale)
     }
 
+    // BigTextStyle è necessario perché il testo diagnostico (con l'elenco dei dispositivi
+    // "visti") supera spesso la singola riga che Android mostra di default per una notifica
+    // compatta: senza, il sistema la tronca con "..." anche da espansa.
     private fun costruisciNotifica(testo: String) =
         NotificationCompat.Builder(this, CANALE_NOTIFICA)
             .setContentTitle("BTOrder - Instradamento chiamate attivo")
             .setContentText(testo)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(testo))
             .setSmallIcon(R.drawable.ic_notifica)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setOngoing(true)
