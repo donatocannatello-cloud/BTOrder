@@ -142,16 +142,19 @@ class CallRoutingService : Service() {
             val ordineSalvato = DevicePriorityStore.leggiOrdineUnaVolta(applicationContext)
             if (ordineSalvato.isEmpty()) {
                 aggiornaNotifica("Nessun dispositivo in classifica: apri l'app e trascina almeno una voce")
+                registra("Nessun dispositivo in classifica")
                 return@launch
             }
+            registra("Chiamata iniziata — classifica: ${ordineSalvato.joinToString(", ") { etichettaDispositivo(it) }}")
 
             repeat(TENTATIVI_INSTRADAMENTO) { tentativo ->
                 if (!chiamataInCorso) return@launch
                 when (val esito = DispositiviAudio.applicaPrimoDispositivoDisponibile(audioManager, ordineSalvato)) {
                     is DispositiviAudio.EsitoInstradamento.Applicato -> {
-                        aggiornaNotifica(
-                            "Ultima chiamata instradata su: ${etichettaDispositivo(esito.id)} " +
-                                "(visti: ${esito.dispositiviVisti.joinToString(", ").ifBlank { "nessuno" }})"
+                        aggiornaNotifica("Ultima chiamata instradata su: ${etichettaDispositivo(esito.id)}")
+                        registra(
+                            "Tentativo ${tentativo + 1}: instradato su ${etichettaDispositivo(esito.id)} — " +
+                                "visti: ${esito.dispositiviVisti.joinToString(", ").ifBlank { "nessuno" }}"
                         )
                         return@launch
                     }
@@ -159,20 +162,23 @@ class CallRoutingService : Service() {
                         aggiornaNotifica(
                             "Ultima chiamata: Android ha rifiutato di usare ${etichettaDispositivo(esito.id)}"
                         )
+                        registra("Tentativo ${tentativo + 1}: Android ha rifiutato ${etichettaDispositivo(esito.id)}")
                         return@launch
                     }
                     DispositiviAudio.EsitoInstradamento.NessunDispositivoDisponibile -> {
                         if (tentativo == TENTATIVI_INSTRADAMENTO - 1) {
                             aggiornaNotifica("Ultima chiamata: il sistema non riportava alcun dispositivo audio disponibile")
+                            registra("Tentativo ${tentativo + 1} (ultimo): nessun dispositivo audio disponibile")
                         } else {
                             delay(INTERVALLO_TENTATIVO_MS)
                         }
                     }
                     is DispositiviAudio.EsitoInstradamento.NessunoInClassificaDisponibile -> {
                         if (tentativo == TENTATIVI_INSTRADAMENTO - 1) {
-                            aggiornaNotifica(
-                                "Ultima chiamata: nessuno dei dispositivi in classifica era disponibile " +
-                                    "(visti: ${esito.dispositiviVisti.joinToString(", ").ifBlank { "nessuno" }})"
+                            aggiornaNotifica("Ultima chiamata: nessuno dei dispositivi in classifica era disponibile")
+                            registra(
+                                "Tentativo ${tentativo + 1} (ultimo): nessuno in classifica disponibile — " +
+                                    "visti: ${esito.dispositiviVisti.joinToString(", ").ifBlank { "nessuno" }}"
                             )
                         } else {
                             delay(INTERVALLO_TENTATIVO_MS)
@@ -181,6 +187,10 @@ class CallRoutingService : Service() {
                 }
             }
         }
+    }
+
+    private fun registra(riga: String) {
+        RegistroDiagnostica.aggiungi(applicationContext, riga)
     }
 
     private fun etichettaDispositivo(id: String): String = when (id) {
@@ -205,9 +215,10 @@ class CallRoutingService : Service() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(canale)
     }
 
-    // BigTextStyle è necessario perché il testo diagnostico (con l'elenco dei dispositivi
-    // "visti") supera spesso la singola riga che Android mostra di default per una notifica
-    // compatta: senza, il sistema la tronca con "..." anche da espansa.
+    // BigTextStyle evita che un testo leggermente più lungo del solito venga troncato con
+    // "...": il dettaglio completo (con l'elenco dei dispositivi "visti") va comunque sempre nel
+    // RegistroDiagnostica, non nella notifica stessa, che Android limita a poche righe anche da
+    // "espansa" su diversi produttori (visto con Samsung One UI).
     private fun costruisciNotifica(testo: String) =
         NotificationCompat.Builder(this, CANALE_NOTIFICA)
             .setContentTitle("BTOrder - Instradamento chiamate attivo")

@@ -20,6 +20,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -806,9 +808,12 @@ fun SchermataImpostazioni(onIndietro: () -> Unit) {
     val modalitaSilenziosa by ImpostazioniStore.osservaModalitaSilenziosa(context)
         .collectAsState(initial = false)
 
+    var registro by remember { mutableStateOf(RegistroDiagnostica.leggi(context)) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -845,6 +850,36 @@ fun SchermataImpostazioni(onIndietro: () -> Unit) {
                         scope.launch { ImpostazioniStore.impostaModalitaSilenziosa(context, attiva) }
                     }
                 )
+            }
+        }
+
+        Card(modifier = Modifier.padding(top = 16.dp)) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(text = "Registro instradamento chiamate", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    text = "Ogni tentativo di instradare l'audio durante una chiamata, con i " +
+                        "dispositivi effettivamente visti da Android in quel momento. Per " +
+                        "segnalare un problema: tocca \"Copia\" e incolla il testo nella " +
+                        "conversazione.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                )
+                Text(
+                    text = registro.ifBlank { "(vuoto: nessuna chiamata registrata ancora)" },
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Registro BTOrder", registro))
+                    }) { Text("Copia") }
+                    TextButton(onClick = { registro = RegistroDiagnostica.leggi(context) }) { Text("Aggiorna") }
+                    TextButton(onClick = {
+                        RegistroDiagnostica.cancella(context)
+                        registro = ""
+                    }) { Text("Cancella") }
+                }
             }
         }
     }
