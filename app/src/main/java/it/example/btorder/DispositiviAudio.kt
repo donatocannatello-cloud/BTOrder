@@ -98,6 +98,11 @@ object DispositiviAudio {
                 disponibili.firstOrNull { it.idStabile(mappaNomeIndirizzo, indirizzoHfpConnesso) == id }
             if (dispositivoTrovato != null) {
                 return if (audioManager.setCommunicationDevice(dispositivoTrovato)) {
+                    if (dispositivoTrovato.type != AudioDeviceInfo.TYPE_BLUETOOTH_SCO &&
+                        dispositivoTrovato.type != AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
+                    ) {
+                        forzaRilascioCanaleBluetooth(audioManager)
+                    }
                     EsitoInstradamento.Applicato(id, dispositiviVisti)
                 } else {
                     EsitoInstradamento.ImpostazioneRifiutata(id)
@@ -105,6 +110,23 @@ object DispositiviAudio {
             }
         }
         return EsitoInstradamento.NessunoInClassificaDisponibile(dispositiviVisti)
+    }
+
+    /**
+     * [AudioManager.setCommunicationDevice] è l'API "moderna" (API 31+) per scegliere il
+     * dispositivo, ma quando Android ha già agganciato il canale SCO Bluetooth per la chiamata
+     * (il comportamento predefinito appena un dispositivo di fiducia si connette) impostare un
+     * dispositivo diverso a volte non basta a staccarlo davvero: l'API segnala successo ma
+     * l'audio può restare comunque sul Bluetooth. Per questo, quando si vuole tornare
+     * all'hardware del telefono, si forza anche il rilascio esplicito del canale SCO con l'API
+     * legacy dedicata: più diretta, ha più probabilità di avere effetto reale sull'hardware.
+     */
+    @Suppress("DEPRECATION")
+    private fun forzaRilascioCanaleBluetooth(audioManager: AudioManager) {
+        if (audioManager.isBluetoothScoOn) {
+            audioManager.isBluetoothScoOn = false
+        }
+        audioManager.stopBluetoothSco()
     }
 
     /**
