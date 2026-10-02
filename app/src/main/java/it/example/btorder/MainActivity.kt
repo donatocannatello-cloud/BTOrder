@@ -276,8 +276,6 @@ fun SchermataPrincipale(onApriImpostazioni: () -> Unit) {
             }
         }
 
-        item { AvvisoLimiteSblocco(context) }
-
         if (!permessoTelefonoConcesso) {
             item { AvvisoPermessoTelefono(context) }
         }
@@ -486,8 +484,8 @@ private fun AvvisoUltimoCrash(traccia: String, istante: Long, onCopia: () -> Uni
 }
 
 @Composable
-private fun AvvisoLimiteSblocco(context: Context) {
-    Card {
+private fun AvvisoLimiteSblocco(context: Context, modifier: Modifier = Modifier) {
+    Card(modifier = modifier) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text = "Nota sullo sblocco lucchetto", style = MaterialTheme.typography.titleSmall)
             Text(
@@ -824,6 +822,8 @@ fun SchermataImpostazioni(onIndietro: () -> Unit) {
                 modifier = Modifier.padding(start = 8.dp)
             )
         }
+
+        AvvisoLimiteSblocco(context, modifier = Modifier.padding(top = 16.dp))
 
         Card(modifier = Modifier.padding(top = 16.dp)) {
             Row(
