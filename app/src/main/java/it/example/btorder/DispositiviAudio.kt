@@ -98,11 +98,7 @@ object DispositiviAudio {
                 disponibili.firstOrNull { it.idStabile(mappaNomeIndirizzo, indirizzoHfpConnesso) == id }
             if (dispositivoTrovato != null) {
                 return if (audioManager.setCommunicationDevice(dispositivoTrovato)) {
-                    if (dispositivoTrovato.type != AudioDeviceInfo.TYPE_BLUETOOTH_SCO &&
-                        dispositivoTrovato.type != AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
-                    ) {
-                        forzaRilascioCanaleBluetooth(audioManager)
-                    }
+                    allineaModalitaAlDispositivo(audioManager, dispositivoTrovato)
                     EsitoInstradamento.Applicato(id, dispositiviVisti)
                 } else {
                     EsitoInstradamento.ImpostazioneRifiutata(id)
@@ -113,16 +109,35 @@ object DispositiviAudio {
     }
 
     /**
-     * [AudioManager.setCommunicationDevice] è l'API "moderna" (API 31+) per scegliere il
-     * dispositivo, ma quando Android ha già agganciato il canale SCO Bluetooth per la chiamata
-     * (il comportamento predefinito appena un dispositivo di fiducia si connette) impostare un
-     * dispositivo diverso a volte non basta a staccarlo davvero: l'API segnala successo ma
-     * l'audio può restare comunque sul Bluetooth. Per questo, quando si vuole tornare
-     * all'hardware del telefono, si forza anche il rilascio esplicito del canale SCO con l'API
-     * legacy dedicata: più diretta, ha più probabilità di avere effetto reale sull'hardware.
+     * [AudioManager.setCommunicationDevice] (API 31+) è pensata soprattutto per app che
+     * gestiscono una propria sessione audio (VoIP, in MODE_IN_COMMUNICATION): per una chiamata
+     * telefonica reale (MODE_IN_CALL, gestita dallo stack telefonico di sistema) segnala
+     * successo ma non sempre basta da sola a spostare davvero l'audio, come osservato su un
+     * telefono reale (restava sull'auricolare pur avendo scelto il vivavoce). Il vivavoce
+     * "acceso/spento" di una telefonata nativa è storicamente controllato dall'API legacy
+     * [AudioManager.isSpeakerphoneOn], e un canale SCO Bluetooth già agganciato va rilasciato
+     * esplicitamente: li si allinea entrambi al dispositivo scelto, oltre alla chiamata "moderna"
+     * già fatta, per massimizzare le probabilità che l'audio segua davvero la scelta.
      */
     @Suppress("DEPRECATION")
-    private fun forzaRilascioCanaleBluetooth(audioManager: AudioManager) {
+    private fun allineaModalitaAlDispositivo(audioManager: AudioManager, dispositivo: AudioDeviceInfo) {
+        when (dispositivo.type) {
+            AudioDeviceInfo.TYPE_BLUETOOTH_SCO, AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> {
+                audioManager.isSpeakerphoneOn = false
+            }
+            AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> {
+                rilasciaCanaleBluetooth(audioManager)
+                audioManager.isSpeakerphoneOn = true
+            }
+            else -> {
+                rilasciaCanaleBluetooth(audioManager)
+                audioManager.isSpeakerphoneOn = false
+            }
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun rilasciaCanaleBluetooth(audioManager: AudioManager) {
         if (audioManager.isBluetoothScoOn) {
             audioManager.isBluetoothScoOn = false
         }
