@@ -13,8 +13,12 @@ android {
         // usati dall'instradamento automatico delle chiamate.
         minSdk = 31
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // Valorizzati dalla CI (numero di run e SHA corto del commit) così ogni APK distribuito
+        // sia identificabile senza ambiguità: distinguere "ho già questa build?" a occhio è
+        // impossibile con un numero fisso, ed è già capitato di confrontare log di build diverse
+        // credendole la stessa. In locale restano un fallback leggibile ma non identificativo.
+        versionCode = (System.getenv("BTORDER_VERSION_CODE")?.toIntOrNull()) ?: 1
+        versionName = System.getenv("BTORDER_VERSION_NAME") ?: "locale"
     }
 
     signingConfigs {

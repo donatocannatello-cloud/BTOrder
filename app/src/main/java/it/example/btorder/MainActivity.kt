@@ -882,5 +882,23 @@ fun SchermataImpostazioni(onIndietro: () -> Unit) {
                 }
             }
         }
+
+        Text(
+            text = "BTOrder — ${versioneApp(context)}",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(top = 16.dp)
+        )
     }
+}
+
+/**
+ * Versione leggibile dell'app (valorizzata dalla CI col numero di build e lo SHA del commit,
+ * vedi build.gradle.kts): indispensabile per capire al volo, guardando uno screenshot o un
+ * log incollato in chat, se si sta davvero testando l'ultima build appena inviata o una
+ * precedente — è già capitato di confondersi tra le due.
+ */
+private fun versioneApp(context: Context): String = try {
+    context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "sconosciuta"
+} catch (e: PackageManager.NameNotFoundException) {
+    "sconosciuta"
 }

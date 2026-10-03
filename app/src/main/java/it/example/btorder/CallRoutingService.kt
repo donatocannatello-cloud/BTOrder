@@ -187,7 +187,10 @@ class CallRoutingService : Service() {
                 registra("Nessun dispositivo in classifica")
                 return@launch
             }
-            registra("Chiamata iniziata — classifica: ${ordineSalvato.joinToString(", ") { etichettaDispositivo(it) }}")
+            registra(
+                "Chiamata iniziata (${versioneApp()}) — classifica: " +
+                    ordineSalvato.joinToString(", ") { etichettaDispositivo(it) }
+            )
             val mappaNomeIndirizzo = DispositiviBluetooth.mappaNomePerIndirizzo(applicationContext)
 
             repeat(TENTATIVI_INSTRADAMENTO) { tentativo ->
@@ -247,6 +250,12 @@ class CallRoutingService : Service() {
 
     private fun registra(riga: String) {
         RegistroDiagnostica.aggiungi(applicationContext, riga)
+    }
+
+    private fun versioneApp(): String = try {
+        packageManager.getPackageInfo(packageName, 0).versionName ?: "sconosciuta"
+    } catch (e: PackageManager.NameNotFoundException) {
+        "sconosciuta"
     }
 
     private fun etichettaDispositivo(id: String): String = when (id) {

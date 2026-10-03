@@ -39,7 +39,13 @@ jobs:
       - name: Rendi eseguibile gradlew
         run: chmod +x gradlew
 
+      - name: Calcola numero di build e SHA corto per il versionamento
+        run: echo "SHA_CORTO=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
       - name: Compila l'APK di debug
+        env:
+          BTORDER_VERSION_CODE: ${{ github.run_number }}
+          BTORDER_VERSION_NAME: "build ${{ github.run_number }} (${{ env.SHA_CORTO }})"
         run: ./gradlew :app:assembleDebug
 
       - name: Rinomina l'APK
@@ -59,7 +65,8 @@ jobs:
           name: "BTOrder (debug) - build automatica"
           body: >
             APK di debug generato automaticamente dall'ultimo commit su
-            ${{ github.ref_name }} (${{ github.sha }}).
+            ${{ github.ref_name }} (${{ github.sha }}) — build ${{ github.run_number }}
+            (${{ env.SHA_CORTO }}), visibile anche nell'app in Impostazioni.
             Scarica BTOrder-debug.apk qui sotto e installalo: essendo firmato
             sempre con la stessa chiave di debug, si aggiorna sopra la
             versione già installata senza bisogno di disinstallarla prima.
