@@ -45,6 +45,26 @@ object DevicePriorityStore {
         osservaOrdine(context).first()
 
     /**
+     * Rimuove dalla classifica salvata gli indirizzi Bluetooth non più presenti in
+     * [idAncoraValidi]: un dispositivo che viene ri-accoppiato (es. dopo un reset della cache
+     * Bluetooth, o scollegato e ricollegato con un indirizzo di sessione diverso) lascia un
+     * "fantasma" con il suo vecchio indirizzo, invisibile nella lista (perché non più tra i
+     * dispositivi accoppiati) ma ancora presente nell'ordine salvato, nella posizione in cui
+     * l'utente l'aveva trascinato. Il nuovo indirizzo con cui il dispositivo si ripresenta viene
+     * invece trattato come "mai visto prima" e aggiunto in fondo, perdendo silenziosamente la
+     * priorità impostata. Ripulire i fantasmi non basta a impedirlo al prossimo cambio di
+     * indirizzo, ma almeno permette di ripartire da una lista leggibile.
+     *
+     * @return quanti ID sono stati rimossi.
+     */
+    suspend fun pulisciOrdine(context: Context, idAncoraValidi: Set<String>): Int {
+        val attuale = leggiOrdineUnaVolta(context)
+        val ripulito = attuale.filter { it in idAncoraValidi }
+        salvaOrdine(context, ripulito)
+        return attuale.size - ripulito.size
+    }
+
+    /**
      * Se il monitoraggio chiamate è attivo, così che il pulsante nella schermata "Chiamate"
      * mostri lo stato corretto anche dopo che l'utente ha cambiato scheda e ci è tornato
      * (senza questo, uno stato Compose locale si azzererebbe a ogni ricomposizione, pur con

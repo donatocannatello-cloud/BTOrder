@@ -853,6 +853,43 @@ fun SchermataImpostazioni(onIndietro: () -> Unit) {
             }
         }
 
+        var esitoPulizia by remember { mutableStateOf<String?>(null) }
+        Card(modifier = Modifier.padding(top = 16.dp)) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(text = "Pulisci classifica chiamate", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    text = "Un dispositivo Bluetooth ri-accoppiato (es. dopo un reset della " +
+                        "cache Bluetooth) può ripresentarsi con un indirizzo diverso: quello " +
+                        "vecchio resta \"fantasma\" nella classifica, invisibile nella lista ma " +
+                        "ancora nella posizione scelta, mentre il nuovo finisce in fondo " +
+                        "perdendo la priorità impostata. Questo rimuove i fantasmi: dopo averlo " +
+                        "usato ricontrolla l'ordine dei tuoi dispositivi.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                )
+                if (esitoPulizia != null) {
+                    Text(
+                        text = esitoPulizia!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+                TextButton(onClick = {
+                    scope.launch {
+                        val indirizziValidi = DispositiviBluetooth.elencaDispositiviAccoppiati(context, emptySet())
+                            .map { it.indirizzo }
+                            .toSet() + setOf(ID_AURICOLARE_TELEFONO, ID_VIVAVOCE_TELEFONO, ID_CUFFIE_USB)
+                        val rimossi = DevicePriorityStore.pulisciOrdine(context, indirizziValidi)
+                        esitoPulizia = if (rimossi > 0) {
+                            "Rimossi $rimossi indirizzi non più accoppiati."
+                        } else {
+                            "Nessun indirizzo fantasma trovato."
+                        }
+                    }
+                }) { Text("Pulisci classifica") }
+            }
+        }
+
         Card(modifier = Modifier.padding(top = 16.dp)) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(text = "Registro instradamento chiamate", style = MaterialTheme.typography.titleSmall)
