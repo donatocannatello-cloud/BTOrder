@@ -22,7 +22,17 @@ object DevicePriorityStore {
 
     private val CHIAVE_ORDINE = stringPreferencesKey("ordine_dispositivi")
     private val CHIAVE_SERVIZIO_ATTIVO = booleanPreferencesKey("servizio_chiamate_attivo")
+    private val CHIAVE_STORIA_NOMI = stringPreferencesKey("storia_nomi_dispositivi")
     private const val SEPARATORE = "§"
+
+    /** Unit Separator (0x1F): separa indirizzo e nome in un record della storia nomi. */
+    private const val SEPARATORE_CAMPO = "\u001F"
+
+    /** Record Separator (0x1E): separa un record dal successivo nella storia nomi. */
+    private const val SEPARATORE_RECORD = "\u001E"
+
+    /** Quanti indirizzi conservare nella storia nomi: evita una crescita illimitata. */
+    private const val MAX_VOCI_STORIA_NOMI = 100
 
     /** Flusso con la lista ordinata di ID salvata (vuota se non è mai stata salvata). */
     fun osservaOrdine(context: Context): Flow<List<String>> =
@@ -62,6 +72,50 @@ object DevicePriorityStore {
         val ripulito = attuale.filter { it in idAncoraValidi }
         salvaOrdine(context, ripulito)
         return attuale.size - ripulito.size
+    }
+
+    /**
+     * Storia indirizzo → nome degli ultimi dispositivi Bluetooth visti (accoppiati o connessi),
+     * registrata ogni volta che l'app li incontra e conservata ANCHE dopo che un indirizzo smette
+     * di essere accoppiato. Serve a riconoscere un dispositivo che si ripresenta con un indirizzo
+     * diverso da quello salvato in classifica (osservato con un kit auto reale, che cambia
+     * indirizzo quasi a ogni connessione): l'indirizzo da solo non è un identificativo stabile
+     * per quel dispositivo, ma il nome sì, quindi l'instradamento chiamate lo usa come
+     * riconoscimento alternativo quando l'indirizzo non combacia più.
+     */
+    fun osservaStoriaNomi(context: Context): Flow<Map<String, String>> =
+        context.dataStorePriorita.data.map { deserializzaStoriaNomi(it[CHIAVE_STORIA_NOMI].orEmpty()) }
+
+    suspend fun leggiStoriaNomiUnaVolta(context: Context): Map<String, String> =
+        osservaStoriaNomi(context).first()
+
+    suspend fun registraNome(context: Context, indirizzo: String, nome: String) {
+        if (nome.isBlank()) return
+        context.dataStorePriorita.edit { preferenze ->
+            val attuale = deserializzaStoriaNomi(preferenze[CHIAVE_STORIA_NOMI].orEmpty()).toMutableMap()
+            // Rimosso e re-inserito per spostarlo in fondo (più recente) se già presente, così il
+            // taglio al limite massimo scarta prima le voci più vecchie.
+            attuale.remove(indirizzo)
+            attuale[indirizzo] = nome
+            val capata = if (attuale.size > MAX_VOCI_STORIA_NOMI) {
+                attuale.entries.drop(attuale.size - MAX_VOCI_STORIA_NOMI).associate { it.key to it.value }
+            } else {
+                attuale
+            }
+            preferenze[CHIAVE_STORIA_NOMI] = serializzaStoriaNomi(capata)
+        }
+    }
+
+    private fun serializzaStoriaNomi(mappa: Map<String, String>): String =
+        mappa.entries.joinToString(SEPARATORE_RECORD) { (indirizzo, nome) -> "$indirizzo$SEPARATORE_CAMPO$nome" }
+
+    private fun deserializzaStoriaNomi(testo: String): Map<String, String> {
+        if (testo.isBlank()) return emptyMap()
+        return testo.split(SEPARATORE_RECORD).mapNotNull { record ->
+            val campi = record.split(SEPARATORE_CAMPO)
+            if (campi.size < 2) return@mapNotNull null
+            campi[0] to campi[1]
+        }.toMap()
     }
 
     /**

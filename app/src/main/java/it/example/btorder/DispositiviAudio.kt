@@ -73,17 +73,26 @@ object DispositiviAudio {
      *
      * Il Bluetooth è il caso delicato: l'indirizzo che il sistema riporta qui per il canale
      * vivavoce può non coincidere con quello di accoppiamento salvato in classifica (osservato
-     * su un telefono reale). Due risoluzioni alternative, in ordine di affidabilità:
-     * [indirizzoHfpConnesso] (il dispositivo che lo stack Bluetooth riporta come effettivamente
-     * connesso via HFP in questo momento — affidabile perché durante una chiamata ce n'è al più
-     * uno) e, se non disponibile, [mappaNomeIndirizzo] (nome/alias → indirizzo, da
-     * [DispositiviBluetooth.mappaNomePerIndirizzo]).
+     * su un telefono reale, dove un kit auto si ripresenta con un indirizzo diverso quasi a ogni
+     * connessione). Tre risoluzioni, in ordine di affidabilità decrescente:
+     * 1. [indirizzoHfpConnesso]: il dispositivo che lo stack Bluetooth riporta come
+     *    effettivamente connesso via HFP in questo momento — affidabile perché durante una
+     *    chiamata ce n'è al più uno;
+     * 2. [mappaNomeIndirizzo]: nome/alias → indirizzo CORRENTE, da
+     *    [DispositiviBluetooth.mappaNomePerIndirizzo];
+     * 3. confronto per nome contro [storiaNomi] (indirizzo → nome, da
+     *    [DevicePriorityStore.osservaStoriaNomi], conservata ANCHE per indirizzi non più
+     *    accoppiati): se nessuna delle prime due risoluzioni produce un indirizzo che combacia
+     *    con la classifica, si cerca comunque una voce in classifica il cui nome storico
+     *    coincida col nome del dispositivo connesso ora — è l'unico modo di riconoscere un
+     *    dispositivo quando il suo indirizzo è cambiato rispetto a quello salvato.
      */
     fun applicaPrimoDispositivoDisponibile(
         audioManager: AudioManager,
         ordinePriorita: List<String>,
         mappaNomeIndirizzo: Map<String, String> = emptyMap(),
-        indirizzoHfpConnesso: String? = null
+        indirizzoHfpConnesso: String? = null,
+        storiaNomi: Map<String, String> = emptyMap()
     ): EsitoInstradamento {
         val disponibili = audioManager.availableCommunicationDevices
         if (disponibili.isEmpty()) return EsitoInstradamento.NessunDispositivoDisponibile
@@ -94,8 +103,9 @@ object DispositiviAudio {
         }
         val ordinePrioritaNormalizzato = ordinePriorita.map { it.uppercase() }
         for (id in ordinePrioritaNormalizzato) {
-            val dispositivoTrovato =
-                disponibili.firstOrNull { it.idStabile(mappaNomeIndirizzo, indirizzoHfpConnesso) == id }
+            val dispositivoTrovato = disponibili.firstOrNull {
+                it.corrisponde(id, mappaNomeIndirizzo, indirizzoHfpConnesso, storiaNomi)
+            }
             if (dispositivoTrovato != null) {
                 return if (audioManager.setCommunicationDevice(dispositivoTrovato)) {
                     allineaModalitaAlDispositivo(audioManager, dispositivoTrovato)
@@ -106,6 +116,19 @@ object DispositiviAudio {
             }
         }
         return EsitoInstradamento.NessunoInClassificaDisponibile(dispositiviVisti)
+    }
+
+    private fun AudioDeviceInfo.corrisponde(
+        idClassifica: String,
+        mappaNomeIndirizzo: Map<String, String>,
+        indirizzoHfpConnesso: String?,
+        storiaNomi: Map<String, String>
+    ): Boolean {
+        if (idStabile(mappaNomeIndirizzo, indirizzoHfpConnesso) == idClassifica) return true
+        if (type != AudioDeviceInfo.TYPE_BLUETOOTH_SCO && type != AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) return false
+        val nomeClassifica = storiaNomi[idClassifica] ?: return false
+        val nomeDispositivo = productName?.toString() ?: return false
+        return nomeClassifica.equals(nomeDispositivo, ignoreCase = true)
     }
 
     /**

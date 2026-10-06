@@ -192,6 +192,7 @@ class CallRoutingService : Service() {
                     ordineSalvato.joinToString(", ") { etichettaDispositivo(it) }
             )
             val mappaNomeIndirizzo = DispositiviBluetooth.mappaNomePerIndirizzo(applicationContext)
+            val storiaNomi = DevicePriorityStore.leggiStoriaNomiUnaVolta(applicationContext)
 
             repeat(TENTATIVI_INSTRADAMENTO) { tentativo ->
                 if (!chiamataInCorso) return@launch
@@ -201,7 +202,8 @@ class CallRoutingService : Service() {
                         audioManager,
                         ordineSalvato,
                         mappaNomeIndirizzo,
-                        indirizzoHfp
+                        indirizzoHfp,
+                        storiaNomi
                     )
                 ) {
                     is DispositiviAudio.EsitoInstradamento.Applicato -> {

@@ -192,6 +192,12 @@ fun SchermataPrincipale(onApriImpostazioni: () -> Unit) {
         indirizziConnessi = DispositiviBluetooth.indirizziAttualmenteConnessi(context)
         dispositiviAccoppiati = DispositiviBluetooth.elencaDispositiviAccoppiati(context, indirizziConnessi)
         cuffieUsbConnesse = DispositiviAudio.cuffieUsbConnesse(context)
+        // Tiene viva la "storia nomi" (DevicePriorityStore) anche per indirizzi che poi smettono
+        // di essere accoppiati: è quello che permette all'instradamento chiamate di riconoscere
+        // un dispositivo ripresentatosi con un indirizzo diverso dal suo nome.
+        scope.launch {
+            dispositiviAccoppiati.forEach { DevicePriorityStore.registraNome(context, it.indirizzo, it.nome) }
+        }
     }
     LaunchedEffect(Unit) { ricaricaDispositivi() }
 
