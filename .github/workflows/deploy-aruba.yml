@@ -1,0 +1,111 @@
+# Pubblica l'app "Gestione Condomini" (cartella condomini/) su Aruba via FTP.
+#
+# Quando parte:
+#   - a ogni push sul branch "aruba" che modifica condomini/ (o questo file);
+#   - a mano da GitHub: Actions -> "Pubblica su Aruba" -> Run workflow
+#     (il pulsante compare solo se questo file è anche nel branch predefinito del repository).
+#
+# Cosa serve (Settings -> Secrets and variables -> Actions):
+#   Secrets:   FTP_SERVER     es. ftp.tuodominio.it
+#              FTP_USERNAME   utente FTP di Aruba
+#              FTP_PASSWORD   password FTP di Aruba
+#              FTP_SERVER_DIR cartella di destinazione, es. /www.tuodominio.it/condomini/  (con la / finale)
+#              SETUP_KEY      (facoltativo) chiave di installazione da scrivere in includes/config.php
+#   Variables: FTP_PROTOCOL   (facoltativa) "ftps" (predefinito) oppure "ftp" se Aruba rifiuta FTPS
+#
+# I dati sul server NON vengono mai toccati: data/ e uploads/ sono esclusi sia
+# dal caricamento sia dalla cancellazione.
+
+name: Pubblica su Aruba
+
+on:
+  push:
+    branches: [aruba]
+    paths:
+      - 'condomini/**'
+      - '.github/workflows/deploy-aruba.yml'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Prova senza caricare nulla (mostra solo cosa cambierebbe)'
+        type: boolean
+        default: false
+
+# Mai due pubblicazioni contemporanee.
+concurrency:
+  group: deploy-aruba
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Scarica il codice
+        uses: actions/checkout@v4
+
+      - name: Controlla i segreti
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR }}
+        run: |
+          missing=""
+          for v in FTP_SERVER FTP_USERNAME FTP_PASSWORD FTP_SERVER_DIR; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Mancano i secrets:$missing (Settings -> Secrets and variables -> Actions)"
+            exit 1
+          fi
+          case "$FTP_SERVER_DIR" in
+            */) ;;
+            *) echo "::error::FTP_SERVER_DIR deve terminare con /"; exit 1 ;;
+          esac
+
+      - name: Controllo sintassi PHP
+        run: |
+          php -v | head -1
+          find condomini -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
+
+      - name: Imposta la chiave di installazione
+        env:
+          SETUP_KEY: ${{ secrets.SETUP_KEY }}
+        run: |
+          if [ -n "$SETUP_KEY" ]; then
+            php -r '
+              $f = "condomini/includes/config.php";
+              $s = file_get_contents($f);
+              $s = str_replace("const SETUP_KEY = '"'"'CAMBIAMI'"'"';", "const SETUP_KEY = " . var_export(getenv("SETUP_KEY"), true) . ";", $s, $n);
+              if ($n !== 1) { fwrite(STDERR, "SETUP_KEY non trovata in config.php\n"); exit(1); }
+              file_put_contents($f, $s);
+            '
+            echo "Chiave di installazione impostata."
+          else
+            echo "Nessun secret SETUP_KEY: config.php resta invariato."
+          fi
+
+      - name: Carica su Aruba via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
+          local-dir: ./condomini/
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          dry-run: ${{ inputs.dry_run || false }}
+          log-level: standard
+          # Carica solo i file cambiati (lo stato è in .ftp-deploy-sync-state.json sul server,
+          # protetto dal .htaccess). I file esclusi non vengono né caricati né cancellati.
+          exclude: |
+            data/**
+            uploads/**
+            **/.git*
+            **/.git*/**
+            .gitignore
+            README.md

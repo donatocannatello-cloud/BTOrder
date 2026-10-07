@@ -120,6 +120,37 @@ insieme ai rispettivi `.htaccess` se il client FTP non li avesse caricati.
    commento alle tre righe `RewriteEngine/RewriteCond/RewriteRule` nel `.htaccess`
    principale per forzare HTTPS.
 
+## Pubblicazione automatica da GitHub (alternativa all'FTP manuale)
+
+Il file `.github/workflows/deploy-aruba.yml` (nella radice del repository) carica la cartella
+`condomini/` su Aruba via FTP con GitHub Actions. Carica solo i file modificati e **non tocca mai
+`data/` e `uploads/`** sul server: i dati e gli allegati restano al sicuro.
+
+**Configurazione (una volta sola)** su GitHub → repository → *Settings → Secrets and variables → Actions*:
+
+| Tipo | Nome | Valore |
+|---|---|---|
+| Secret | `FTP_SERVER` | `ftp.tuodominio.it` |
+| Secret | `FTP_USERNAME` | utente FTP di Aruba |
+| Secret | `FTP_PASSWORD` | password FTP di Aruba |
+| Secret | `FTP_SERVER_DIR` | cartella di destinazione con la `/` finale, es. `/www.tuodominio.it/condomini/` |
+| Secret (facoltativo) | `SETUP_KEY` | la chiave di installazione: viene scritta in `includes/config.php` al momento del caricamento, così nel repository resta `CAMBIAMI` |
+| Variable (facoltativa) | `FTP_PROTOCOL` | `ftps` (predefinito, connessione cifrata) oppure `ftp` se Aruba rifiuta FTPS |
+
+**Come si pubblica:** porta il codice sul branch **`aruba`** (es. crea il branch `aruba` da quello di
+sviluppo, oppure fai merge/push su `aruba`). Ogni push su `aruba` che modifica `condomini/` avvia la
+pubblicazione; l'esito si vede nella scheda *Actions* del repository. Prima del caricamento viene
+controllata la sintassi di tutti i file PHP: se c'è un errore non si carica nulla.
+
+Il pulsante *Run workflow* (con l'opzione "prova senza caricare nulla") compare nella scheda Actions
+solo se il file del workflow è presente anche nel branch predefinito del repository.
+
+Note:
+- La prima pubblicazione carica tutti i file; le successive solo quelli cambiati (lo stato è nel file
+  `.ftp-deploy-sync-state.json` sul server, non accessibile dal web grazie al `.htaccess`).
+- Le cartelle `data/` e `uploads/` vengono create dall'app al primo accesso, con i loro `.htaccess`.
+- La password di accesso all'app non passa mai da GitHub: si imposta dal sito come al punto 5.
+
 ### Password dimenticata
 
 Via FTP scarica `data/config.json`, cancella il valore di `password_hash`
