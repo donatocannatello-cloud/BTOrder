@@ -9,8 +9,10 @@ defined('APP') || exit;
 
 $nav = [
     'dashboard' => 'Dashboard',
+    'condomini' => 'Condomini',
     'impostazioni' => 'Impostazioni',
 ];
+$navActive = in_array($page, ['condominio', 'condominio_form', 'unita_form', 'millesimi'], true) ? 'condomini' : $page;
 $flashes = take_flashes();
 ?>
 <!doctype html>
@@ -32,7 +34,7 @@ $flashes = take_flashes();
         <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
         <nav class="nav">
             <?php foreach ($nav as $p => $label): ?>
-                <a href="<?= e(url($p)) ?>"<?= $p === $page ? ' class="active"' : '' ?>><?= e($label) ?></a>
+                <a href="<?= e(url($p)) ?>"<?= $p === $navActive ? ' class="active"' : '' ?>><?= e($label) ?></a>
             <?php endforeach; ?>
             <form method="post" action="<?= e(url('logout')) ?>" class="nav-logout">
                 <?= csrf_field() ?>

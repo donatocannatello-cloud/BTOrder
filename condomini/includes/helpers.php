@@ -180,3 +180,48 @@ function format_bytes(int $bytes): string
     }
     return number_format($bytes / 1048576, 1, ',', '.') . ' MB';
 }
+
+/**
+ * Numero decimale digitato all'italiana ("1.234,5678" o "12.5") con al massimo
+ * $decimals cifre decimali. Restituisce null se non valido.
+ */
+function parse_decimal(?string $input, int $decimals = 4): ?float
+{
+    $s = str_replace([' ', "\u{00A0}"], '', trim((string) $input));
+    if (strpos($s, ',') !== false) {
+        $s = str_replace('.', '', $s);
+        $s = str_replace(',', '.', $s);
+    } elseif (substr_count($s, '.') > 1) {
+        $s = str_replace('.', '', $s);
+    }
+    if (!preg_match('/^-?\d{1,9}(?:\.\d{1,' . $decimals . '})?$/', $s)) {
+        return null;
+    }
+    return round((float) $s, $decimals);
+}
+
+// ----------------------------------------------------------------------
+// Piccoli aiuti per i form
+
+function selected(bool $cond): string
+{
+    return $cond ? ' selected' : '';
+}
+
+function checked(bool $cond): string
+{
+    return $cond ? ' checked' : '';
+}
+
+/** Elenco degli errori di validazione. */
+function errors_box(array $errors): string
+{
+    if (!$errors) {
+        return '';
+    }
+    $html = '<div class="alert alert-error" role="alert"><ul class="plain">';
+    foreach ($errors as $err) {
+        $html .= '<li>' . e($err) . '</li>';
+    }
+    return $html . '</ul></div>';
+}

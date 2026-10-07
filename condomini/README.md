@@ -4,8 +4,21 @@ Applicazione web personale per gestire spese e incassi di più condomini.
 PHP 8 puro (nessun framework, nessun database SQL), pensata per l'hosting
 condiviso Aruba (Apache + PHP). Un solo utente, protetto da password.
 
-> Stato: **Fase 1** — struttura, archiviazione su file JSON, login, backup, esportazione ZIP.
-> Prossime fasi: condomini e unità → uscite, incassi e riparto → report ed export.
+> Stato: **Fase 2** — fase 1 (struttura, archivio JSON, login, backup, ZIP) + condomini,
+> unità e tabelle millesimali. Prossime fasi: uscite, incassi e riparto → report ed export.
+> Interfaccia pensata per il desktop, utilizzabile anche da telefono.
+
+## Funzioni
+
+- **Condomini**: nome, indirizzo, codice fiscale, il tuo ruolo (amministratore / proprietario),
+  saldo di cassa iniziale con data, note. Eliminazione protetta dalla digitazione del nome
+  (una copia resta in `data/backup`).
+- **Unità**: interno, scala, piano, descrizione, proprietario e inquilino con telefono ed email,
+  note, millesimi per ogni tabella.
+- **Tabelle millesimali**: ogni nuovo condominio parte con Generale, Scale e Riscaldamento;
+  se ne possono aggiungere altre (es. "Scala B", "Ascensore"), rinominarle o eliminarle.
+  La griglia unità × tabelle permette di inserire tutti i millesimi in una volta e mostra
+  i totali per colonna aggiornati mentre si digita (verde se quadrano a 1000).
 
 ## Struttura
 

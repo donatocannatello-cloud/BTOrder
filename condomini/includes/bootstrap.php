@@ -7,6 +7,7 @@ require __DIR__ . '/helpers.php';
 require __DIR__ . '/storage.php';
 require __DIR__ . '/csrf.php';
 require __DIR__ . '/auth.php';
+require __DIR__ . '/condomini.php';
 
 date_default_timezone_set('Europe/Rome');
 error_reporting(E_ALL);

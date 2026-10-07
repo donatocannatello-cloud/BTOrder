@@ -7,12 +7,17 @@ require __DIR__ . '/includes/bootstrap.php';
 
 // Pagine consentite. 'public' = accessibile senza login.
 $routes = [
-    'login'        => ['file' => 'login.php',        'public' => true],
-    'setup'        => ['file' => 'setup.php',        'public' => true],
-    'logout'       => ['file' => 'logout.php',       'public' => false],
-    'dashboard'    => ['file' => 'dashboard.php',    'public' => false],
-    'impostazioni' => ['file' => 'impostazioni.php', 'public' => false],
-    'export'       => ['file' => 'export.php',       'public' => false],
+    'login'           => ['file' => 'login.php',           'public' => true],
+    'setup'           => ['file' => 'setup.php',           'public' => true],
+    'logout'          => ['file' => 'logout.php',          'public' => false],
+    'dashboard'       => ['file' => 'dashboard.php',       'public' => false],
+    'condomini'       => ['file' => 'condomini.php',       'public' => false],
+    'condominio'      => ['file' => 'condominio.php',      'public' => false],
+    'condominio_form' => ['file' => 'condominio_form.php', 'public' => false],
+    'unita_form'      => ['file' => 'unita_form.php',      'public' => false],
+    'millesimi'       => ['file' => 'millesimi.php',       'public' => false],
+    'impostazioni'    => ['file' => 'impostazioni.php',    'public' => false],
+    'export'          => ['file' => 'export.php',          'public' => false],
 ];
 
 $page = query('p');

@@ -88,6 +88,9 @@ final class Store
         $lock = self::lock($name, LOCK_EX);
         try {
             $path = self::path($name);
+            if (is_file($path)) {
+                self::backup($name, $path); // ultima copia, per poter recuperare
+            }
             if (is_file($path) && !unlink($path)) {
                 throw new RuntimeException("Impossibile eliminare $name");
             }
