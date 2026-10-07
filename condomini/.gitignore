@@ -1,0 +1,5 @@
+# Dati e allegati reali: mai nel repository
+/data/*
+!/data/.htaccess
+/uploads/*
+!/uploads/.htaccess
