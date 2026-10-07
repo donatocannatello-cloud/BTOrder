@@ -120,6 +120,30 @@ insieme ai rispettivi `.htaccess` se il client FTP non li avesse caricati.
    commento alle tre righe `RewriteEngine/RewriteCond/RewriteRule` nel `.htaccess`
    principale per forzare HTTPS.
 
+## Provare l'app senza Aruba
+
+**Dati dimostrativi.** `php strumenti/demo.php` crea due condomini di prova (nomi inventati) con spese,
+rate, incassi e affitti, e imposta la password `demo-condomini` se non ne esiste una. Con `--force`
+sostituisce i condomini già presenti. Lo script funziona solo da riga di comando ed è escluso dalla
+pubblicazione automatica: non usarlo sul server vero.
+
+**Sul tuo computer** (serve PHP 8):
+```
+cd condomini
+php strumenti/demo.php
+php -S 127.0.0.1:8000
+```
+poi apri http://127.0.0.1:8000 e accedi con `demo-condomini`. Su Windows, se non hai PHP, puoi
+installare [XAMPP](https://www.apachefriends.org/it/) e copiare la cartella `condomini` in
+`C:\xampp\htdocs\`, poi aprire http://localhost/condomini (per i dati di prova:
+`C:\xampp\php\php.exe strumenti\demo.php` dalla cartella `condomini`).
+
+**Nel browser con GitHub Codespaces** (nessuna installazione): sulla pagina del repository
+*Code → Codespaces → … → New with options*, scegli il branch e la configurazione
+**"Gestione Condomini (PHP)"**, poi *Create codespace*. Dopo l'avvio si apre l'app con i dati di
+prova (password `demo-condomini`). Il piano gratuito di GitHub include alcune ore al mese; ricordati
+di fermare il codespace quando hai finito.
+
 ## Pubblicazione automatica da GitHub (alternativa all'FTP manuale)
 
 Il file `.github/workflows/deploy-aruba.yml` (nella radice del repository) carica la cartella

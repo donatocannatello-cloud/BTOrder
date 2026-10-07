@@ -1,0 +1,14 @@
+{
+  // Ambiente di prova per "Gestione Condomini" su GitHub Codespaces:
+  // Code -> Codespaces -> "..." -> New with options -> configurazione "Gestione Condomini (PHP)".
+  "name": "Gestione Condomini (PHP)",
+  "image": "mcr.microsoft.com/devcontainers/php:8.2",
+  // Dati di prova e password "demo-condomini" (solo se l'archivio è vuoto).
+  "postCreateCommand": "php condomini/strumenti/demo.php || true",
+  // Avvia l'app; la porta 8000 si apre nell'anteprima del browser.
+  "postAttachCommand": "php -S 0.0.0.0:8000 -t condomini",
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": { "label": "Gestione Condomini", "onAutoForward": "openPreview" }
+  }
+}
