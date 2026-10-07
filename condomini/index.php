@@ -16,6 +16,12 @@ $routes = [
     'condominio_form' => ['file' => 'condominio_form.php', 'public' => false],
     'unita_form'      => ['file' => 'unita_form.php',      'public' => false],
     'millesimi'       => ['file' => 'millesimi.php',       'public' => false],
+    'categorie'       => ['file' => 'categorie.php',       'public' => false],
+    'uscite'          => ['file' => 'uscite.php',          'public' => false],
+    'uscita_form'     => ['file' => 'uscita_form.php',     'public' => false],
+    'allegato'        => ['file' => 'allegato.php',        'public' => false],
+    'versamenti'      => ['file' => 'versamenti.php',      'public' => false],
+    'situazione'      => ['file' => 'situazione.php',      'public' => false],
     'impostazioni'    => ['file' => 'impostazioni.php',    'public' => false],
     'export'          => ['file' => 'export.php',          'public' => false],
 ];
@@ -46,7 +52,12 @@ if (!$route['public'] && !auth_is_logged_in()) {
     redirect('login');
 }
 
-if (is_post() && !csrf_verify($_POST['_csrf'] ?? null)) {
+if (is_post() && !$_POST && (int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+    http_response_code(413);
+    $errorTitle = 'File troppo grande';
+    $errorMessage = 'I dati inviati superano il limite del server (' . format_bytes(upload_limit_bytes()) . '). Torna indietro e allega file più piccoli.';
+    $route = ['file' => 'errore.php', 'public' => true];
+} elseif (is_post() && !csrf_verify($_POST['_csrf'] ?? null)) {
     http_response_code(400);
     $errorTitle = 'Richiesta non valida';
     $errorMessage = 'Il modulo è scaduto o non valido (token di sicurezza). Torna indietro, ricarica la pagina e riprova.';

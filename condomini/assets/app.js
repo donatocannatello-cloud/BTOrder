@@ -48,3 +48,20 @@ document.addEventListener('click', function (ev) {
         });
     });
 })();
+
+// Modulo spesa: scegliendo la tipologia si propongono tabella e % inquilino.
+(function () {
+    var cat = document.querySelector('select[data-categoria]');
+    if (!cat) {
+        return;
+    }
+    var tab = document.querySelector('select[data-tabella-select]');
+    var quota = document.querySelector('input[data-quota-input]');
+    cat.addEventListener('change', function () {
+        var opt = cat.options[cat.selectedIndex];
+        if (opt && opt.getAttribute('data-tabella')) {
+            tab.value = opt.getAttribute('data-tabella');
+            quota.value = opt.getAttribute('data-quota');
+        }
+    });
+})();

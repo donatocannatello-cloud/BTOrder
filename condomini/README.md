@@ -4,8 +4,8 @@ Applicazione web personale per gestire spese e incassi di più condomini.
 PHP 8 puro (nessun framework, nessun database SQL), pensata per l'hosting
 condiviso Aruba (Apache + PHP). Un solo utente, protetto da password.
 
-> Stato: **Fase 2** — fase 1 (struttura, archivio JSON, login, backup, ZIP) + condomini,
-> unità e tabelle millesimali. Prossime fasi: uscite, incassi e riparto → report ed export.
+> Stato: **Fase 3** — struttura, archivio JSON, login, backup, ZIP; condomini, unità,
+> millesimi; spese con riparto, incassi, morosità, dashboard. Prossima fase: report ed export.
 > Interfaccia pensata per il desktop, utilizzabile anche da telefono.
 
 ## Funzioni
@@ -19,6 +19,27 @@ condiviso Aruba (Apache + PHP). Un solo utente, protetto da password.
   se ne possono aggiungere altre (es. "Scala B", "Ascensore"), rinominarle o eliminarle.
   La griglia unità × tabelle permette di inserire tutti i millesimi in una volta e mostra
   i totali per colonna aggiornati mentre si digita (verde se quadrano a 1000).
+- **Tipologie di spesa**: ognuna indica se la spesa è *ordinaria* o *straordinaria*, la tabella
+  millesimale proposta e la **percentuale a carico dell'inquilino** (il resto al proprietario).
+  Ogni condominio parte con 13 tipologie precompilate secondo la prassi della L. 392/1978
+  (es. pulizia scale, luce, ascensore, riscaldamento 100% inquilino; portierato 90%;
+  amministratore, assicurazione, lavori straordinari 0%). Sono modificabili.
+- **Spese**: data, tipologia, fornitore, descrizione, importo, tabella, % inquilino, scadenza
+  delle quote, stato pagata/da pagare, allegati PDF o foto. Alla registrazione il sistema
+  calcola il **riparto**: quota di ogni unità secondo i millesimi (metodo dei resti maggiori,
+  la somma torna sempre al centesimo) e divisione tra proprietario e inquilino. Senza inquilino
+  paga tutto il proprietario. Il riparto resta "fotografato" sulla spesa: cambiare millesimi o
+  inquilini non altera le spese passate, salvo "Ricalcola riparto".
+- **Incassi**: versamenti di proprietari e inquilini (data, importo, metodo, note).
+- **Situazione e morosità**: per ogni proprietario/inquilino addebitato (ordinarie e
+  straordinarie), versato, saldo e quota **scaduta**. I versamenti coprono prima le quote con
+  scadenza più vecchia; la scadenza di una spesa è di default 30 giorni dalla sua data.
+- **Dashboard**: saldo di cassa per condominio (saldo iniziale + incassi − spese pagate),
+  spese da pagare, quote scadute con elenco dei morosi.
+- **Allegati**: salvati in `uploads/<condominio>/`, accettati solo se il contenuto è davvero
+  PDF o immagine, serviti solo dopo il login. Il limite di dimensione dipende anche da PHP
+  (`upload_max_filesize`, visibile in *Impostazioni → Verifica installazione*).
+- Le date si inseriscono come `gg/mm/aaaa` (anche `gg-mm-aaaa` o `gg.mm.aaaa`).
 
 ## Struttura
 

@@ -40,6 +40,8 @@ $checks = [
     ['Protezione uploads/.htaccess presente', is_file(UPLOAD_DIR . '/.htaccess')],
     ['Estensione zip (per "Esporta tutto")', class_exists('ZipArchive')],
     ['Estensione fileinfo (per gli allegati)', function_exists('finfo_open')],
+    ['Estensione mbstring', function_exists('mb_strlen')],
+    ['Limite upload di PHP: ' . format_bytes(upload_limit_bytes()), upload_limit_bytes() >= 2 * 1048576],
     ['Connessione HTTPS', is_https()],
 ];
 $backupCount = count(glob(BACKUP_DIR . '/*.json') ?: []);

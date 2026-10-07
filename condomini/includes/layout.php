@@ -12,7 +12,7 @@ $nav = [
     'condomini' => 'Condomini',
     'impostazioni' => 'Impostazioni',
 ];
-$navActive = in_array($page, ['condominio', 'condominio_form', 'unita_form', 'millesimi'], true) ? 'condomini' : $page;
+$navActive = in_array($page, ['condominio', 'condominio_form', 'unita_form', 'millesimi', 'categorie', 'uscite', 'uscita_form', 'versamenti', 'situazione'], true) ? 'condomini' : $page;
 $flashes = take_flashes();
 ?>
 <!doctype html>

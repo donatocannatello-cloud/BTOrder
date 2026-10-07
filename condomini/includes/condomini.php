@@ -13,8 +13,17 @@ defined('APP') || exit;
  *               proprietario: {nome, email, telefono},
  *               inquilino:    {nome, email, telefono},
  *               millesimi: { <tabella_id>: float }, note } ],
- *   uscite: [...], rate: [...],                     (fase 3)
+ *   categorie:  [ {id, nome, tipo ('ordinaria'|'straordinaria'), tabella_id, quota_inquilino (0-100)} ],
+ *   uscite:     [ {id, data, categoria_id, tipo, fornitore, descrizione, importo (centesimi),
+ *                  tabella_id, quota_inquilino, scadenza, pagata, data_pagamento,
+ *                  allegati: [ {id, nome, mime, size, file} ],
+ *                  riparto: [ {unita_id, millesimi, quota, prop, inq, prop_nome, inq_nome} ]} ],
+ *   versamenti: [ {id, unita_id, soggetto ('proprietario'|'inquilino'), data, importo, metodo, note} ],
  *   created_at, updated_at
+ *
+ * Il riparto di ogni spesa è salvato insieme alla spesa ("fotografia" al momento
+ * della registrazione): se in seguito cambiano millesimi o inquilini, le spese
+ * già registrate non cambiano finché non si preme "Ricalcola riparto".
  * }
  */
 
@@ -41,7 +50,7 @@ function condominio_normalize(array $c): array
     $c += [
         'nome' => '', 'indirizzo' => '', 'codice_fiscale' => '', 'ruolo' => 'amministratore',
         'saldo_iniziale' => 0, 'data_saldo_iniziale' => '', 'note' => '',
-        'tabelle' => [], 'unita' => [], 'uscite' => [], 'rate' => [],
+        'tabelle' => [], 'unita' => [], 'categorie' => [], 'uscite' => [], 'versamenti' => [],
         'created_at' => 0, 'updated_at' => 0,
     ];
     foreach ($c['unita'] as &$u) {
@@ -61,7 +70,7 @@ function condomini_all(): array
     foreach (Store::listNames('condominio_') as $name) {
         $c = Store::read($name);
         if ($c !== null && is_id($c['id'] ?? null)) {
-            $list[] = condominio_normalize($c);
+            $list[] = condominio_normalize(condominio_migrate($c));
         }
     }
     usort($list, function ($a, $b) {
@@ -76,7 +85,22 @@ function condominio_get(string $id): ?array
         return null;
     }
     $c = Store::read(condominio_doc($id));
-    return $c === null ? null : condominio_normalize($c);
+    return $c === null ? null : condominio_normalize(condominio_migrate($c));
+}
+
+/** Aggiorna i file creati con versioni precedenti (es. aggiunge le tipologie di spesa). */
+function condominio_migrate(array $c): array
+{
+    if (array_key_exists('categorie', $c)) {
+        return $c;
+    }
+    return condominio_update($c['id'], function (array $cur) {
+        if (!$cur['categorie']) {
+            $cur['categorie'] = categorie_predefinite($cur['tabelle']);
+        }
+        unset($cur['rate']);
+        return $cur;
+    });
 }
 
 /** Come condominio_get(), ma se non esiste torna all'elenco con un messaggio. */
@@ -98,7 +122,13 @@ function condominio_create(array $fields): string
     foreach (TABELLE_PREDEFINITE as $nome) {
         $tabelle[] = ['id' => Store::newId(), 'nome' => $nome];
     }
-    $c = condominio_normalize(['id' => $id, 'tabelle' => $tabelle, 'created_at' => $now, 'updated_at' => $now] + $fields);
+    $c = condominio_normalize([
+        'id' => $id,
+        'tabelle' => $tabelle,
+        'categorie' => categorie_predefinite($tabelle),
+        'created_at' => $now,
+        'updated_at' => $now,
+    ] + $fields);
     Store::write(condominio_doc($id), $c);
     return $id;
 }
@@ -202,9 +232,16 @@ function unita_occupante(array $u): string
 /** Motivo per cui l'unità non si può eliminare, o null. */
 function unita_in_uso(array $c, string $uid): ?string
 {
-    foreach ($c['rate'] as $r) {
-        if (($r['unita_id'] ?? '') === $uid) {
-            return "ci sono rate registrate per questa unità";
+    foreach ($c['versamenti'] as $v) {
+        if (($v['unita_id'] ?? '') === $uid) {
+            return 'ci sono versamenti registrati per questa unità';
+        }
+    }
+    foreach ($c['uscite'] as $s) {
+        foreach ($s['riparto'] ?? [] as $r) {
+            if ($r['unita_id'] === $uid) {
+                return 'compare nel riparto di spese registrate';
+            }
         }
     }
     return null;
@@ -300,6 +337,11 @@ function tabella_in_uso(array $c, string $tid): ?string
             return 'è usata da almeno una spesa';
         }
     }
+    foreach ($c['categorie'] as $k) {
+        if ($k['tabella_id'] === $tid) {
+            return 'è la tabella predefinita della tipologia "' . $k['nome'] . '"';
+        }
+    }
     return null;
 }
 
@@ -323,8 +365,12 @@ function millesimi_input($v): string
 function condominio_header(array $c, string $active): string
 {
     $tabs = [
+        'uscite' => 'Spese',
+        'versamenti' => 'Incassi',
+        'situazione' => 'Situazione e morosità',
         'condominio' => 'Unità',
-        'millesimi' => 'Tabelle millesimali',
+        'millesimi' => 'Millesimi',
+        'categorie' => 'Tipologie di spesa',
         'condominio_form' => 'Anagrafica',
     ];
     $html = '<div class="page-head"><div>'

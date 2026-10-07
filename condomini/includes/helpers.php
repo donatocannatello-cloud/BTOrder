@@ -225,3 +225,9 @@ function errors_box(array $errors): string
     }
     return $html . '</ul></div>';
 }
+
+/** plural(1, 'fattura', 'fatture') -> "1 fattura" */
+function plural(int $n, string $one, string $many): string
+{
+    return $n . ' ' . ($n === 1 ? $one : $many);
+}

@@ -32,14 +32,14 @@ $title = 'Condomini';
             <tbody>
             <?php foreach ($condomini as $c): ?>
                 <tr>
-                    <td><a href="<?= e(url('condominio', ['id' => $c['id']])) ?>"><strong><?= e($c['nome']) ?></strong></a></td>
+                    <td><a href="<?= e(url('uscite', ['id' => $c['id']])) ?>"><strong><?= e($c['nome']) ?></strong></a></td>
                     <td><?= e($c['indirizzo']) ?></td>
                     <td><?= e($c['codice_fiscale']) ?></td>
                     <td><?= e(RUOLI[$c['ruolo']] ?? $c['ruolo']) ?></td>
                     <td class="num"><?= e(count($c['unita'])) ?></td>
                     <td class="num"><?= e(count($c['tabelle'])) ?></td>
                     <td class="actions-cell">
-                        <a class="btn btn-small" href="<?= e(url('condominio', ['id' => $c['id']])) ?>">Apri</a>
+                        <a class="btn btn-small" href="<?= e(url('uscite', ['id' => $c['id']])) ?>">Apri</a>
                         <a class="btn btn-small" href="<?= e(url('condominio_form', ['id' => $c['id']])) ?>">Modifica</a>
                     </td>
                 </tr>

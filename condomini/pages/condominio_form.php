@@ -74,8 +74,8 @@ $title = $c ? 'Anagrafica · ' . $c['nome'] : 'Nuovo condominio';
                    value="<?= e($form['saldo_iniziale_raw'] ?? money_input((int) $form['saldo_iniziale'])) ?>">
         </label>
         <label>Alla data
-            <input type="date" name="data_saldo_iniziale"
-                   value="<?= e($form['data_saldo_iniziale_raw'] ?? $form['data_saldo_iniziale']) ?>">
+            <input type="text" inputmode="numeric" placeholder="gg/mm/aaaa" maxlength="10" class="input-date" name="data_saldo_iniziale"
+                   value="<?= e($form['data_saldo_iniziale_raw'] ?? date_it($form['data_saldo_iniziale'])) ?>">
         </label>
     </div>
     <label>Note
@@ -93,7 +93,7 @@ $title = $c ? 'Anagrafica · ' . $c['nome'] : 'Nuovo condominio';
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="delete">
         <h2>Elimina condominio</h2>
-        <p class="muted">Elimina unità, tabelle, spese e rate di questo condominio. Una copia resta nei backup automatici.</p>
+        <p class="muted">Elimina unità, tabelle, spese e incassi di questo condominio. Una copia dei dati resta nei backup automatici e gli allegati restano nella cartella uploads, così si può recuperare tutto.</p>
         <div class="form-row">
             <label>Per confermare scrivi il nome: <strong><?= e($c['nome']) ?></strong>
                 <input type="text" name="conferma" autocomplete="off">
