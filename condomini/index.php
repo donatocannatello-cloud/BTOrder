@@ -25,6 +25,7 @@ $routes = [
     'situazione'      => ['file' => 'situazione.php',      'public' => false],
     'entrate'         => ['file' => 'entrate.php',         'public' => false],
     'entrata_form'    => ['file' => 'entrata_form.php',    'public' => false],
+    'report'          => ['file' => 'report.php',          'public' => false],
     'impostazioni'    => ['file' => 'impostazioni.php',    'public' => false],
     'export'          => ['file' => 'export.php',          'public' => false],
 ];

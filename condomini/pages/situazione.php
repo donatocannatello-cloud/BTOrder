@@ -44,6 +44,8 @@ $title = 'Situazione · ' . $c['nome'];
 <div class="toolbar">
     <h2>Posizioni</h2>
     <div class="actions">
+        <a class="btn btn-small" href="<?= e(url('report', ['id' => $c['id'], 'tipo' => 'situazione', 'formato' => 'csv'])) ?>">⬇ CSV</a>
+        <a class="btn btn-small" href="<?= e(url('report', ['id' => $c['id'], 'tipo' => 'situazione', 'formato' => 'stampa'])) ?>" target="_blank" rel="noopener">🖨 Stampa</a>
         <?php if ($soloMorosi): ?>
             <a class="btn btn-small" href="<?= e(url('situazione', ['id' => $c['id']])) ?>">Mostra tutti</a>
         <?php else: ?>

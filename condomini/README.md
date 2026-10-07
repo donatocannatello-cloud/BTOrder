@@ -4,10 +4,7 @@ Applicazione web personale per gestire spese e incassi di più condomini.
 PHP 8 puro (nessun framework, nessun database SQL), pensata per l'hosting
 condiviso Aruba (Apache + PHP). Un solo utente, protetto da password.
 
-> Stato: **Fase 3** — struttura, archivio JSON, login, backup, ZIP; condomini, unità,
-> millesimi; spese con riparto, rate trimestrali, incassi, morosità, affitti e altre entrate
-> ricorrenti, dashboard. Prossima fase: report ed export.
-> Interfaccia pensata per il desktop, utilizzabile anche da telefono.
+Interfaccia pensata per il desktop, utilizzabile anche da telefono.
 
 ## Funzioni
 
@@ -50,6 +47,17 @@ condiviso Aruba (Apache + PHP). Un solo utente, protetto da password.
 - **Allegati**: salvati in `uploads/<condominio>/`, accettati solo se il contenuto è davvero
   PDF o immagine, serviti solo dopo il login. Il limite di dimensione dipende anche da PHP
   (`upload_max_filesize`, visibile in *Impostazioni → Verifica installazione*).
+- **Report** (scheda *Report* di ogni condominio), per anno o per tutti gli anni:
+  - *Estratto conto* per condòmino o per intera unità: addebiti e versamenti in ordine di data
+    con saldo progressivo e saldo iniziale dell'anno; "Tutti" produce un estratto per pagina.
+  - *Rendiconto annuale*: spese ordinarie e straordinarie per tipologia (totale, pagato, da
+    pagare), movimenti di cassa (saldo al 01/01, entrate, spese pagate, saldo al 31/12) e
+    riparto consuntivo per condòmino.
+  - *Affitti e altre entrate*: previsto, incassato e scaduto per entrata, con il dettaglio scadenze.
+  - *Elenco spese*, *Elenco versamenti*, *Situazione e morosità*.
+  - Ogni report si esporta in **CSV** (separatore `;`, virgola decimale, si apre direttamente
+    in Excel italiano) e ha una **versione stampabile**: dal browser scegli *Stampa → Salva come
+    PDF*. I pulsanti CSV/Stampa sono anche negli elenchi di spese, incassi, situazione ed entrate.
 - Le date si inseriscono come `gg/mm/aaaa` (anche `gg-mm-aaaa` o `gg.mm.aaaa`).
 
 ## Struttura

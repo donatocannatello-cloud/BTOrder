@@ -162,6 +162,8 @@ $title = 'Affitti e altre entrate · ' . $c['nome'];
                 </select>
             </label>
             <button type="submit" class="btn btn-small">Filtra</button>
+            <a class="btn btn-small" href="<?= e(url('report', ['id' => $c['id'], 'tipo' => 'entrate', 'anno' => $anno, 'formato' => 'csv'])) ?>">⬇ CSV</a>
+            <a class="btn btn-small" href="<?= e(url('report', ['id' => $c['id'], 'tipo' => 'entrate', 'anno' => $anno, 'formato' => 'stampa'])) ?>" target="_blank" rel="noopener">🖨 Stampa</a>
         </form>
     </div>
 

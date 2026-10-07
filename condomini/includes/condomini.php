@@ -397,6 +397,7 @@ function condominio_header(array $c, string $active): string
         'versamenti' => 'Incassi',
         'situazione' => 'Situazione e morosità',
         'entrate' => 'Affitti e altre entrate',
+        'report' => 'Report',
         'condominio' => 'Unità',
         'millesimi' => 'Millesimi',
         'categorie' => 'Tipologie di spesa',

@@ -24,7 +24,7 @@ if (is_post() && post('action') === 'paga') {
         condominio_update($c['id'], function (array $cur) use ($uid, $sog, $rata, $t, $metodo, $data) {
             $cur['versamenti'][] = [
                 'id' => Store::newId(), 'unita_id' => $uid, 'soggetto' => $sog, 'data' => $data,
-                'importo' => $rata['residuo'], 'metodo' => $metodo, 'note' => 'Rata ' . trimestre_label($t), 'rif' => $t,
+                'importo' => $rata['residuo'], 'metodo' => $metodo, 'note' => '', 'rif' => $t,
             ];
             return $cur;
         });

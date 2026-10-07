@@ -9,6 +9,7 @@ require __DIR__ . '/csrf.php';
 require __DIR__ . '/auth.php';
 require __DIR__ . '/condomini.php';
 require __DIR__ . '/contabilita.php';
+require __DIR__ . '/report.php';
 
 date_default_timezone_set('Europe/Rome');
 error_reporting(E_ALL);

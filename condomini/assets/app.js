@@ -65,3 +65,10 @@ document.addEventListener('click', function (ev) {
         }
     });
 })();
+
+// Select che aggiornano subito la pagina (es. tipo di report).
+document.addEventListener('change', function (ev) {
+    if (ev.target.matches('select[data-autosubmit]')) {
+        ev.target.form.submit();
+    }
+});

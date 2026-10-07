@@ -87,9 +87,13 @@ $title = 'Spese · ' . $c['nome'];
         </label>
         <button type="submit" class="btn btn-small">Filtra</button>
     </form>
-    <?php if ($canAdd): ?>
-        <a class="btn btn-primary" href="<?= e(url('uscita_form', ['id' => $c['id']])) ?>">+ Nuova spesa</a>
-    <?php endif; ?>
+    <div class="actions">
+        <a class="btn btn-small" href="<?= e(url('report', ['id' => $c['id'], 'tipo' => 'uscite', 'anno' => $f['anno'] ?: 'tutti', 'formato' => 'csv'])) ?>">⬇ CSV</a>
+        <a class="btn btn-small" href="<?= e(url('report', ['id' => $c['id'], 'tipo' => 'uscite', 'anno' => $f['anno'] ?: 'tutti', 'formato' => 'stampa'])) ?>" target="_blank" rel="noopener">🖨 Stampa</a>
+        <?php if ($canAdd): ?>
+            <a class="btn btn-primary" href="<?= e(url('uscita_form', ['id' => $c['id']])) ?>">+ Nuova spesa</a>
+        <?php endif; ?>
+    </div>
 </div>
 
 <?php if (!$canAdd): ?>

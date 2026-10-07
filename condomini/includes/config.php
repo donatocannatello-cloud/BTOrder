@@ -12,7 +12,7 @@ defined('APP') || exit;
 const SETUP_KEY = 'CAMBIAMI';
 
 const APP_NAME = 'Gestione Condomini';
-const APP_VERSION = '0.1.0';
+const APP_VERSION = '1.0.0';
 
 const DEFAULT_SESSION_TIMEOUT = 30;   // minuti di inattività prima del logout
 const MIN_PASSWORD_LENGTH = 10;
