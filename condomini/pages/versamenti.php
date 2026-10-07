@@ -62,6 +62,7 @@ $form = [
     'importo' => $raw['importo'] ?? ($edit ? money_input($edit['importo']) : (isset($sit[query('chi')]) && $sit[query('chi')]['saldo'] > 0 ? money_input($sit[query('chi')]['saldo']) : '')),
     'metodo' => $raw['metodo'] ?? ($edit['metodo'] ?? 'bonifico'),
     'note' => $raw['note'] ?? ($edit['note'] ?? ''),
+    'rif' => $raw['rif'] ?? ($edit['rif'] ?? query('rif')),
 ];
 
 $anni = anni_movimenti($c);
@@ -106,8 +107,16 @@ $title = 'Incassi · ' . $c['nome'];
                     <?php endforeach; ?>
                 </select>
             </label>
+            <label>Rata di riferimento
+                <select name="rif">
+                    <option value="">Nessuna (copre le quote più vecchie)</option>
+                    <?php foreach (trimestri_selezionabili() as $t): ?>
+                        <option value="<?= e($t) ?>"<?= selected($form['rif'] === $t) ?>><?= e(trimestre_label($t)) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
             <label>Note
-                <input type="text" name="note" value="<?= e($form['note']) ?>" maxlength="200" placeholder="es. CRO, rif. rata">
+                <input type="text" name="note" value="<?= e($form['note']) ?>" maxlength="200" placeholder="es. CRO">
             </label>
         </div>
         <div class="actions">
@@ -140,7 +149,7 @@ $title = 'Incassi · ' . $c['nome'];
     <div class="card table-wrap">
         <table class="table-compact">
             <thead>
-            <tr><th>Data</th><th>Unità</th><th>Versato da</th><th>Metodo</th><th>Note</th><th class="num">Importo</th><th></th></tr>
+            <tr><th>Data</th><th>Unità</th><th>Versato da</th><th>Metodo</th><th>Rata</th><th>Note</th><th class="num">Importo</th><th></th></tr>
             </thead>
             <tbody>
             <?php $tot = 0;
@@ -153,6 +162,7 @@ $title = 'Incassi · ' . $c['nome'];
                     <td><?= e($u ? unita_label($u) : '—') ?></td>
                     <td><?= e($sit[$key]['nome'] ?? '') ?> <span class="muted">(<?= e(strtolower(SOGGETTI[$v['soggetto']] ?? '')) ?>)</span></td>
                     <td><?= e(METODI_PAGAMENTO[$v['metodo']] ?? $v['metodo']) ?></td>
+                    <td class="nowrap"><?= $v['rif'] !== '' ? e(trimestre_label($v['rif'])) : '<span class="muted">—</span>' ?></td>
                     <td class="small"><?= e($v['note']) ?></td>
                     <td class="num"><strong><?= e(money($v['importo'])) ?></strong></td>
                     <td class="actions-cell">
@@ -169,7 +179,7 @@ $title = 'Incassi · ' . $c['nome'];
             <?php endforeach; ?>
             </tbody>
             <tfoot>
-            <tr><th colspan="5">Totale incassato (<?= e(plural(count($lista), 'versamento', 'versamenti')) ?>)</th><th class="num"><?= e(money($tot)) ?></th><th></th></tr>
+            <tr><th colspan="6">Totale incassato (<?= e(plural(count($lista), 'versamento', 'versamenti')) ?>)</th><th class="num"><?= e(money($tot)) ?></th><th></th></tr>
             </tfoot>
         </table>
     </div>

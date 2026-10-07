@@ -197,7 +197,7 @@ ul.plain { margin: 0; padding-left: 1.1rem; }
 .filters { display: flex; flex-wrap: wrap; gap: .5rem .75rem; align-items: flex-end; margin: 0; }
 .filters label { font-size: .85rem; font-weight: 600; color: var(--muted); margin: 0; }
 .filters select { min-height: 36px; padding: .3rem .5rem; margin-top: .15rem; width: auto; min-width: 9rem; }
-.form-row-wide { grid-template-columns: 2fr 1fr 1fr 1fr 2fr; }
+.form-row-wide { grid-template-columns: 2fr 1fr 1fr 1fr 1.3fr 1.5fr; }
 @media (max-width: 900px) { .form-row-wide { grid-template-columns: 1fr 1fr; } .span-2 { grid-column: span 2; } }
 .table-form input[type=text], .table-form select, .table-form input[type=number] { margin: 0; min-height: 34px; padding: .3rem .5rem; }
 .table-form td { vertical-align: middle; }
@@ -207,6 +207,14 @@ tr.row-error td { background: var(--error-bg); }
 .dash-table td, .dash-table th { padding: .5rem .6rem; }
 
 .input-date { font-variant-numeric: tabular-nums; }
+
+.rate-table td.rata form { margin-top: .3rem; }
+.rate-table td.rata-scaduta { background: var(--error-bg); }
+.rate-table td.rata-pagata { background: var(--success-bg); }
+tr.row-paid td { color: var(--muted); }
+
+.inline-form input.input-small, .inline-form select { width: 7rem; min-height: 32px; padding: .25rem .4rem; margin: 0; }
+.inline-form { flex-wrap: wrap; }
 
 /* Stampa (report in PDF tramite "Salva come PDF" del browser) */
 @media print {

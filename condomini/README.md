@@ -5,7 +5,8 @@ PHP 8 puro (nessun framework, nessun database SQL), pensata per l'hosting
 condiviso Aruba (Apache + PHP). Un solo utente, protetto da password.
 
 > Stato: **Fase 3** — struttura, archivio JSON, login, backup, ZIP; condomini, unità,
-> millesimi; spese con riparto, incassi, morosità, dashboard. Prossima fase: report ed export.
+> millesimi; spese con riparto, rate trimestrali, incassi, morosità, affitti e altre entrate
+> ricorrenti, dashboard. Prossima fase: report ed export.
 > Interfaccia pensata per il desktop, utilizzabile anche da telefono.
 
 ## Funzioni
@@ -30,12 +31,22 @@ condiviso Aruba (Apache + PHP). Un solo utente, protetto da password.
   la somma torna sempre al centesimo) e divisione tra proprietario e inquilino. Senza inquilino
   paga tutto il proprietario. Il riparto resta "fotografato" sulla spesa: cambiare millesimi o
   inquilini non altera le spese passate, salvo "Ricalcola riparto".
-- **Incassi**: versamenti di proprietari e inquilini (data, importo, metodo, note).
+- **Scadenze trimestrali**: le quote di ogni spesa scadono a fine trimestre (31/03, 30/06,
+  30/09, 31/12) del trimestre della spesa; si può indicare una scadenza diversa sulla singola spesa.
+- **Rate trimestrali**: per ogni condòmino e trimestre importo dovuto e stato (pagata, parziale,
+  da pagare, scaduta). "Segna pagata" registra un versamento del residuo destinato a quella rata.
+- **Incassi**: versamenti di proprietari e inquilini (data, importo, metodo, rata di riferimento,
+  note). Un versamento con rata di riferimento copre quel trimestre; senza riferimento copre prima
+  le quote più vecchie.
+- **Affitti e altre entrate**: entrate a cadenza regolare (mensile, bimestrale, trimestrale,
+  semestrale, annuale) o una tantum, con debitore, importo, prima e ultima scadenza. Lo
+  scadenziario mostra ogni scadenza come incassata, da incassare o scaduta; si segna
+  incassata (con data, importo e metodo) o di nuovo non incassata. Le entrate personali possono
+  essere escluse dalla cassa del condominio.
 - **Situazione e morosità**: per ogni proprietario/inquilino addebitato (ordinarie e
-  straordinarie), versato, saldo e quota **scaduta**. I versamenti coprono prima le quote con
-  scadenza più vecchia; la scadenza di una spesa è di default 30 giorni dalla sua data.
-- **Dashboard**: saldo di cassa per condominio (saldo iniziale + incassi − spese pagate),
-  spese da pagare, quote scadute con elenco dei morosi.
+  straordinarie), versato, saldo e quota **scaduta**.
+- **Dashboard**: saldo di cassa per condominio (saldo iniziale + versamenti + entrate incassate
+  − spese pagate), spese da pagare, quote scadute con i morosi, affitti/entrate scaduti.
 - **Allegati**: salvati in `uploads/<condominio>/`, accettati solo se il contenuto è davvero
   PDF o immagine, serviti solo dopo il login. Il limite di dimensione dipende anche da PHP
   (`upload_max_filesize`, visibile in *Impostazioni → Verifica installazione*).

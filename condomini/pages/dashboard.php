@@ -5,7 +5,8 @@ defined('APP') || exit;
 // Riepilogo di tutti i condomini: cassa, spese da pagare, morosità.
 $condomini = condomini_all();
 $rows = [];
-$tot = ['cassa' => 0, 'da_pagare' => 0, 'scaduto' => 0];
+$tot = ['cassa' => 0, 'da_pagare' => 0, 'scaduto' => 0, 'entrate' => 0];
+$entrate = [];
 $spese = [];
 $morosi = [];
 foreach ($condomini as $c) {
@@ -14,6 +15,10 @@ foreach ($condomini as $c) {
     $tot['cassa'] += $r['cassa'];
     $tot['da_pagare'] += $r['da_pagare_tot'];
     $tot['scaduto'] += $r['scaduto_tot'];
+    $tot['entrate'] += $r['entrate_scadute_tot'];
+    foreach ($r['entrate_scadute'] as $x) {
+        $entrate[] = ['c' => $c] + $x;
+    }
     foreach ($r['da_pagare'] as $s) {
         $spese[] = ['c' => $c, 's' => $s];
     }
@@ -43,7 +48,7 @@ $title = 'Dashboard';
     <?php return; ?>
 <?php endif; ?>
 
-<div class="grid grid-3">
+<div class="grid grid-4">
     <div class="card stat">
         <span class="stat-label">Saldo di cassa (tutti i condomini)</span>
         <span class="stat-value <?= $tot['cassa'] < 0 ? 'neg' : '' ?>"><?= e(money($tot['cassa'])) ?></span>
@@ -58,6 +63,11 @@ $title = 'Dashboard';
         <span class="stat-value <?= $tot['scaduto'] > 0 ? 'neg' : 'pos' ?>"><?= e(money($tot['scaduto'])) ?></span>
         <span class="muted"><?= e(plural(count($morosi), 'condòmino moroso', 'condòmini morosi')) ?></span>
     </div>
+    <div class="card stat">
+        <span class="stat-label">Affitti/entrate scaduti</span>
+        <span class="stat-value <?= $tot['entrate'] > 0 ? 'neg' : 'pos' ?>"><?= e(money($tot['entrate'])) ?></span>
+        <span class="muted"><?= e(plural(count($entrate), 'scadenza non incassata', 'scadenze non incassate')) ?></span>
+    </div>
 </div>
 
 <div class="toolbar"><h2>Condomini</h2></div>
@@ -70,6 +80,7 @@ $title = 'Dashboard';
             <th class="num">Saldo di cassa</th>
             <th class="num">Spese da pagare</th>
             <th class="num">Quote scadute</th>
+            <th class="num">Entrate scadute</th>
             <th></th>
         </tr>
         </thead>
@@ -82,9 +93,11 @@ $title = 'Dashboard';
                 <td class="num"><strong class="<?= $r['cassa'] < 0 ? 'neg' : '' ?>"><?= e(money($r['cassa'])) ?></strong></td>
                 <td class="num"><?= $r['da_pagare_tot'] ? e(money($r['da_pagare_tot'])) . '<br><span class="muted">' . e(plural(count($r['da_pagare']), 'fattura', 'fatture')) . '</span>' : '<span class="muted">—</span>' ?></td>
                 <td class="num"><?= $r['scaduto_tot'] ? '<strong class="neg">' . e(money($r['scaduto_tot'])) . '</strong><br><span class="muted">' . e(plural(count($r['morosi']), 'moroso', 'morosi')) . '</span>' : '<span class="muted">—</span>' ?></td>
+                <td class="num"><?= $r['entrate_scadute_tot'] ? '<a class="neg" href="' . e(url('entrate', ['id' => $c['id'], 'stato' => 'scaduta'])) . '"><strong>' . e(money($r['entrate_scadute_tot'])) . '</strong></a>' : '<span class="muted">—</span>' ?></td>
                 <td class="actions-cell">
                     <a class="btn btn-small" href="<?= e(url('uscita_form', ['id' => $c['id']])) ?>">+ Spesa</a>
                     <a class="btn btn-small" href="<?= e(url('versamenti', ['id' => $c['id']])) ?>">+ Incasso</a>
+                    <a class="btn btn-small" href="<?= e(url('rate', ['id' => $c['id']])) ?>">Rate</a>
                     <a class="btn btn-small" href="<?= e(url('situazione', ['id' => $c['id']])) ?>">Situazione</a>
                 </td>
             </tr>
@@ -142,3 +155,26 @@ $title = 'Dashboard';
         <?php endif; ?>
     </section>
 </div>
+
+<?php if ($entrate): ?>
+    <section class="card">
+        <h2>Affitti e altre entrate scadute non incassate</h2>
+        <div class="table-wrap">
+            <table class="table-compact">
+                <thead><tr><th>Scadenza</th><th>Condominio</th><th>Entrata</th><th>Debitore</th><th class="num">Importo</th></tr></thead>
+                <tbody>
+                <?php foreach (array_slice($entrate, 0, 15) as $x): ?>
+                    <tr>
+                        <td class="nowrap"><?= e(date_it($x['data'])) ?></td>
+                        <td><?= e($x['c']['nome']) ?></td>
+                        <td><a href="<?= e(url('entrate', ['id' => $x['c']['id'], 'anno' => substr($x['data'], 0, 4), 'stato' => 'non_incassate'])) ?>"><?= e($x['e']['descrizione']) ?></a></td>
+                        <td><?= e($x['e']['debitore']) ?></td>
+                        <td class="num"><strong class="neg"><?= e(money($x['importo'])) ?></strong></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php if (count($entrate) > 15): ?><p class="muted">e altre <?= e(count($entrate) - 15) ?>…</p><?php endif; ?>
+    </section>
+<?php endif; ?>

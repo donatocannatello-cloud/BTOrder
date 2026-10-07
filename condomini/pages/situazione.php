@@ -113,5 +113,5 @@ $title = 'Situazione · ' . $c['nome'];
             </tfoot>
         </table>
     </div>
-    <p class="muted">I versamenti coprono prima le quote con scadenza più vecchia. Le righe in rosso hanno quote non versate oltre la scadenza.</p>
+    <p class="muted">Le quote scadono a fine trimestre. I versamenti destinati a una rata coprono quel trimestre, gli altri coprono prima le quote più vecchie. Le righe in rosso hanno quote non versate oltre la scadenza.</p>
 <?php endif; ?>

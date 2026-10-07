@@ -197,9 +197,11 @@ $title = ($s ? 'Spesa del ' . date_it($s['data']) : 'Nuova spesa') . ' · ' . $c
             <p class="muted">Tabella e percentuale si compilano dalla tipologia; puoi cambiarle per questa spesa.
                 Senza inquilino, la quota va tutta al proprietario.</p>
             <label>Scadenza versamento quote
-                <input type="text" inputmode="numeric" placeholder="gg/mm/aaaa" maxlength="10" class="input-date" name="scadenza" value="<?= e($val('scadenza', date_it($form['scadenza']))) ?>">
+                <input type="text" inputmode="numeric" placeholder="automatica: fine trimestre" maxlength="10" class="input-date" name="scadenza" value="<?= e($val('scadenza', date_it($form['scadenza']))) ?>">
             </label>
-            <p class="muted">Se vuota: <?= e(GIORNI_SCADENZA_QUOTE) ?> giorni dopo la data della spesa. Oltre questa data le quote non versate risultano morose.</p>
+            <p class="muted">Lascia vuoto per la scadenza trimestrale<?= $s ? ' (' . e(date_it(scadenza_quote($s))) . ')' : '' ?>:
+                le quote scadono alla fine del trimestre della spesa (31/03, 30/06, 30/09, 31/12).
+                Oltre la scadenza le quote non versate risultano morose.</p>
         </section>
 
         <section class="card">

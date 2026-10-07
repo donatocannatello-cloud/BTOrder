@@ -21,7 +21,14 @@ const METODI_PAGAMENTO = [
     'altro' => 'Altro',
 ];
 
-const GIORNI_SCADENZA_QUOTE = 30;   // scadenza predefinita delle quote dopo la data della spesa
+const FREQUENZE = [            // mesi tra una scadenza e la successiva (0 = una sola volta)
+    'mensile' => ['Mensile', 1],
+    'bimestrale' => ['Bimestrale', 2],
+    'trimestrale' => ['Trimestrale', 3],
+    'semestrale' => ['Semestrale', 6],
+    'annuale' => ['Annuale', 12],
+    'una_tantum' => ['Una tantum', 0],
+];
 
 const ALLEGATI_MIME = [
     'application/pdf' => 'pdf',
@@ -239,9 +246,7 @@ function uscita_validate(array $in, array $c): array
     if ($s['quota_inquilino'] < 0 || $s['quota_inquilino'] > 100) {
         $errors[] = 'La quota inquilino deve essere tra 0 e 100%.';
     }
-    if ($s['scadenza'] === '') {
-        $s['scadenza'] = $s['data'] ? date('Y-m-d', strtotime($s['data'] . ' +' . GIORNI_SCADENZA_QUOTE . ' days')) : null;
-    } else {
+    if ($s['scadenza'] !== '') {   // vuota = fine del trimestre della spesa
         $s['scadenza'] = parse_date($s['scadenza']);
         if ($s['scadenza'] === null) {
             $errors[] = 'Scadenza delle quote non valida.';
@@ -313,7 +318,11 @@ function versamento_validate(array $in, array $c): array
         'importo' => parse_money((string) ($in['importo'] ?? '')),
         'metodo' => (string) ($in['metodo'] ?? ''),
         'note' => trim((string) ($in['note'] ?? '')),
+        'rif' => (string) ($in['rif'] ?? ''),
     ];
+    if ($v['rif'] !== '' && !preg_match('/^\d{4}-T[1-4]$/', $v['rif'])) {
+        $errors[] = 'Trimestre di riferimento non valido.';
+    }
     if (unita_find($c, $uid) === null || !isset(SOGGETTI[$sog])) {
         $errors[] = 'Scegli chi ha versato.';
     }
@@ -334,8 +343,11 @@ function versamento_validate(array $in, array $c): array
 
 /**
  * Posizione di ogni proprietario/inquilino: addebiti dalle spese (riparto salvato),
- * versamenti, saldo e quota scaduta. I versamenti coprono gli addebiti dal più
- * vecchio (per scadenza): ciò che resta scoperto oltre la scadenza è morosità.
+ * versamenti, saldo e quota scaduta.
+ *
+ * Copertura degli addebiti: un versamento destinato a un trimestre ("rif") copre
+ * prima le quote di quel trimestre; tutto il resto copre le quote dalla scadenza
+ * più vecchia. Ciò che resta scoperto oltre la scadenza è morosità.
  *
  * @return array<string, array> chiave "unita_id|soggetto"
  */
@@ -352,13 +364,14 @@ function situazione(array $c, ?string $oggi = null): array
                 'unita_id' => $uid, 'soggetto' => $sog, 'unita' => $u,
                 'nome' => $nomeAttuale !== '' ? $nomeAttuale : $nome,
                 'ordinarie' => 0, 'straordinarie' => 0, 'addebitato' => 0, 'versato' => 0,
-                'saldo' => 0, 'scaduto' => 0, 'prima_scadenza' => '', 'addebiti' => [],
+                'saldo' => 0, 'scaduto' => 0, 'prima_scadenza' => '', 'addebiti' => [], 'versamenti' => [],
             ];
         }
         return $key;
     };
 
     foreach ($c['uscite'] as $s) {
+        $scad = scadenza_quote($s);
         foreach ($s['riparto'] ?? [] as $r) {
             foreach (['proprietario' => 'prop', 'inquilino' => 'inq'] as $sog => $f) {
                 if ($r[$f] <= 0) {
@@ -367,13 +380,14 @@ function situazione(array $c, ?string $oggi = null): array
                 $k = $get($r['unita_id'], $sog, $r[$f . '_nome']);
                 $pos[$k][$s['tipo'] === 'straordinaria' ? 'straordinarie' : 'ordinarie'] += $r[$f];
                 $pos[$k]['addebitato'] += $r[$f];
-                $pos[$k]['addebiti'][] = ['scadenza' => $s['scadenza'], 'importo' => $r[$f]];
+                $pos[$k]['addebiti'][] = ['scadenza' => $scad, 'trimestre' => trimestre_di($scad), 'importo' => $r[$f], 'coperto' => 0];
             }
         }
     }
     foreach ($c['versamenti'] as $v) {
         $k = $get($v['unita_id'], $v['soggetto'], '');
         $pos[$k]['versato'] += $v['importo'];
+        $pos[$k]['versamenti'][] = $v;
     }
 
     foreach ($pos as &$p) {
@@ -381,17 +395,33 @@ function situazione(array $c, ?string $oggi = null): array
         usort($p['addebiti'], function ($a, $b) {
             return strcmp($a['scadenza'], $b['scadenza']);
         });
-        $copertura = $p['versato'];
-        foreach ($p['addebiti'] as $a) {
-            $coperto = min($copertura, $a['importo']);
-            $copertura -= $coperto;
-            if ($a['scadenza'] < $oggi && $coperto < $a['importo']) {
-                $p['scaduto'] += $a['importo'] - $coperto;
+        $libero = 0;
+        foreach ($p['versamenti'] as $v) {      // 1) versamenti destinati a un trimestre
+            $resto = $v['importo'];
+            if (($v['rif'] ?? '') !== '') {
+                foreach ($p['addebiti'] as &$a) {
+                    if ($a['trimestre'] === $v['rif'] && $resto > 0) {
+                        $x = min($resto, $a['importo'] - $a['coperto']);
+                        $a['coperto'] += $x;
+                        $resto -= $x;
+                    }
+                }
+                unset($a);
+            }
+            $libero += $resto;
+        }
+        foreach ($p['addebiti'] as &$a) {       // 2) il resto, dalla scadenza più vecchia
+            $x = min($libero, $a['importo'] - $a['coperto']);
+            $a['coperto'] += $x;
+            $libero -= $x;
+            if ($a['scadenza'] < $oggi && $a['coperto'] < $a['importo']) {
+                $p['scaduto'] += $a['importo'] - $a['coperto'];
                 if ($p['prima_scadenza'] === '') {
                     $p['prima_scadenza'] = $a['scadenza'];
                 }
             }
         }
+        unset($a);
     }
     unset($p);
 
@@ -407,7 +437,219 @@ function situazione(array $c, ?string $oggi = null): array
     return $pos;
 }
 
-/** Saldo di cassa: saldo iniziale + versamenti incassati - spese pagate. */
+// ----------------------------------------------------------------------
+// Trimestri e rate trimestrali
+
+/** "2026-05-14" -> "2026-T2" */
+function trimestre_di(string $ymd): string
+{
+    return substr($ymd, 0, 4) . '-T' . (int) ceil((int) substr($ymd, 5, 2) / 3);
+}
+
+/** "2026-T2" -> ["2026-04-01", "2026-06-30"] */
+function trimestre_intervallo(string $t): array
+{
+    $y = (int) substr($t, 0, 4);
+    $q = (int) substr($t, -1);
+    $fine = new DateTime(sprintf('%04d-%02d-01', $y, $q * 3));
+    return [sprintf('%04d-%02d-01', $y, $q * 3 - 2), $fine->format('Y-m-t')];
+}
+
+/** "2026-T2" -> "2° trimestre 2026" */
+function trimestre_label(string $t, bool $breve = false): string
+{
+    $q = (int) substr($t, -1);
+    return $breve ? $q . '° trim.' : $q . '° trimestre ' . substr($t, 0, 4);
+}
+
+/** Scadenza delle quote di una spesa: quella indicata o la fine del trimestre della spesa. */
+function scadenza_quote(array $s): string
+{
+    return ($s['scadenza'] ?? '') !== '' ? $s['scadenza'] : trimestre_intervallo(trimestre_di($s['data']))[1];
+}
+
+/**
+ * Rate trimestrali dell'anno per ogni posizione:
+ * [chiave => [ 'p' => posizione, 'T1'..'T4' => {dovuto, coperto, scadenza, stato} ]]
+ * stato: '' (nulla da pagare), pagata, parziale, da_pagare, scaduta
+ */
+function rate_trimestrali(array $c, string $anno, ?string $oggi = null): array
+{
+    $oggi = $oggi ?? today();
+    $out = [];
+    foreach (situazione($c, $oggi) as $key => $p) {
+        $row = ['p' => $p];
+        $tot = 0;
+        for ($q = 1; $q <= 4; $q++) {
+            $t = $anno . '-T' . $q;
+            $rata = ['trimestre' => $t, 'dovuto' => 0, 'coperto' => 0, 'scadenza' => trimestre_intervallo($t)[1]];
+            foreach ($p['addebiti'] as $a) {
+                if ($a['trimestre'] === $t) {
+                    $rata['dovuto'] += $a['importo'];
+                    $rata['coperto'] += $a['coperto'];
+                    $rata['scadenza'] = min($rata['scadenza'], $a['scadenza']);
+                }
+            }
+            $rata['residuo'] = $rata['dovuto'] - $rata['coperto'];
+            $rata['stato'] = $rata['dovuto'] === 0 ? ''
+                : ($rata['residuo'] <= 0 ? 'pagata'
+                : ($rata['scadenza'] < $oggi ? 'scaduta'
+                : ($rata['coperto'] > 0 ? 'parziale' : 'da_pagare')));
+            $row['T' . $q] = $rata;
+            $tot += $rata['dovuto'];
+        }
+        if ($tot > 0) {
+            $out[$key] = $row;
+        }
+    }
+    return $out;
+}
+
+/** Trimestri selezionabili come riferimento di un versamento (anno scorso, corrente, prossimo). */
+function trimestri_selezionabili(): array
+{
+    $out = [];
+    $y = (int) date('Y');
+    for ($a = $y - 1; $a <= $y + 1; $a++) {
+        for ($q = 1; $q <= 4; $q++) {
+            $out[] = $a . '-T' . $q;
+        }
+    }
+    return $out;
+}
+
+// ----------------------------------------------------------------------
+// Affitti e altre entrate ricorrenti
+
+function entrata_find(array $c, string $id): ?array
+{
+    foreach ($c['entrate'] as $e) {
+        if ($e['id'] === $id) {
+            return $e;
+        }
+    }
+    return null;
+}
+
+/** Aggiunge $n mesi mantenendo il giorno (ridotto all'ultimo del mese se non esiste). */
+function add_months(string $ymd, int $n, int $giorno): string
+{
+    $y = (int) substr($ymd, 0, 4);
+    $m = (int) substr($ymd, 5, 2) + $n;
+    $y += intdiv($m - 1, 12);
+    $m = ($m - 1) % 12 + 1;
+    $ultimo = (int) (new DateTime(sprintf('%04d-%02d-01', $y, $m)))->format('t');
+    return sprintf('%04d-%02d-%02d', $y, $m, min($giorno, $ultimo));
+}
+
+/**
+ * Scadenze di un'entrata fino a $fino (compreso), con lo stato di incasso.
+ * Include anche eventuali incassi registrati su date non più in calendario
+ * (se nel frattempo è cambiata la cadenza).
+ * @return array<int, array{data: string, importo: int, pagamento: ?array}>
+ */
+function entrata_scadenze(array $e, string $fino): array
+{
+    $date = [];
+    $mesi = FREQUENZE[$e['frequenza']][1] ?? 0;
+    $giorno = (int) substr($e['data_inizio'], 8, 2);
+    $limite = $e['data_fine'] !== '' ? min($fino, $e['data_fine']) : $fino;
+    for ($i = 0, $d = $e['data_inizio']; $d <= $limite && $i < 1200; $i++) {
+        $date[$d] = true;
+        if ($mesi === 0) {
+            break;
+        }
+        $d = add_months($e['data_inizio'], $mesi * ($i + 1), $giorno);
+    }
+    foreach ($e['pagamenti'] as $d => $_) {
+        if ($d <= $fino) {
+            $date[$d] = true;
+        }
+    }
+    ksort($date);
+    $out = [];
+    foreach (array_keys($date) as $d) {
+        $pag = $e['pagamenti'][$d] ?? null;
+        $out[] = ['data' => (string) $d, 'importo' => $pag['importo'] ?? $e['importo'], 'pagamento' => $pag];
+    }
+    return $out;
+}
+
+/** Prossima scadenza non incassata a partire da oggi, o null. */
+function entrata_prossima(array $e, string $oggi): ?array
+{
+    $orizzonte = add_months($oggi, 13, (int) substr($oggi, 8, 2));
+    foreach (entrata_scadenze($e, $orizzonte) as $sc) {
+        if ($sc['data'] >= $oggi && $sc['pagamento'] === null) {
+            return $sc;
+        }
+    }
+    return null;
+}
+
+/** Scadenze passate non incassate di tutte le entrate. */
+function entrate_scadute(array $c, ?string $oggi = null): array
+{
+    $oggi = $oggi ?? today();
+    $out = [];
+    foreach ($c['entrate'] as $e) {
+        foreach (entrata_scadenze($e, $oggi) as $sc) {
+            if ($sc['data'] < $oggi && $sc['pagamento'] === null) {
+                $out[] = ['e' => $e] + $sc;
+            }
+        }
+    }
+    usort($out, function ($a, $b) {
+        return strcmp($a['data'], $b['data']);
+    });
+    return $out;
+}
+
+/** @return array{0: array, 1: string[]} */
+function entrata_validate(array $in, array $c): array
+{
+    $errors = [];
+    $e = [
+        'descrizione' => trim((string) ($in['descrizione'] ?? '')),
+        'debitore' => trim((string) ($in['debitore'] ?? '')),
+        'unita_id' => (string) ($in['unita_id'] ?? ''),
+        'importo' => parse_money((string) ($in['importo'] ?? '')),
+        'frequenza' => (string) ($in['frequenza'] ?? ''),
+        'data_inizio' => parse_date((string) ($in['data_inizio'] ?? '')),
+        'data_fine' => trim((string) ($in['data_fine'] ?? '')),
+        'in_cassa' => !empty($in['in_cassa']),
+        'note' => trim((string) ($in['note'] ?? '')),
+    ];
+    if ($e['descrizione'] === '') {
+        $errors[] = 'La descrizione è obbligatoria (es. "Affitto locale portineria").';
+    }
+    if ($e['debitore'] === '') {
+        $errors[] = 'Indica chi deve pagare.';
+    }
+    if ($e['unita_id'] !== '' && unita_find($c, $e['unita_id']) === null) {
+        $errors[] = 'Unità non valida.';
+    }
+    if ($e['importo'] === null || $e['importo'] <= 0) {
+        $errors[] = "L'importo deve essere maggiore di zero.";
+    }
+    if (!isset(FREQUENZE[$e['frequenza']])) {
+        $errors[] = 'Scegli la cadenza.';
+    }
+    if ($e['data_inizio'] === null) {
+        $errors[] = 'Data della prima scadenza non valida (gg/mm/aaaa).';
+    }
+    if ($e['data_fine'] !== '') {
+        $e['data_fine'] = parse_date($e['data_fine']);
+        if ($e['data_fine'] === null) {
+            $errors[] = 'Data di fine non valida (gg/mm/aaaa).';
+        } elseif ($e['data_inizio'] && $e['data_fine'] < $e['data_inizio']) {
+            $errors[] = 'La data di fine è precedente alla prima scadenza.';
+        }
+    }
+    return [$e, $errors];
+}
+
+/** Saldo di cassa: saldo iniziale + versamenti + altre entrate incassate (se in cassa) - spese pagate. */
 function cassa_saldo(array $c): int
 {
     $saldo = (int) $c['saldo_iniziale'];
@@ -417,6 +659,13 @@ function cassa_saldo(array $c): int
     foreach ($c['uscite'] as $s) {
         if ($s['pagata']) {
             $saldo -= $s['importo'];
+        }
+    }
+    foreach ($c['entrate'] as $e) {
+        if ($e['in_cassa']) {
+            foreach ($e['pagamenti'] as $p) {
+                $saldo += $p['importo'];
+            }
         }
     }
     return $saldo;
@@ -434,7 +683,10 @@ function condominio_riepilogo(array $c): array
     $morosi = array_filter(situazione($c), function ($p) {
         return $p['scaduto'] > 0;
     });
+    $entrateScadute = entrate_scadute($c);
     return [
+        'entrate_scadute' => $entrateScadute,
+        'entrate_scadute_tot' => array_sum(array_column($entrateScadute, 'importo')),
         'cassa' => cassa_saldo($c),
         'da_pagare' => $daPagare,
         'da_pagare_tot' => array_sum(array_column($daPagare, 'importo')),

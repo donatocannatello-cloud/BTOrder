@@ -15,10 +15,14 @@ defined('APP') || exit;
  *               millesimi: { <tabella_id>: float }, note } ],
  *   categorie:  [ {id, nome, tipo ('ordinaria'|'straordinaria'), tabella_id, quota_inquilino (0-100)} ],
  *   uscite:     [ {id, data, categoria_id, tipo, fornitore, descrizione, importo (centesimi),
- *                  tabella_id, quota_inquilino, scadenza, pagata, data_pagamento,
+ *                  tabella_id, quota_inquilino, scadenza ('' = fine trimestre), pagata, data_pagamento,
  *                  allegati: [ {id, nome, mime, size, file} ],
  *                  riparto: [ {unita_id, millesimi, quota, prop, inq, prop_nome, inq_nome} ]} ],
- *   versamenti: [ {id, unita_id, soggetto ('proprietario'|'inquilino'), data, importo, metodo, note} ],
+ *   versamenti: [ {id, unita_id, soggetto ('proprietario'|'inquilino'), data, importo, metodo, note,
+ *                  rif ('' oppure trimestre "aaaa-Tn" a cui il versamento è destinato)} ],
+ *   entrate:    [ {id, descrizione, debitore, unita_id, importo, frequenza, data_inizio, data_fine,
+ *                  in_cassa, note, pagamenti: { <data scadenza>: {data, importo, metodo, note} }} ],
+ *               affitti e altre entrate ricorrenti, con lo stato incassato/non incassato di ogni scadenza
  *   created_at, updated_at
  *
  * Il riparto di ogni spesa è salvato insieme alla spesa ("fotografia" al momento
@@ -49,8 +53,8 @@ function condominio_normalize(array $c): array
 {
     $c += [
         'nome' => '', 'indirizzo' => '', 'codice_fiscale' => '', 'ruolo' => 'amministratore',
-        'saldo_iniziale' => 0, 'data_saldo_iniziale' => '', 'note' => '',
-        'tabelle' => [], 'unita' => [], 'categorie' => [], 'uscite' => [], 'versamenti' => [],
+        'saldo_iniziale' => 0, 'data_saldo_iniziale' => '', 'note' => '', 'schema' => 1,
+        'tabelle' => [], 'unita' => [], 'categorie' => [], 'uscite' => [], 'versamenti' => [], 'entrate' => [],
         'created_at' => 0, 'updated_at' => 0,
     ];
     foreach ($c['unita'] as &$u) {
@@ -60,6 +64,15 @@ function condominio_normalize(array $c): array
         }
     }
     unset($u);
+    foreach ($c['versamenti'] as &$v) {
+        $v += ['rif' => '', 'note' => ''];
+    }
+    unset($v);
+    foreach ($c['entrate'] as &$e) {
+        $e += ['descrizione' => '', 'debitore' => '', 'unita_id' => '', 'importo' => 0, 'frequenza' => 'mensile',
+            'data_inizio' => today(), 'data_fine' => '', 'in_cassa' => true, 'note' => '', 'pagamenti' => []];
+    }
+    unset($e);
     return $c;
 }
 
@@ -88,10 +101,16 @@ function condominio_get(string $id): ?array
     return $c === null ? null : condominio_normalize(condominio_migrate($c));
 }
 
-/** Aggiorna i file creati con versioni precedenti (es. aggiunge le tipologie di spesa). */
+const SCHEMA_VERSION = 3;
+
+/**
+ * Aggiorna i file creati con versioni precedenti dell'app:
+ * v2 aggiunge le tipologie di spesa; v3 passa alle scadenze trimestrali
+ * (le spese con la vecchia scadenza automatica a 30 giorni tornano "automatiche").
+ */
 function condominio_migrate(array $c): array
 {
-    if (array_key_exists('categorie', $c)) {
+    if ((int) ($c['schema'] ?? 1) >= SCHEMA_VERSION) {
         return $c;
     }
     return condominio_update($c['id'], function (array $cur) {
@@ -99,6 +118,13 @@ function condominio_migrate(array $c): array
             $cur['categorie'] = categorie_predefinite($cur['tabelle']);
         }
         unset($cur['rate']);
+        foreach ($cur['uscite'] as &$s) {
+            if (($s['scadenza'] ?? '') === date('Y-m-d', strtotime($s['data'] . ' +30 days'))) {
+                $s['scadenza'] = '';
+            }
+        }
+        unset($s);
+        $cur['schema'] = SCHEMA_VERSION;
         return $cur;
     });
 }
@@ -126,6 +152,7 @@ function condominio_create(array $fields): string
         'id' => $id,
         'tabelle' => $tabelle,
         'categorie' => categorie_predefinite($tabelle),
+        'schema' => SCHEMA_VERSION,
         'created_at' => $now,
         'updated_at' => $now,
     ] + $fields);
@@ -366,8 +393,10 @@ function condominio_header(array $c, string $active): string
 {
     $tabs = [
         'uscite' => 'Spese',
+        'rate' => 'Rate trimestrali',
         'versamenti' => 'Incassi',
         'situazione' => 'Situazione e morosità',
+        'entrate' => 'Affitti e altre entrate',
         'condominio' => 'Unità',
         'millesimi' => 'Millesimi',
         'categorie' => 'Tipologie di spesa',

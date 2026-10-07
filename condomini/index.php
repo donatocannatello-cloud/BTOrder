@@ -21,7 +21,10 @@ $routes = [
     'uscita_form'     => ['file' => 'uscita_form.php',     'public' => false],
     'allegato'        => ['file' => 'allegato.php',        'public' => false],
     'versamenti'      => ['file' => 'versamenti.php',      'public' => false],
+    'rate'            => ['file' => 'rate.php',            'public' => false],
     'situazione'      => ['file' => 'situazione.php',      'public' => false],
+    'entrate'         => ['file' => 'entrate.php',         'public' => false],
+    'entrata_form'    => ['file' => 'entrata_form.php',    'public' => false],
     'impostazioni'    => ['file' => 'impostazioni.php',    'public' => false],
     'export'          => ['file' => 'export.php',          'public' => false],
 ];
