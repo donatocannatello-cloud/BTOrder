@@ -321,37 +321,35 @@ secondi), pensato apposta per essere generoso con un bambino di 6/7 anni.
 ## L'Acchiappamostri
 
 L'unico gioco della suite che usa la fotocamera anteriore invece del tocco
-sullo schermo: si vedono le proprie mani in video a tutto schermo, sopra
-compaiono mostriciattoli emoji e le loro tane, e si prendono i mostri con
-le mani vere, pizzicando pollice e indice (o chiudendo il pugno), per
-portarli nella tana con la stessa faccia. Il riconoscimento delle mani
-(21 punti per mano, tramite Google MediaPipe) avviene **interamente sul
-telefono**: l'immagine non viene mai salvata né inviata da nessuna parte,
-come spiegato anche nella schermata che chiede il permesso della
-fotocamera. Si può giocare **a una mano** (l'altra tiene il telefono) o
-**a due mani** (telefono appoggiato): con due mani si possono spostare due
-mostri insieme, e compaiono anche mostri "pesanti" ✋✋ che si sollevano
-solo afferrandoli con entrambe. Dal livello 2 i mostri si muovono da soli,
-dal 3 si trasformano ogni pochi secondi in un altro mostro (bisogna
-cambiare tana in tempo, anche mentre lo si tiene in mano), dal 4 succedono
-entrambe le cose insieme. Ha un record separato per la modalità a una e a
-due mani, salvato sul dispositivo.
+sullo schermo: si vede la propria mano in video a tutto schermo (l'altra
+tiene il telefono), sopra compaiono mostriciattoli emoji e le loro tane, e
+si prendono i mostri con la mano vera, pizzicando pollice e indice (o
+chiudendo il pugno), per portarli nella tana con la stessa faccia. Il
+riconoscimento della mano (21 punti, tramite Google MediaPipe) avviene
+**interamente sul telefono**: l'immagine non viene mai salvata né inviata
+da nessuna parte, come spiegato anche nella schermata che chiede il
+permesso della fotocamera. La distanza entro cui si "aggancia" un mostro è
+volutamente generosa (non serve centrarlo con precisione) e le tane hanno
+un alone colorato grande e ben visibile per non essere confuse con i
+mostri. Dal livello 2 i mostri si muovono da soli, dal 3 si trasformano
+ogni pochi secondi in un altro mostro (bisogna cambiare tana in tempo,
+anche mentre lo si tiene in mano), dal 4 succedono entrambe le cose
+insieme. Il record è salvato sul dispositivo.
 
 ### Come si gioca
 
 1. Dalla home si tocca **"L'Acchiappamostri"**; se è la prima volta viene
    chiesto il permesso della fotocamera (si può anche tornare indietro
    senza concederlo).
-2. Nel menu si sceglie la modalità (una mano o due mani) e si vede subito
-   se la fotocamera sta già riconoscendo le mani.
+2. Nel menu si vede subito se la fotocamera sta già riconoscendo la mano,
+   poi si tocca "Gioca!".
 3. Si porta il punto fra pollice e indice sopra un mostro e si pizzica (o
    si chiude la mano) per prenderlo, lo si porta sulla tana con la stessa
    faccia e si riapre la mano per lasciarlo: se è quella giusta il mostro
    ci si infila da solo (basta avvicinarsi abbastanza), altrimenti torna
    al suo posto.
 4. Presi tutti i mostri del livello si passa al successivo, con più
-   mostri e via via più difficoltà (movimento, trasformazioni, mostri
-   pesanti).
+   mostri e via via più difficoltà (movimento, trasformazioni).
 
 ## File principali
 
@@ -441,7 +439,7 @@ due mani, salvato sul dispositivo.
   mostri come emoji su `Canvas`), `Particelle.kt` (coriandoli) e
   `Suoni.kt` (effetti sonori dedicati, sintetizzati come per
   `SuoniGioco.kt` ma separati perché il gioco ha esigenze sue: presa,
-  incastro, mostro pesante, trasformazione). Il modello IA
+  incastro, trasformazione). Il modello IA
   (`hand_landmarker.task`, circa 7,8 MB) non è nel repository: viene
   scaricato in fase di build dalla gradle task `scaricaModelloMano`.
 

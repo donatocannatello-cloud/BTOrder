@@ -14,12 +14,12 @@ import kotlin.math.sin
  * Effetti sonori de L'Acchiappamostri, sintetizzati all'avvio (niente file audio nel pacchetto):
  * vengono scritti come piccoli WAV nella cache e suonati con SoundPool, che permette di
  * sovrapporli senza ritardi. Suoni dedicati (diversi da quelli di [it.freebimbogames.app.SuoniGioco])
- * perché qui servono effetti specifici — presa, incastro, trasformazione, mostro pesante — che gli
- * altri giochi della suite non hanno.
+ * perché qui servono effetti specifici — presa, incastro, trasformazione — che gli altri giochi
+ * della suite non hanno.
  */
 class Suoni(context: Context) {
 
-    enum class Effetto { PRESA, INCASTRO, SBAGLIATO, PESANTE, LIVELLO, CAMBIO }
+    enum class Effetto { PRESA, INCASTRO, SBAGLIATO, LIVELLO, CAMBIO }
 
     private val pool = SoundPool.Builder()
         .setMaxStreams(6)
@@ -57,8 +57,6 @@ class Suoni(context: Context) {
         Effetto.INCASTRO -> concatena(nota(1046.5, 0.09, 20.0), nota(1568.0, 0.28, 9.0))
         // Ronzio grave
         Effetto.SBAGLIATO -> concatena(nota(196.0, 0.12, 6.0, quadra = true), nota(165.0, 0.18, 6.0, quadra = true))
-        // Due colpi sordi: "è pesante"
-        Effetto.PESANTE -> concatena(nota(130.8, 0.1, 25.0), silenzio(0.05), nota(130.8, 0.12, 20.0))
         // Arpeggio di Do maggiore
         Effetto.LIVELLO -> concatena(
             nota(523.3, 0.1, 12.0), nota(659.3, 0.1, 12.0), nota(784.0, 0.1, 12.0), nota(1046.5, 0.45, 5.0)
@@ -86,8 +84,6 @@ class Suoni(context: Context) {
             (sin(fase) * (t / 0.004).coerceAtMost(1.0) * exp(-t * 25) * 0.8).toFloat()
         }
     }
-
-    private fun silenzio(durata: Double) = FloatArray((durata * FREQ).toInt())
 
     private fun concatena(vararg parti: FloatArray): FloatArray {
         val r = FloatArray(parti.sumOf { it.size })

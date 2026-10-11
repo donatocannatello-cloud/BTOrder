@@ -14,11 +14,11 @@ enum class TipoMostro(val emoji: String, val nome: String, val colore: Long) {
 }
 
 /** Una tana in cui va acchiappato il mostro dello stesso tipo. */
-class Slot(val tipo: TipoMostro, val centro: Punto, val raggio: Float, val pesante: Boolean = false) {
+class Slot(val tipo: TipoMostro, val centro: Punto, val raggio: Float) {
     var occupato = false
 }
 
-/** Un mostro da prendere con le mani. */
+/** Un mostro da prendere con la mano. */
 class Pezzo(
     val id: Int,
     /** Può cambiare durante il livello, nei livelli in cui i mostri si trasformano. */
@@ -26,14 +26,10 @@ class Pezzo(
     /** Posizione di partenza, dove torna se viene messo nella tana sbagliata. */
     val casa: Punto,
     val raggio: Float,
-    /** I mostri pesanti si sollevano solo afferrandoli con tutte e due le mani. */
-    val pesante: Boolean,
 ) {
     var posizione = casa
     var incastrato = false
     var tornaACasa = false
-    /** Secondi di "tremolio" rimasti: il mostro pesante vibra se lo si prova a sollevare con una mano. */
-    var scossa = 0f
     /** 0..1: animazione di comparsa a inizio livello, di "scatto" nella tana e di trasformazione. */
     var rimbalzo = 0f
     /** Velocità (pixel al secondo) nei livelli in cui i mostri si muovono da soli. */

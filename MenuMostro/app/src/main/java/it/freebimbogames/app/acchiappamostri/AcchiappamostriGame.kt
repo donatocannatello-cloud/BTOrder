@@ -84,10 +84,9 @@ import java.util.concurrent.atomic.AtomicReference
 
 // ---------------------------------------------------------------------------------
 // L'Acchiappamostri: la fotocamera anteriore riempie lo schermo e sopra l'immagine
-// compaiono mostriciattoli colorati e le loro tane. Si prendono i mostri con il punto fra
-// pollice e indice (o chiudendo la mano), li si porta nella tana giusta e si lasciano
-// aprendo le dita. Le due mani vengono riconosciute insieme: si possono spostare due
-// mostri alla volta, e i mostri pesanti si sollevano solo con entrambe. A differenza
+// compaiono mostriciattoli colorati e le loro tane. Si prende un mostro con il punto fra
+// pollice e indice (o chiudendo la mano), lo si porta nella tana giusta e si lascia
+// aprendo le dita. Si gioca con una mano sola (l'altra tiene il telefono): a differenza
 // degli altri giochi della suite usa la fotocamera (analizzata solo sul telefono, mai
 // salvata né inviata) invece del tocco sullo schermo, e ha un suo tema scuro perché
 // il video della fotocamera deve restare ben visibile.
@@ -100,16 +99,13 @@ private data class Messaggio(val testo: String, val id: Long = System.nanoTime()
 private class Galleggiante(val testo: String, var pos: Offset, var vita: Float, val colore: Color)
 
 private const val ID_TOCCO = 99
-private const val CHIAVE_RECORD_UNA = "record_una_mano"
-private const val CHIAVE_RECORD_DUE = "record_due_mani"
-private const val CHIAVE_DUE_MANI = "due_mani"
-private val COLORI_MANI = listOf(Color(0xFFFFD54F), Color(0xFF40C4FF))
+private const val CHIAVE_RECORD = "record_una_mano"
+private val COLORE_MANO = Color(0xFFFFD54F)
 
 private fun haPermessoCamera(context: Context) =
     ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
 
-private fun chiaveRecord(dueMani: Boolean) = if (dueMani) CHIAVE_RECORD_DUE else CHIAVE_RECORD_UNA
-private fun leggiRecord(preferenze: SharedPreferences, dueMani: Boolean) = preferenze.getInt(chiaveRecord(dueMani), 0)
+private fun leggiRecord(preferenze: SharedPreferences) = preferenze.getInt(CHIAVE_RECORD, 0)
 
 @Composable
 fun AppAcchiappamostri(onTornaAiGiochi: () -> Unit) {
@@ -178,7 +174,8 @@ private fun Gioco(
     val dp = LocalDensity.current.density
     var dimensioni by remember { mutableStateOf(IntSize.Zero) }
     var schermata by remember { mutableStateOf(SchermataAcchiappa.MENU) }
-    val inseguitore = remember { InseguitoreMani() }
+    // Una sola mano: con l'altra si tiene il telefono
+    val inseguitore = remember { InseguitoreMani(1) }
     val particelle = remember { Particelle() }
     val galleggianti = remember { ArrayList<Galleggiante>() }
     var partita by remember { mutableStateOf<Partita?>(null) }
@@ -187,11 +184,8 @@ private fun Gioco(
     var hud by remember { mutableStateOf(Hud(1, 0, 0, 0)) }
     var messaggio by remember { mutableStateOf<Messaggio?>(null) }
     var livelloFinito by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    // Modalità scelta nel menu: a una mano (l'altra tiene il telefono) o a due mani
-    var dueMani by remember { mutableStateOf(preferenze.getBoolean(CHIAVE_DUE_MANI, true)) }
-    // Un record per ciascuna modalità
-    var record by remember(dueMani) { mutableIntStateOf(leggiRecord(preferenze, dueMani)) }
-    // Il dito sullo schermo fa da "terza mano", utile anche senza riconoscimento IA
+    var record by remember { mutableIntStateOf(leggiRecord(preferenze)) }
+    // Il dito sullo schermo fa da mano alternativa, utile anche senza riconoscimento IA
     var tocco by remember { mutableStateOf<Offset?>(null) }
 
     fun gestisci(e: Evento, p: Partita) {
@@ -201,17 +195,12 @@ private fun Gioco(
                 suoni.suona(Suoni.Effetto.INCASTRO)
                 val centro = p.slotDi(e.pezzo).centro.offset()
                 val colore = Color(e.pezzo.tipo.colore)
-                particelle.esplodi(centro, colore, if (e.pezzo.pesante) 60 else 32, p.larghezza * 0.35f, 4f * dp)
+                particelle.esplodi(centro, colore, 32, p.larghezza * 0.35f, 4f * dp)
                 galleggianti += Galleggiante("+${e.punti}", centro, 1.2f, colore)
-                if (e.pezzo.pesante) messaggio = Messaggio("Gran lavoro di squadra, mani!".maiuscolo())
             }
             is Evento.Sbagliato -> {
                 suoni.suona(Suoni.Effetto.SBAGLIATO)
                 messaggio = Messaggio("Non è la tana giusta per questo mostro!".maiuscolo())
-            }
-            is Evento.ServonoDueMani -> {
-                suoni.suona(Suoni.Effetto.PESANTE)
-                messaggio = Messaggio("✋✋ È un mostro grosso: prendilo con tutte e due le mani!".maiuscolo())
             }
             is Evento.LivelloCompletato -> {
                 suoni.suona(Suoni.Effetto.LIVELLO)
@@ -223,7 +212,7 @@ private fun Gioco(
                 }
                 if (p.punteggio > record) {
                     record = p.punteggio
-                    preferenze.edit().putInt(chiaveRecord(dueMani), record).apply()
+                    preferenze.edit().putInt(CHIAVE_RECORD, record).apply()
                 }
             }
             is Evento.NuovoLivello -> {
@@ -332,16 +321,13 @@ private fun Gioco(
             with(particelle) { disegna() }
             for (g in galleggianti) testo(g.testo, g.pos, 26f * dp, g.colore.copy(alpha = g.vita.coerceIn(0f, 1f)))
             for (posto in inseguitore.posti) {
-                if (posto.presente) disegnaMano(posto, COLORI_MANI[posto.id % COLORI_MANI.size], dp)
+                if (posto.presente) disegnaMano(posto, COLORE_MANO, dp)
             }
         }
 
         when (schermata) {
-            SchermataAcchiappa.MENU -> Menu(hud.maniViste, dueMani, erroreTracker, preferenze, onTornaAiGiochi) { scelta ->
-                dueMani = scelta
-                preferenze.edit().putBoolean(CHIAVE_DUE_MANI, scelta).apply()
-                inseguitore.maniAttive = if (scelta) 2 else 1
-                partita?.ricomincia(scelta)
+            SchermataAcchiappa.MENU -> Menu(hud.maniViste, erroreTracker, record, onTornaAiGiochi) {
+                partita?.ricomincia()
                 livelloFinito = null
                 schermata = SchermataAcchiappa.GIOCO
                 messaggio = Messaggio("Livello 1: prendi un mostro con pollice e indice".maiuscolo())
@@ -354,11 +340,7 @@ private fun Gioco(
                     livelloFinito = null
                     schermata = SchermataAcchiappa.GIOCO
                 },
-                onMenu = {
-                    // Nel menu si guardano sempre tutte e due le mani, per la scelta della modalità
-                    inseguitore.maniAttive = 2
-                    schermata = SchermataAcchiappa.MENU
-                },
+                onMenu = { schermata = SchermataAcchiappa.MENU },
                 onTornaAiGiochi = onTornaAiGiochi,
             )
         }
@@ -434,11 +416,10 @@ private fun Etichetta(testo: String) {
 @Composable
 private fun Menu(
     maniViste: Int,
-    ultimaDueMani: Boolean,
     erroreTracker: String?,
-    preferenze: SharedPreferences,
+    record: Int,
     onTornaAiGiochi: () -> Unit,
-    onGioca: (dueMani: Boolean) -> Unit,
+    onGioca: () -> Unit,
 ) {
     Box(Modifier.fillMaxSize()) {
         BottoneTornaAiGiochi(
@@ -458,12 +439,9 @@ private fun Menu(
                 Text("L'Acchiappamostri".maiuscolo(), color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(16.dp))
                 val regole = listOf(
-                    "Mettiti davanti al telefono e mostra le mani alla fotocamera.",
+                    "Mettiti davanti al telefono, con l'altra mano libera, e mostrala alla fotocamera.",
                     "Porta il punto fra pollice e indice sopra un mostro e unisci le due dita (o chiudi la mano) per prenderlo.",
                     "Portalo nella tana con la stessa faccia e apri le dita per lasciarlo.",
-                    "Scegli la modalità: con una mano, se con l'altra tieni il telefono, oppure con " +
-                        "due mani (telefono appoggiato): sposti due mostri insieme e ci sono i mostri " +
-                        "grossi ✋✋, che si sollevano solo con tutte e due le mani.",
                     "Livello 2: i mostri si muovono. Livello 3: si trasformano quando il cerchio " +
                         "intorno si svuota, anche in mano! Dal livello 4: tutte e due le cose.",
                 )
@@ -473,11 +451,7 @@ private fun Menu(
                 }
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    when (maniViste) {
-                        0 -> "Non vedo ancora le tue mani"
-                        1 -> "Vedo una mano ✋"
-                        else -> "Vedo due mani ✋✋"
-                    }.maiuscolo(),
+                    (if (maniViste == 0) "Non vedo ancora la tua mano" else "Vedo la tua mano ✋").maiuscolo(),
                     color = if (maniViste > 0) Color(0xFF69F0AE) else Color.White.copy(alpha = 0.7f),
                 )
                 erroreTracker?.let {
@@ -485,23 +459,15 @@ private fun Menu(
                     Text(it.maiuscolo(), color = Color(0xFFFFAB91), textAlign = TextAlign.Center)
                 }
                 Spacer(Modifier.height(20.dp))
-                // L'ultima modalità usata è il pulsante pieno, l'altra quello a contorno
-                for (due in listOf(false, true)) {
-                    val testo = if (due) "✋✋  Due mani" else "✋  Una mano"
-                    val mod = Modifier.fillMaxWidth().height(56.dp)
-                    if (due == ultimaDueMani) {
-                        Button(onClick = { onGioca(due) }, modifier = mod) { Text(testo.maiuscolo(), fontSize = 20.sp) }
-                    } else {
-                        OutlinedButton(onClick = { onGioca(due) }, modifier = mod) { Text(testo.maiuscolo(), fontSize = 20.sp) }
-                    }
-                    val r = leggiRecord(preferenze, due)
-                    Text(
-                        (if (r > 0) "Record: $r" else "Nessun record").maiuscolo(),
-                        color = Color(0xFFFFD54F).copy(alpha = if (r > 0) 1f else 0.6f),
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
-                    )
+                Button(onClick = onGioca, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+                    Text("Gioca!".maiuscolo(), fontSize = 20.sp)
                 }
+                Text(
+                    (if (record > 0) "Record: $record" else "Nessun record").maiuscolo(),
+                    color = Color(0xFFFFD54F).copy(alpha = if (record > 0) 1f else 0.6f),
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(top = 10.dp),
+                )
             }
         }
     }

@@ -13,7 +13,6 @@ sealed interface Evento {
     data class Presa(val pezzo: Pezzo) : Evento
     data class Incastro(val pezzo: Pezzo, val punti: Int) : Evento
     data class Sbagliato(val pezzo: Pezzo) : Evento
-    data class ServonoDueMani(val pezzo: Pezzo) : Evento
     data class LivelloCompletato(val livello: Int, val bonus: Int) : Evento
     data class NuovoLivello(val livello: Int) : Evento
     /** Il mostro in mano si è trasformato in un altro (livelli con le trasformazioni). */
@@ -27,20 +26,22 @@ enum class StatoPartita { IN_CORSO, LIVELLO_COMPLETATO }
  *
  * Su metà schermo ci sono le tane, sull'altra metà i mostri. Si afferra un mostro pizzicandolo
  * fra pollice e indice (o chiudendo la mano), lo si porta nella sua tana e si apre la mano: se la
- * tana è quella giusta il mostro ci si infila, se è sbagliata torna al suo posto. I mostri pesanti
- * si sollevano solo con tutte e due le mani. Acchiappati tutti i mostri si passa al livello
- * successivo, con più mostri. Dal livello 2 i mostri si muovono da soli, al 3 si trasformano ogni
- * pochi secondi in un altro mostro (se non si arriva in tempo alla tana bisogna cambiare tana),
- * dal 4 si muovono e si trasformano.
+ * tana è quella giusta il mostro ci si infila, se è sbagliata torna al suo posto. Acchiappati
+ * tutti i mostri si passa al livello successivo, con più mostri. Dal livello 2 i mostri si
+ * muovono da soli, al 3 si trasformano ogni pochi secondi in un altro mostro (se non si arriva
+ * in tempo alla tana bisogna cambiare tana), dal 4 si muovono e si trasformano.
  *
  * @param margineAlto frazione dell'altezza lasciata libera in alto per punteggio e pulsanti
+ * @param margineLaterale frazione della larghezza lasciata libera ai due lati: una mano sola,
+ * con l'altra che tiene il telefono, non arriva comoda fino al bordo dello schermo.
  */
 class Partita(
     val larghezza: Float,
     val altezza: Float,
     seme: Long = System.nanoTime(),
     private val margineAlto: Float = 0.12f,
-    private val margineBasso: Float = 0.05f,
+    private val margineBasso: Float = 0.08f,
+    private val margineLaterale: Float = 0.08f,
 ) {
     private val casuale = Random(seme)
 
@@ -65,8 +66,15 @@ class Partita(
     var trasformazione = false
         private set
     private val lato get() = min(larghezza, altezza)
-    /** Zona in cui si muovono i mostri: tutto lo schermo tranne la fascia di punteggio e pulsanti. */
-    private val campo get() = Rettangolo(0f, altezza * margineAlto, larghezza, altezza * (1f - margineBasso))
+    /** Zona in cui si muovono i mostri: tutto lo schermo tranne i margini (fascia superiore,
+     * inferiore e laterali) riservati a punteggio, pulsanti e comodità di una mano sola. */
+    private val campo
+        get() = Rettangolo(
+            larghezza * margineLaterale,
+            altezza * margineAlto,
+            larghezza * (1f - margineLaterale),
+            altezza * (1f - margineBasso),
+        )
 
     /** Mostri sotto una mano aperta, da evidenziare perché si possono prendere. */
     var evidenziati: Set<Int> = emptySet()
@@ -79,24 +87,13 @@ class Partita(
     private val afferravaPrima = HashMap<Int, Boolean>()
     /** Da quanti secondi ogni mano è chiusa senza tenere nulla (finestra per una presa "in ritardo"). */
     private val chiusaDa = HashMap<Int, Float>()
-    /** Mostri pesanti sollevati con due mani: scarto fra il loro centro e il punto medio delle mani. */
-    private val scartoDueMani = HashMap<Int, Punto>()
-    private val avvisatoDueMani = HashSet<Int>()
     private var attesa = 0f
-
-    /**
-     * Modalità a due mani (true) o a una mano (false, l'altra tiene il telefono).
-     * A una mano non ci sono mostri pesanti. Si sceglie con [ricomincia].
-     */
-    var dueMani = true
-        private set
 
     init {
         iniziaLivello(1)
     }
 
-    fun ricomincia(dueMani: Boolean = this.dueMani) {
-        this.dueMani = dueMani
+    fun ricomincia() {
         punteggio = 0
         errori = 0
         iniziaLivello(1)
@@ -111,19 +108,9 @@ class Partita(
         stato = StatoPartita.IN_CORSO
         tempoLivello = 0f
         prese.clear()
-        scartoDueMani.clear()
-        avvisatoDueMani.clear()
 
         val quante = min(2 + n, TipoMostro.entries.size)
         val tipi = TipoMostro.entries.shuffled(casuale).take(quante)
-        val numeroPesanti = when {
-            !dueMani -> 0
-            n < 3 -> 0
-            n < 5 -> 1
-            n < 8 -> 2
-            else -> 3
-        }
-        val pesanti = tipi.shuffled(casuale).take(numeroPesanti).toSet()
 
         movimento = n == 2 || n >= 4
         trasformazione = n >= 3
@@ -133,31 +120,24 @@ class Partita(
             quante <= 7 -> 0.0475f
             else -> 0.0425f
         }
-        val fattoreCella = if (pesanti.isEmpty()) 1f else FATTORE_PESANTE
         val meta = altezza / 2f
         val distacco = altezza * 0.02f
-        val alta = Rettangolo(0f, altezza * margineAlto, larghezza, meta - distacco)
-        val bassa = Rettangolo(0f, meta + distacco, larghezza, altezza * (1f - margineBasso))
+        val sinistra = larghezza * margineLaterale
+        val destra = larghezza * (1f - margineLaterale)
+        val alta = Rettangolo(sinistra, altezza * margineAlto, destra, meta - distacco)
+        val bassa = Rettangolo(sinistra, meta + distacco, destra, altezza * (1f - margineBasso))
         // Se i mostri non ci stanno, si rimpiccioliscono finché entrambe le metà li contengono
-        while (min(alta.capienza(raggio * fattoreCella), bassa.capienza(raggio * fattoreCella)) < quante) {
+        while (min(alta.capienza(raggio), bassa.capienza(raggio)) < quante) {
             raggio *= 0.92f
         }
         // Le tane cambiano metà a ogni livello, così si lavora in tutte le direzioni
         val (zonaSlot, zonaPezzi) = if (n % 2 == 1) alta to bassa else bassa to alta
-        val posizioniSlot = zonaSlot.disponi(quante, raggio * fattoreCella, casuale)
-        val posizioniPezzi = zonaPezzi.disponi(quante, raggio * fattoreCella, casuale)
+        val posizioniSlot = zonaSlot.disponi(quante, raggio, casuale)
+        val posizioniPezzi = zonaPezzi.disponi(quante, raggio, casuale)
 
-        slot = tipi.mapIndexed { i, tipo ->
-            Slot(tipo, posizioniSlot[i], if (tipo in pesanti) raggio * FATTORE_PESANTE else raggio, tipo in pesanti)
-        }
+        slot = tipi.mapIndexed { i, tipo -> Slot(tipo, posizioniSlot[i], raggio) }
         pezzi = tipi.shuffled(casuale).mapIndexed { i, tipo ->
-            Pezzo(
-                id = i,
-                tipo = tipo,
-                casa = posizioniPezzi[i],
-                raggio = if (tipo in pesanti) raggio * FATTORE_PESANTE else raggio,
-                pesante = tipo in pesanti,
-            ).also { it.rimbalzo = 1f }
+            Pezzo(id = i, tipo = tipo, casa = posizioniPezzi[i], raggio = raggio).also { it.rimbalzo = 1f }
         }
         if (movimento) {
             // Più veloci a ogni livello, fino a un massimo
@@ -178,8 +158,8 @@ class Partita(
     }
 
     /**
-     * Fa avanzare il gioco di [dt] secondi con lo stato attuale delle mani.
-     * Un mostro si prende nel momento in cui una mano passa da aperta a chiusa sopra di esso.
+     * Fa avanzare il gioco di [dt] secondi con lo stato attuale della mano.
+     * Un mostro si prende nel momento in cui la mano passa da aperta a chiusa sopra di esso.
      */
     fun aggiorna(dt: Float, mani: List<ManoGioco>): List<Evento> {
         val eventi = mutableListOf<Evento>()
@@ -223,27 +203,15 @@ class Partita(
         }
         ricordaMani(mani)
 
-        // 3. I mostri tenuti seguono le mani
+        // 3. I mostri tenuti seguono la mano
         for (pezzo in pezzi) {
             if (pezzo.incastrato) continue
-            val mani1 = tenutoDa(pezzo).mapNotNull { perId[it] }
-            if (mani1.isEmpty()) continue
-            if (!pezzo.pesante) {
-                val mano = mani1[0]
-                val presa = prese.getValue(mano.id)
-                // Il mostro scivola piano verso il centro della mano, senza scatti
-                presa.scarto = presa.scarto * exp(-dt * RIENTRO)
-                pezzo.posizione = limita(mano.posizione + presa.scarto, pezzo.raggio)
-            } else if (mani1.size >= 2) {
-                val centro = Punto.media(mani1.map { it.posizione })
-                val scarto = (scartoDueMani[pezzo.id] ?: (pezzo.posizione - centro)) * exp(-dt * RIENTRO)
-                scartoDueMani[pezzo.id] = scarto
-                pezzo.posizione = limita(centro + scarto, pezzo.raggio)
-            } else {
-                pezzo.scossa = 0.25f
-                if (avvisatoDueMani.add(pezzo.id)) eventi += Evento.ServonoDueMani(pezzo)
-                continue
-            }
+            val idMano = tenutoDa(pezzo).firstOrNull() ?: continue
+            val mano = perId[idMano] ?: continue
+            val presa = prese.getValue(mano.id)
+            // Il mostro scivola piano verso il centro della mano, senza scatti
+            presa.scarto = presa.scarto * exp(-dt * RIENTRO)
+            pezzo.posizione = limita(mano.posizione + presa.scarto, pezzo.raggio)
             // Calamita: portato quasi al centro della sua tana, il mostro ci entra da solo
             val giusto = slotDi(pezzo)
             if (!giusto.occupato && pezzo.posizione.distanza(giusto.centro) < giusto.raggio * CALAMITA) {
@@ -287,8 +255,8 @@ class Partita(
 
     /**
      * Allo scadere del suo tempo ogni mostro libero diventa un altro, scelto fra quelli che hanno
-     * ancora la tana libera (e della stessa taglia): così il livello resta sempre risolvibile.
-     * Si trasforma anche mentre è in mano, ed è proprio questa la sfida.
+     * ancora la tana libera: così il livello resta sempre risolvibile. Si trasforma anche mentre
+     * è in mano, ed è proprio questa la sfida.
      */
     private fun trasforma(dt: Float, eventi: MutableList<Evento>) {
         if (!trasformazione) return
@@ -302,7 +270,7 @@ class Partita(
     }
 
     private fun cambiaTipo(p: Pezzo, eventi: MutableList<Evento>) {
-        val possibili = slot.filter { !it.occupato && it.pesante == p.pesante }.map { it.tipo }.distinct()
+        val possibili = slot.filter { !it.occupato }.map { it.tipo }.distinct()
         val altri = possibili.filter { it != p.tipo }
         if (altri.isEmpty()) return
         p.tipo = altri.random(casuale)
@@ -310,7 +278,7 @@ class Partita(
         eventi += Evento.Cambio(p, tenutoDa(p).isNotEmpty())
     }
 
-    /** Distanza entro cui una mano prende il mostro: non troppo piccola anche per i mostri piccoli. */
+    /** Distanza entro cui una mano prende il mostro: generosa, anche per mani imprecise. */
     fun raggioPresa(p: Pezzo) = maxOf(p.raggio * RAGGIO_PRESA, lato * PRESA_MINIMA)
 
     private fun ricordaMani(mani: List<ManoGioco>) {
@@ -319,34 +287,20 @@ class Partita(
 
     private fun prendi(mano: ManoGioco, eventi: MutableList<Evento>): Boolean {
         val candidati = pezzi
-            .filter { !it.incastrato && it.posizione.distanza(mano.posizione) < raggioPresa(it) }
+            .filter { !it.incastrato && tenutoDa(it).isEmpty() && it.posizione.distanza(mano.posizione) < raggioPresa(it) }
             .sortedBy { it.posizione.distanza(mano.posizione) }
-        for (pezzo in candidati) {
-            val altre = tenutoDa(pezzo)
-            // Un mostro normale si tiene con una mano sola; uno pesante con due
-            val libera = altre.isEmpty() || (pezzo.pesante && altre.size == 1)
-            if (!libera) continue
-            prese[mano.id] = Presa(pezzo.id, pezzo.posizione - mano.posizione)
-            pezzo.tornaACasa = false
-            eventi += Evento.Presa(pezzo)
-            return true
-        }
-        return false
+        val pezzo = candidati.firstOrNull() ?: return false
+        prese[mano.id] = Presa(pezzo.id, pezzo.posizione - mano.posizione)
+        pezzo.tornaACasa = false
+        eventi += Evento.Presa(pezzo)
+        return true
     }
 
     private fun rilascia(idMano: Int, eventi: MutableList<Evento>) {
         val presa = prese.remove(idMano) ?: return
         val pezzo = pezzi.first { it.id == presa.pezzoId }
         if (pezzo.incastrato) return
-        val rimaste = tenutoDa(pezzo).size
-        if (pezzo.pesante) {
-            val eraSollevata = rimaste + 1 >= 2
-            scartoDueMani.remove(pezzo.id)
-            if (rimaste == 0) avvisatoDueMani.remove(pezzo.id)
-            if (eraSollevata) verificaPosizione(pezzo, eventi)
-        } else {
-            verificaPosizione(pezzo, eventi)
-        }
+        verificaPosizione(pezzo, eventi)
     }
 
     /** Un mostro appena lasciato: si infila nella tana, torna indietro (tana sbagliata) o resta lì. */
@@ -372,10 +326,8 @@ class Partita(
         pezzo.rimbalzo = 1f
         s.occupato = true
         prese.values.removeAll { it.pezzoId == pezzo.id }
-        scartoDueMani.remove(pezzo.id)
-        val punti = if (pezzo.pesante) PUNTI_PESANTE else PUNTI_INCASTRO
-        punteggio += punti
-        eventi += Evento.Incastro(pezzo, punti)
+        punteggio += PUNTI_INCASTRO
+        eventi += Evento.Incastro(pezzo, PUNTI_INCASTRO)
         // Un altro mostro libero trasformato nello stesso tipo non ha più una tana: cambia subito
         for (altra in pezzi) {
             if (!altra.incastrato && altra.tipo == pezzo.tipo) cambiaTipo(altra, eventi)
@@ -393,7 +345,6 @@ class Partita(
     private fun anima(dt: Float) {
         for (p in pezzi) {
             p.rimbalzo = (p.rimbalzo - dt * 2.5f).coerceAtLeast(0f)
-            p.scossa = (p.scossa - dt).coerceAtLeast(0f)
             when {
                 p.incastrato -> p.posizione = p.posizione.verso(slotDi(p).centro, 1f - exp(-dt * 18f))
                 p.tornaACasa -> {
@@ -441,21 +392,21 @@ class Partita(
     }
 
     companion object {
-        const val FATTORE_PESANTE = 1.2f
         /** Lato della cella della griglia, in raggi: lascia spazio fra un mostro e l'altro. */
         const val PASSO = 2.3f
-        /** Una mano prende un mostro se il punto fra pollice e indice è entro questo multiplo del raggio. */
-        const val RAGGIO_PRESA = 1.5f
+        /** Una mano prende un mostro se il punto fra pollice e indice è entro questo multiplo del
+         * raggio: generoso apposta, perché una mano sola e poco precisa deve riuscire ad agganciare
+         * il mostro senza doverci stare esattamente sopra. */
+        const val RAGGIO_PRESA = 1.9f
         const val FINESTRA_PRESA_S = 0.6f
         /** Minimi (in frazione del lato corto dello schermo) per presa e incastro dei mostri piccoli. */
-        const val PRESA_MINIMA = 0.085f
+        const val PRESA_MINIMA = 0.11f
         const val RILASCIO_MINIMO = 0.06f
         const val CALAMITA = 0.3f
         const val TOLLERANZA_RILASCIO = 0.8f
         const val TOLLERANZA_SBAGLIATO = 0.75f
         const val RIENTRO = 3f
         const val PUNTI_INCASTRO = 100
-        const val PUNTI_PESANTE = 250
         const val TEMPO_PER_MOSTRO_S = 8f
         const val PUNTI_PER_SECONDO = 10
         const val ATTESA_LIVELLO_S = 2.8f
