@@ -380,8 +380,8 @@ class Partita(
             val lc = larghezza / colonne
             val hc = altezza / righe
             // Quanto ci si può spostare dal centro della cella restando dentro di essa
-            val giocoX = (lc / 2f - r * 1.05f).coerceAtLeast(0f)
-            val giocoY = (hc / 2f - r * 1.05f).coerceAtLeast(0f)
+            val giocoX = (lc / 2f - r * MARGINE_CELLA).coerceAtLeast(0f)
+            val giocoY = (hc / 2f - r * MARGINE_CELLA).coerceAtLeast(0f)
             return (0 until colonne * righe).shuffled(casuale).take(n).map { cella ->
                 val cx = sinistra + (cella % colonne + 0.5f) * lc
                 val cy = alto + (cella / colonne + 0.5f) * hc
@@ -395,7 +395,12 @@ class Partita(
 
     companion object {
         /** Lato della cella della griglia, in raggi: lascia spazio fra un mostro e l'altro. */
-        const val PASSO = 2.3f
+        const val PASSO = 3f
+        /** Distanza minima dal centro della cella (in raggi) a cui può capitare un mostro o una
+         * tana: deve coprire il cerchio più l'alone delle tane (fino a circa 1,3 * 1,6 = 2,1
+         * raggi), altrimenti due vicini di casa possono finire con gli aloni sovrapposti o le
+         * tane a ridosso l'una dell'altra, invece che ben separate. */
+        const val MARGINE_CELLA = 1.4f
         /** Una mano prende un mostro se il punto fra pollice e indice è entro questo multiplo del
          * raggio: generoso apposta, perché una mano sola e poco precisa deve riuscire ad agganciare
          * il mostro senza doverci stare esattamente sopra. */
