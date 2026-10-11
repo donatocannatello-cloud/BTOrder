@@ -125,16 +125,20 @@ lungo il proprio orientamento (mai di lato): bisogna spostare le auto
 giuste per aprire un corridoio e far uscire la macchina rossa dal bordo
 destro della griglia.
 
-**20 livelli sequenziali**, con griglia via via più grande e sempre più auto
-da spostare:
+**20 livelli sequenziali**. La difficoltà cresce soprattutto per **numero di
+auto**, non per dimensione della griglia: la griglia smette di crescere
+molto presto, mentre le auto continuano ad aumentare, rendendo il
+parcheggio via via più denso e intricato:
 
-| Livelli | Griglia | Auto totali |
-| --- | --- | --- |
-| 1 | 6×6 | 6 |
-| 2 | 7×7 | 8 |
-| 3–5 | 8×8 | 9–11 |
-| 6–10 | 9×9 | 12–16 |
-| 11–20 | 10×10 | 14–21 |
+| Livelli | Griglia | Auto totali | Densità (celle occupate) |
+| --- | --- | --- | --- |
+| 1 | 6×6 | 6 | ~33% |
+| 2 | 7×7 | 8 | ~37% |
+| 3 | 8×8 | 9 | ~30% |
+| 4–5 | 7×7 | 10–12 | 43–53% |
+| 6–9 | 8×8 | 13–19 | 42–66% |
+| 10–14 | 9×9 | 18–26 | 48–65% |
+| 15–20 | 10×10 | 24–34 | 53–75% |
 
 I livelli 1-3 sono stati pensati e verificati a mano. Dal livello 4 in poi
 sono generati partendo dall'auto rossa già "risolta" (attaccata al bordo
