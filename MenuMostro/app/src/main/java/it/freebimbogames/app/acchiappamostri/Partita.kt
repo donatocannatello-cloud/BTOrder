@@ -31,7 +31,9 @@ enum class StatoPartita { IN_CORSO, LIVELLO_COMPLETATO }
  * muovono da soli, al 3 si trasformano ogni pochi secondi in un altro mostro (se non si arriva
  * in tempo alla tana bisogna cambiare tana), dal 4 si muovono e si trasformano.
  *
- * @param margineAlto frazione dell'altezza lasciata libera in alto per punteggio e pulsanti
+ * @param margineAlto frazione dell'altezza lasciata libera in alto per punteggio e pulsanti: più
+ * della sola altezza della barra, perché le tane hanno un alone colorato che sporge parecchio
+ * oltre il loro cerchio e non deve finire sopra la barra.
  * @param margineLaterale frazione della larghezza lasciata libera ai due lati: una mano sola,
  * con l'altra che tiene il telefono, non arriva comoda fino al bordo dello schermo.
  */
@@ -39,7 +41,7 @@ class Partita(
     val larghezza: Float,
     val altezza: Float,
     seme: Long = System.nanoTime(),
-    private val margineAlto: Float = 0.12f,
+    private val margineAlto: Float = 0.2f,
     private val margineBasso: Float = 0.08f,
     private val margineLaterale: Float = 0.08f,
 ) {

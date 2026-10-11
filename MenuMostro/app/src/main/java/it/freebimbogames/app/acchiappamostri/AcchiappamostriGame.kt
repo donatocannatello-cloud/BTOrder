@@ -390,7 +390,13 @@ private fun Intestazione(hud: Hud, record: Int, onTornaAiGiochi: () -> Unit, onP
         Etichetta("★ ${hud.punteggio}")
         Etichetta("⏱ %d:%02d".format(hud.secondi / 60, hud.secondi % 60))
         Spacer(Modifier.weight(1f))
-        Etichetta(if (hud.maniViste == 0) "nessuna mano".maiuscolo() else "✋".repeat(hud.maniViste))
+        // Larghezza fissa: il testo cambia fra "nessuna mano" e "✋" ogni volta che il
+        // riconoscimento la perde e la ritrova, e senza una larghezza fissa l'etichetta (e con
+        // lei il pulsante di pausa) si spostava avanti e indietro ad ogni cambio.
+        Etichetta(
+            if (hud.maniViste == 0) "nessuna mano".maiuscolo() else "✋".repeat(hud.maniViste),
+            modifier = Modifier.widthIn(min = 132.dp),
+        )
         Button(onClick = onPausa) { Text("❚❚") }
     }
     if (record > 0 && hud.punteggio > record) {
@@ -402,12 +408,13 @@ private fun Intestazione(hud: Hud, record: Int, onTornaAiGiochi: () -> Unit, onP
 }
 
 @Composable
-private fun Etichetta(testo: String) {
+private fun Etichetta(testo: String, modifier: Modifier = Modifier) {
     Text(
         testo,
         color = Color.White,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier
+        textAlign = TextAlign.Center,
+        modifier = modifier
             .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(12.dp))
             .padding(horizontal = 10.dp, vertical = 6.dp),
     )
