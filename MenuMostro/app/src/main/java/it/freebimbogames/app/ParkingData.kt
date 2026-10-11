@@ -48,6 +48,35 @@ fun provaSpostamento(auto: List<Auto>, id: Int, delta: Int, dimensione: Int): Li
 }
 
 /**
+ * Quante celle (anche frazionarie) l'auto [id] può scorrere indietro (valore negativo) o avanti
+ * (valore positivo) lungo il proprio orientamento prima di toccare un'altra auto o il bordo della
+ * griglia. Serve a trascinare un'auto con il dito: durante il trascinamento lo spostamento viene
+ * tenuto dentro questo intervallo, così non serve ricontrollare le collisioni ad ogni fotogramma e
+ * l'auto non può mai "saltare" sopra un'altra.
+ */
+fun limiteTrascinamento(auto: List<Auto>, id: Int, dimensione: Int): ClosedFloatingPointRange<Float> {
+    val corrente = auto.first { it.id == id }
+    val altreCelle = auto.filter { it.id != id }.flatMap { it.celle() }.toSet()
+    return if (corrente.orientamento == Orientamento.ORIZZONTALE) {
+        val riga = corrente.riga
+        val minColonna = (corrente.colonna - 1 downTo 0).firstOrNull { (riga to it) in altreCelle }
+        val fineLibera = (corrente.colonna + corrente.lunghezza until dimensione)
+            .firstOrNull { (riga to it) in altreCelle } ?: dimensione
+        val indietro = -(corrente.colonna - (minColonna ?: -1) - 1).toFloat()
+        val avanti = (fineLibera - (corrente.colonna + corrente.lunghezza)).toFloat()
+        indietro..avanti
+    } else {
+        val colonna = corrente.colonna
+        val minRiga = (corrente.riga - 1 downTo 0).firstOrNull { (it to colonna) in altreCelle }
+        val fineLibera = (corrente.riga + corrente.lunghezza until dimensione)
+            .firstOrNull { (it to colonna) in altreCelle } ?: dimensione
+        val indietro = -(corrente.riga - (minRiga ?: -1) - 1).toFloat()
+        val avanti = (fineLibera - (corrente.riga + corrente.lunghezza)).toFloat()
+        indietro..avanti
+    }
+}
+
+/**
  * Un livello di Monster Parking: una griglia [dimensione] x [dimensione] con un parcheggio
  * selvaggio da sbloccare. L'auto rossa è sempre orizzontale e deve uscire dal lato destro della
  * sua riga.

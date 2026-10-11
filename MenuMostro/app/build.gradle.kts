@@ -11,8 +11,8 @@ android {
         applicationId = "it.freebimbogames.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 24
-        versionName = "6.8"
+        versionCode = 25
+        versionName = "6.9"
 
         // MediaPipe porta librerie native pesanti: si tengono solo le architetture dei
         // telefoni reali (niente emulatore x86), per non gonfiare l'APK.

@@ -149,12 +149,12 @@ davvero dal bordo).
 
 1. Dalla home "Free Bimbo Games" si tocca la casella **"Monster Parking"**, poi
    **"Gioca!"**. La freccia ⬅️ in alto a sinistra torna alla home.
-2. Si tocca un'auto per selezionarla (appare un bordo nero); compaiono due
-   pulsanti freccia per muoverla di una cella alla volta nella sua unica
-   direzione possibile (◀️▶️ se orizzontale, 🔼🔽 se verticale). Una mossa
-   verso una cella occupata o fuori dalla griglia non fa nulla.
+2. Si tocca un'auto per selezionarla (appare un bordo nero) e la si
+   **trascina con il dito** nella sua unica direzione possibile: scorre
+   finché non tocca un'altra auto o il bordo della griglia, senza bisogno
+   di pulsanti. Un tocco senza trascinare la seleziona o la deseleziona.
 3. La bandiera 🏁 sul bordo destro segna dove deve arrivare la macchina
-   rossa 🚗 (le altre auto sono 🚙).
+   rossa (le altre auto hanno colori diversi).
 4. Appena la macchina rossa raggiunge il bordo, il livello è risolto: si
    passa automaticamente al livello successivo (griglia più grande o più
    auto). Dopo il livello 20 si può ricominciare con "Nuova partita".
@@ -382,11 +382,16 @@ insieme. Il record è salvato sul dispositivo.
   richieste e commensali, usato da Monster Restaurant e Monster Panino.
 - **`ParkingData.kt`** — modello dati e logica pura di Monster Parking:
   `Auto`, `Orientamento`, la funzione `provaSpostamento` (unica fonte di
-  verità su quali mosse sono valide) e i 20 `LivelloParcheggio` con le auto
-  già posizionate.
+  verità su quali mosse sono valide), `limiteTrascinamento` (di quante
+  celle, anche frazionarie, un'auto può scorrere col dito prima di toccarne
+  un'altra o il bordo) e i 20 `LivelloParcheggio` con le auto già
+  posizionate.
 - **`ParkingGame.kt`** — le schermate Compose di Monster Parking
-  (`AppMonsterParking`, Home, Gioco con la griglia disegnata cella per
-  cella, Fine), completamente separato dagli altri giochi.
+  (`AppMonsterParking`, Home, Gioco, Fine), completamente separato dagli
+  altri giochi. La griglia è un `Canvas` (non più celle Compose separate):
+  le auto sono disegnate come un unico corpo a capsula lungo quanto l'auto
+  vera, non più una fila di icone identiche, e si muovono trascinandole
+  con il dito direttamente sul `Canvas`.
 - **`MemoryData.kt`** / **`MemoryGame.kt`** — dati (`CartaMemory`,
   `LivelloMemory`, generazione del mazzo) e schermate Compose di Memory dei
   Mostri.

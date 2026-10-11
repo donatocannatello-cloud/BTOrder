@@ -1,9 +1,11 @@
 package it.freebimbogames.app
 
+import android.graphics.Paint
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,17 +31,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import it.freebimbogames.app.ui.theme.SfondoChiaro
 import it.freebimbogames.app.ui.theme.palettePiatti
+import kotlin.math.roundToInt
 
 private const val LARGHEZZA_GRIGLIA = 320
 
@@ -153,21 +163,13 @@ fun SchermataGiocoParcheggio(livello: LivelloParcheggio, onRisolto: (Int) -> Uni
     var auto by remember(livello) { mutableStateOf(livello.autoIniziali) }
     var selezionataId by remember(livello) { mutableStateOf<Int?>(null) }
     var mosse by remember(livello) { mutableStateOf(0) }
+    // Durante il trascinamento: quale auto si sta spostando e di quante celle (anche frazionarie)
+    var trascinataId by remember(livello) { mutableStateOf<Int?>(null) }
+    var offsetTrascinamento by remember(livello) { mutableStateOf(0f) }
 
-    val cellSize = (LARGHEZZA_GRIGLIA / livello.dimensione).dp
-
-    fun muovi(delta: Int) {
-        val id = selezionataId ?: return
-        val nuove = provaSpostamento(auto, id, delta, livello.dimensione) ?: return
-        SuoniGioco.tocco()
-        auto = nuove
-        mosse += 1
-        if (livello.risolto(nuove)) {
-            onRisolto(mosse)
-        }
-    }
-
-    val selezionata = auto.firstOrNull { it.id == selezionataId }
+    val cellSizeDp = (LARGHEZZA_GRIGLIA / livello.dimensione).dp
+    val cellSizePx = with(LocalDensity.current) { cellSizeDp.toPx() }
+    val latoGrigliaDp = cellSizeDp * livello.dimensione
 
     // Riparte dall'inizio della schermata ad ogni nuovo livello (griglia diversa).
     val statoScroll = rememberScrollState()
@@ -194,48 +196,74 @@ fun SchermataGiocoParcheggio(livello: LivelloParcheggio, onRisolto: (Int) -> Uni
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "Libera la macchina rossa!".maiuscolo(),
+            text = "Trascina la macchina rossa per liberarla!".maiuscolo(),
             style = MaterialTheme.typography.bodyMedium
         )
         Spacer(modifier = Modifier.height(12.dp))
 
-        Column {
-            for (riga in 0 until livello.dimensione) {
-                Row {
-                    for (colonna in 0 until livello.dimensione) {
-                        val occupante = auto.firstOrNull { (riga to colonna) in it.celle() }
-                        val isUscita = riga == livello.rigaUscita && colonna == livello.dimensione - 1
-                        CellaParcheggio(
-                            size = cellSize,
-                            auto = occupante,
-                            selezionata = occupante != null && occupante.id == selezionataId,
-                            colore = occupante?.let { coloreAuto(livello.autoIniziali, it) },
-                            isUscita = isUscita,
-                            onClick = {
-                                if (occupante != null) SuoniGioco.tocco()
-                                selezionataId = occupante?.id
+        Canvas(
+            modifier = Modifier
+                .size(latoGrigliaDp)
+                .pointerInput(livello) {
+                    awaitEachGesture {
+                        val giu = awaitFirstDown()
+                        val rigaTocco = (giu.position.y / cellSizePx).toInt().coerceIn(0, livello.dimensione - 1)
+                        val colTocco = (giu.position.x / cellSizePx).toInt().coerceIn(0, livello.dimensione - 1)
+                        val occupante = auto.firstOrNull { (rigaTocco to colTocco) in it.celle() }
+                        if (occupante == null) {
+                            selezionataId = null
+                            return@awaitEachGesture
+                        }
+                        val limiti = limiteTrascinamento(auto, occupante.id, livello.dimensione)
+                        var offset = 0f
+                        var ultimaPosizione = giu.position
+                        trascinataId = occupante.id
+                        do {
+                            val evento = awaitPointerEvent()
+                            val dito = evento.changes.firstOrNull { it.id == giu.id }
+                            if (dito != null && dito.pressed) {
+                                val delta = dito.position - ultimaPosizione
+                                ultimaPosizione = dito.position
+                                val deltaCelle = if (occupante.orientamento == Orientamento.ORIZZONTALE) {
+                                    delta.x / cellSizePx
+                                } else {
+                                    delta.y / cellSizePx
+                                }
+                                offset = (offset + deltaCelle).coerceIn(limiti.start, limiti.endInclusive)
+                                offsetTrascinamento = offset
+                                dito.consume()
                             }
-                        )
+                        } while (dito != null && dito.pressed)
+                        trascinataId = null
+                        offsetTrascinamento = 0f
+                        val delta = offset.roundToInt()
+                        if (delta == 0) {
+                            selezionataId = if (selezionataId == occupante.id) null else occupante.id
+                        } else {
+                            val nuove = provaSpostamento(auto, occupante.id, delta, livello.dimensione)
+                            if (nuove != null) {
+                                SuoniGioco.tocco()
+                                auto = nuove
+                                selezionataId = occupante.id
+                                mosse += 1
+                                if (livello.risolto(nuove)) onRisolto(mosse)
+                            }
+                        }
                     }
                 }
-            }
+        ) {
+            disegnaGrigliaParcheggio(
+                livello = livello,
+                auto = auto,
+                selezionataId = selezionataId,
+                trascinataId = trascinataId,
+                offsetTrascinamento = offsetTrascinamento,
+                cellSizePx = cellSizePx,
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-
-        if (selezionata != null) {
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                if (selezionata.orientamento == Orientamento.ORIZZONTALE) {
-                    Button(onClick = { muovi(-1) }) { Text(text = "◀️", fontSize = 24.sp) }
-                    Button(onClick = { muovi(1) }) { Text(text = "▶️", fontSize = 24.sp) }
-                } else {
-                    Button(onClick = { muovi(-1) }) { Text(text = "🔼", fontSize = 24.sp) }
-                    Button(onClick = { muovi(1) }) { Text(text = "🔽", fontSize = 24.sp) }
-                }
-            }
-        } else {
-            Text(text = "Tocca un'auto per muoverla".maiuscolo(), style = MaterialTheme.typography.bodyMedium)
-        }
+        Text(text = "Tocca un'auto per sceglierla, poi trascinala".maiuscolo(), style = MaterialTheme.typography.bodyMedium)
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
@@ -247,34 +275,137 @@ private fun coloreAuto(tutteLeAuto: List<Auto>, auto: Auto): Color {
     return palettePiatti[indice % palettePiatti.size]
 }
 
-@Composable
-private fun CellaParcheggio(
-    size: Dp,
-    auto: Auto?,
-    selezionata: Boolean,
-    colore: Color?,
-    isUscita: Boolean,
-    onClick: () -> Unit
+private val pennelloBandiera = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    textAlign = Paint.Align.CENTER
+}
+
+/** La griglia del parcheggio: celle vuote, bandiera del traguardo e, sopra, le auto vere e proprie. */
+private fun DrawScope.disegnaGrigliaParcheggio(
+    livello: LivelloParcheggio,
+    auto: List<Auto>,
+    selezionataId: Int?,
+    trascinataId: Int?,
+    offsetTrascinamento: Float,
+    cellSizePx: Float,
 ) {
-    Box(
-        modifier = Modifier
-            .size(size)
-            .padding(1.dp)
-            .background(colore ?: Color(0xFFE0E0E0), RoundedCornerShape(4.dp))
-            .then(
-                if (selezionata) {
-                    Modifier.border(3.dp, Color.Black, RoundedCornerShape(4.dp))
-                } else {
-                    Modifier
-                }
+    // Le celle si disegnano tutte, anche sotto le auto: durante un trascinamento l'auto si
+    // sposta ma la sua posizione "ufficiale" (e quindi le celle libere) cambia solo al rilascio,
+    // altrimenti la cella da cui l'auto sta uscendo resterebbe vuota finché non si lascia.
+    val margineCella = cellSizePx * 0.04f
+    for (riga in 0 until livello.dimensione) {
+        for (colonna in 0 until livello.dimensione) {
+            drawRoundRect(
+                Color(0xFFE0E0E0),
+                topLeft = Offset(colonna * cellSizePx + margineCella, riga * cellSizePx + margineCella),
+                size = Size(cellSizePx - margineCella * 2, cellSizePx - margineCella * 2),
+                cornerRadius = CornerRadius(cellSizePx * 0.12f),
             )
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        when {
-            auto != null -> Text(text = if (auto.rossa) "🚗" else "🚙", fontSize = 18.sp)
-            isUscita -> Text(text = "🏁", fontSize = 16.sp)
+            if (riga == livello.rigaUscita && colonna == livello.dimensione - 1) {
+                pennelloBandiera.textSize = cellSizePx * 0.55f
+                drawContext.canvas.nativeCanvas.drawText(
+                    "🏁",
+                    colonna * cellSizePx + cellSizePx / 2f,
+                    riga * cellSizePx + cellSizePx * 0.68f,
+                    pennelloBandiera,
+                )
+            }
         }
+    }
+    // L'auto trascinata si disegna per ultima, sopra alle altre: è l'unica che può sfiorarle.
+    val ordinate = auto.sortedBy { if (it.id == trascinataId) 1 else 0 }
+    for (a in ordinate) {
+        val extra = if (a.id == trascinataId) offsetTrascinamento else 0f
+        disegnaAuto(
+            auto = a,
+            colore = coloreAuto(livello.autoIniziali, a),
+            selezionata = a.id == selezionataId || a.id == trascinataId,
+            extra = extra,
+            cellSizePx = cellSizePx,
+        )
+    }
+}
+
+/**
+ * Un'auto lunga vera e propria (non più auto piccole in fila): un corpo a capsula colorato, con
+ * finestrino, quattro ruote e un musetto a mostriciattolo per restare nel tema della suite.
+ */
+private fun DrawScope.disegnaAuto(auto: Auto, colore: Color, selezionata: Boolean, extra: Float, cellSizePx: Float) {
+    val orizzontale = auto.orientamento == Orientamento.ORIZZONTALE
+    val rigaPx = (auto.riga + if (orizzontale) 0f else extra) * cellSizePx
+    val colPx = (auto.colonna + if (orizzontale) extra else 0f) * cellSizePx
+    val larghezzaPx = (if (orizzontale) auto.lunghezza * cellSizePx else cellSizePx)
+    val altezzaPx = (if (orizzontale) cellSizePx else auto.lunghezza * cellSizePx)
+    val margine = cellSizePx * 0.1f
+    val left = colPx + margine
+    val top = rigaPx + margine
+    val w = larghezzaPx - margine * 2
+    val h = altezzaPx - margine * 2
+    val corpo = Offset(left, top)
+    val dimensioneCorpo = Size(w, h)
+    val raggioCorpo = (if (orizzontale) h else w) / 2f
+
+    drawRoundRect(colore, corpo, dimensioneCorpo, CornerRadius(raggioCorpo))
+
+    // Finestrino: una fascia più chiara lungo il centro del corpo
+    val spessoreFinestrino = (if (orizzontale) h else w) * 0.42f
+    val finestrino = Color.White.copy(alpha = 0.5f)
+    if (orizzontale) {
+        drawRoundRect(
+            finestrino,
+            topLeft = Offset(left + w * 0.14f, top + (h - spessoreFinestrino) / 2f),
+            size = Size(w * 0.72f, spessoreFinestrino),
+            cornerRadius = CornerRadius(spessoreFinestrino * 0.4f),
+        )
+    } else {
+        drawRoundRect(
+            finestrino,
+            topLeft = Offset(left + (w - spessoreFinestrino) / 2f, top + h * 0.14f),
+            size = Size(spessoreFinestrino, h * 0.72f),
+            cornerRadius = CornerRadius(spessoreFinestrino * 0.4f),
+        )
+    }
+
+    // Ruote: due coppie, vicino alle due estremità lungo la lunghezza
+    val raggioRuota = cellSizePx * 0.085f
+    val ruotaScostamento = raggioCorpo * 0.92f
+    val posizioniRuote = listOf(0.26f, 0.74f)
+    val ruotaColore = Color(0xFF263238)
+    for (f in posizioniRuote) {
+        if (orizzontale) {
+            val cx = left + w * f
+            drawCircle(ruotaColore, raggioRuota, Offset(cx, top + ruotaScostamento))
+            drawCircle(ruotaColore, raggioRuota, Offset(cx, top + h - ruotaScostamento))
+        } else {
+            val cy = top + h * f
+            drawCircle(ruotaColore, raggioRuota, Offset(left + ruotaScostamento, cy))
+            drawCircle(ruotaColore, raggioRuota, Offset(left + w - ruotaScostamento, cy))
+        }
+    }
+
+    // Occhietti da mostro verso un'estremità, per restare nel tema della suite
+    val raggioOcchio = cellSizePx * 0.07f
+    val centroCorto = if (orizzontale) top + h / 2f else left + w / 2f
+    val bordoLungo = (if (orizzontale) w else h)
+    val posizioneOcchi = (if (orizzontale) left else top) + bordoLungo * 0.84f
+    val scartoOcchi = raggioOcchio * 1.6f
+    val occhi = if (orizzontale) {
+        listOf(Offset(posizioneOcchi, centroCorto - scartoOcchi), Offset(posizioneOcchi, centroCorto + scartoOcchi))
+    } else {
+        listOf(Offset(centroCorto - scartoOcchi, posizioneOcchi), Offset(centroCorto + scartoOcchi, posizioneOcchi))
+    }
+    for (o in occhi) {
+        drawCircle(Color.White, raggioOcchio, o)
+        drawCircle(Color.Black, raggioOcchio * 0.5f, o)
+    }
+
+    if (selezionata) {
+        drawRoundRect(
+            Color.Black,
+            corpo,
+            dimensioneCorpo,
+            CornerRadius(raggioCorpo),
+            style = Stroke(cellSizePx * 0.05f),
+        )
     }
 }
 
