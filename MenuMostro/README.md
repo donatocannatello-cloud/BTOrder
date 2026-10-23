@@ -140,14 +140,21 @@ parcheggio via via più denso e intricato:
 | 10–14 | 9×9 | 18–26 | 48–65% |
 | 15–20 | 10×10 | 24–34 | 53–75% |
 
-I livelli 1-3 sono stati pensati e verificati a mano. Dal livello 4 in poi
-sono generati partendo dall'auto rossa già "risolta" (attaccata al bordo
-destro) e mescolando la griglia con una sequenza di mosse singole valide:
-risolvere il livello equivale a ripercorrere quella sequenza al contrario,
-il che garantisce per costruzione che ogni livello sia risolvibile — e ogni
-livello generato è stato anche verificato in modo indipendente (rigiocando
-la sequenza di soluzione fino a controllare che la macchina rossa esca
-davvero dal bordo).
+I livelli 1-3 sono stati pensati e verificati a mano e sono sempre gli
+stessi. Dal livello 4 in poi esistono **4 griglie diverse per ciascun
+livello**, generate offline: a ogni partita se ne sceglie una a caso, così
+Monster Parking non ripropone mai lo stesso identico parcheggio. Sono
+generate partendo dall'auto rossa già "risolta" (attaccata al bordo
+destro) e mescolando con una sequenza di mosse singole valide — il che
+garantisce per costruzione che siano sempre risolvibili — ma stavolta con
+in più una **vera verifica della difficoltà**: una ricerca in ampiezza (con
+mosse "un'auto scorre di una qualunque distanza libera", esattamente come
+un trascinamento col dito) scarta ogni griglia risolvibile in meno mosse
+del minimo richiesto per quel livello. Prima capitava che un livello
+"mescolato tanto" fosse comunque risolvibile per caso in 1-2 mosse; ora
+ogni livello richiede verificatamente almeno 3-5 mosse-trascinamento, un
+minimo che cresce nei primi livelli e poi si mantiene alto insieme alla
+densità crescente di auto.
 
 ### Come si gioca
 
@@ -388,8 +395,10 @@ insieme. Il record è salvato sul dispositivo.
   `Auto`, `Orientamento`, la funzione `provaSpostamento` (unica fonte di
   verità su quali mosse sono valide), `limiteTrascinamento` (di quante
   celle, anche frazionarie, un'auto può scorrere col dito prima di toccarne
-  un'altra o il bordo) e i 20 `LivelloParcheggio` con le auto già
-  posizionate.
+  un'altra o il bordo), i 3 `LivelloParcheggio` fissi e le 4 varianti per
+  ciascuno dei livelli 4-20 (generate offline con verifica di difficoltà,
+  non nel repository lo script generatore); `livelloCasuale(numero)` sceglie
+  quale usare a ogni partita.
 - **`ParkingGame.kt`** — le schermate Compose di Monster Parking
   (`AppMonsterParking`, Home, Gioco, Fine), completamente separato dagli
   altri giochi. La griglia è un `Canvas` (non più celle Compose separate):

@@ -59,10 +59,14 @@ private enum class SchermataParcheggio { HOME, GIOCO, FINE }
 fun AppMonsterParking(onTornaAiGiochi: () -> Unit) {
     var schermata by remember { mutableStateOf(SchermataParcheggio.HOME) }
     var numeroLivello by remember { mutableStateOf(1) }
+    // Scelto una volta sola per livello (non ricalcolato ad ogni ricomposizione, altrimenti la
+    // partita in corso ripartirebbe da un'altra griglia a ogni ridisegno dello schermo).
+    var livelloAttuale by remember { mutableStateOf(livelloCasuale(1)) }
     var mosseUltimoLivello by remember { mutableStateOf(0) }
 
     fun nuovaPartita() {
         numeroLivello = 1
+        livelloAttuale = livelloCasuale(1)
         schermata = SchermataParcheggio.GIOCO
     }
 
@@ -73,7 +77,7 @@ fun AppMonsterParking(onTornaAiGiochi: () -> Unit) {
         )
 
         SchermataParcheggio.GIOCO -> SchermataGiocoParcheggio(
-            livello = elencoLivelliParcheggio[numeroLivello - 1],
+            livello = livelloAttuale,
             onRisolto = { mosse ->
                 mosseUltimoLivello = mosse
                 schermata = SchermataParcheggio.FINE
@@ -84,9 +88,10 @@ fun AppMonsterParking(onTornaAiGiochi: () -> Unit) {
         SchermataParcheggio.FINE -> SchermataFineParcheggio(
             numeroLivello = numeroLivello,
             mosse = mosseUltimoLivello,
-            ultimoLivello = numeroLivello >= elencoLivelliParcheggio.size,
+            ultimoLivello = numeroLivello >= NUMERO_LIVELLI_PARCHEGGIO,
             onProssimoLivello = {
                 numeroLivello += 1
+                livelloAttuale = livelloCasuale(numeroLivello)
                 schermata = SchermataParcheggio.GIOCO
             },
             onNuovaPartita = { nuovaPartita() },
