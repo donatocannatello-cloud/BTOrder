@@ -378,7 +378,8 @@ salvato sul dispositivo.
 
 ### Come si gioca
 
-1. Dalla home si tocca **"Monster Invaders 3D"**.
+1. Dalla home si tocca **"Monster Invaders 3D"**: si apre una schermata con
+   la copertina del gioco, poi si tocca "Gioca!" per entrare.
 2. Si trascina col pollice sinistro per muoversi lateralmente e in quota:
    la navetta va dove va il dito. Si trascina col pollice destro per
    avanzare/indietreggiare in profondità. Il fuoco è automatico.
@@ -489,7 +490,10 @@ salvato sul dispositivo.
 - **`invaders3d/`** — pacchetto separato con tutto Monster Invaders 3D,
   porting di un progetto Android autonomo (Java puro + OpenGL ES 2.0
   scritto a mano, nessun modello/texture): `MonsterInvaders3D.kt`
-  (composable `AppMonsterInvaders3D`, incapsula le view originali in un
+  (composable `AppMonsterInvaders3D`, con una schermata home Compose —
+  copertina come sfondo, titolo e pulsante "Gioca!", come nelle altre
+  schermate home della suite — che monta il gioco vero solo dopo il tocco;
+  `SchermataGiocoInvaders3D` incapsula le view originali in un
   `AndroidView` e ne replica il ciclo di vita con un `DisposableEffect` +
   `LifecycleEventObserver`), `Game3D.java` (simulazione in Java puro, senza
   dipendenze Android), `Scene.java` (scena del frame: camera, formazione,
@@ -502,8 +506,9 @@ salvato sul dispositivo.
   rinominato, margine sinistro del punteggio nell'HUD spostato per non
   coprire la freccia ⬅️ di uscita, titolo "MONSTER INVADERS 3D" al posto di
   "SPACE INVADERS 3D".
-- **`res/drawable-nodpi/copertina_invasori_mostri.jpg`** — copertina usata
-  al posto dell'emoji nella voce di Monster Invaders 3D nella home.
+- **`res/drawable-nodpi/copertina_invasori_mostri.jpg`** — illustrazione
+  usata come sfondo della schermata iniziale di Monster Invaders 3D (nella
+  home della suite questo gioco resta con l'emoji, come tutti gli altri).
 - **`res/raw/shoot.wav`, `alien.wav`, `player.wav`, `ufo.wav`, `level.wav`,
   `powerup.wav`, `shield.wav`, `boss.wav`** — effetti sonori di Monster
   Invaders 3D, caricati da `Sfx.java`.

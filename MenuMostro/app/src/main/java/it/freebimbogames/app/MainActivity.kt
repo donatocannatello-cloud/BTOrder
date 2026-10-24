@@ -100,12 +100,7 @@ class MainActivity : ComponentActivity() {
 /** I giochi della suite: tutti e dieci sono giocabili. */
 enum class Gioco { MOSTRO, PANINO, PARCHEGGIO, MEMORY, VESTITI, RITMO, SPARA, CERCA, ACCHIAPPAMOSTRI, INVADERS3D }
 
-private data class VoceGioco(
-    val nome: String,
-    val emoji: String,
-    val gioco: Gioco?,
-    val copertina: Int? = null,
-)
+private data class VoceGioco(val nome: String, val emoji: String, val gioco: Gioco?)
 
 private val elencoGiochi = listOf(
     VoceGioco("Monster Restaurant", "🍽️👹", Gioco.MOSTRO),
@@ -117,12 +112,7 @@ private val elencoGiochi = listOf(
     VoceGioco("Spara ai Mostri", "🚀👹", Gioco.SPARA),
     VoceGioco("Il Mostro Cerca", "🔍👹", Gioco.CERCA),
     VoceGioco("L'Acchiappamostri", "🖐️👹", Gioco.ACCHIAPPAMOSTRI),
-    VoceGioco(
-        "Monster Invaders 3D",
-        "🐰🛸",
-        Gioco.INVADERS3D,
-        copertina = R.drawable.copertina_invasori_mostri,
-    )
+    VoceGioco("Monster Invaders 3D", "🐰🛸", Gioco.INVADERS3D)
 )
 
 /** Schermata iniziale della suite: da qui si sceglie a quale gioco giocare. */
@@ -193,18 +183,7 @@ fun SchermataHub(onSeleziona: (Gioco) -> Unit) {
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (voce.copertina != null) {
-                        Image(
-                            painter = painterResource(id = voce.copertina),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                        )
-                    } else {
-                        Text(text = voce.emoji, fontSize = 32.sp)
-                    }
+                    Text(text = voce.emoji, fontSize = 32.sp)
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
