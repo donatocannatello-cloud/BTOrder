@@ -4,8 +4,8 @@ App Android (Kotlin + Jetpack Compose) pensata per bambini di 6/7 anni: è
 una **suite di giochi**. All'avvio si apre una home ("Free Bimbo Games") da
 cui si sceglie a quale gioco giocare: **Monster Restaurant**, **Monster
 Panino**, **Monster Parking**, **Memory dei Mostri**, **Vesti il Mostro**,
-**Ritmo Mostruoso**, **Spara ai Mostri**, **Il Mostro Cerca** e
-**L'Acchiappamostri**. Tutti i
+**Ritmo Mostruoso**, **Spara ai Mostri**, **Il Mostro Cerca**,
+**L'Acchiappamostri** e **Monster Invaders 3D**. Tutti i
 testi sono in MAIUSCOLO e con parole semplici,
 pensati per essere letti da bambini che stanno imparando a leggere. Ogni
 schermata di ogni gioco — non solo la home, ma anche partita in corso e
@@ -362,10 +362,36 @@ insieme. Il record è salvato sul dispositivo.
 4. Presi tutti i mostri del livello si passa al successivo, con più
    mostri e via via più difficoltà (movimento, trasformazioni).
 
+## Monster Invaders 3D
+
+L'unico gioco della suite in **vero 3D**: un remake di Space Invaders con un
+motore OpenGL ES 2.0 scritto a mano (geometria generata al volo, nessuna
+texture), con un mostro-coniglio astronauta al posto della navetta. Si
+muove su tre assi — strafe, quota e profondità — mentre la formazione
+aliena avanza verso di lui lungo l'asse Z e ogni colpo è una distanza 3D
+vera, non uno schiacciamento su un piano. HUD e fondale sono disegnati in
+stile "foglio di carta topografica": isolinee, angoli da rilievo e un
+profilo altimetrico al posto della solita barra vita del boss. Ogni 5
+ondate compare un boss con barra vita dedicata, gli alieni distrutti
+possono lasciare power-up (TRIPLO, SCUDO, PERFO) e il punteggio record è
+salvato sul dispositivo.
+
+### Come si gioca
+
+1. Dalla home si tocca **"Monster Invaders 3D"**.
+2. Si trascina col pollice sinistro per muoversi lateralmente e in quota:
+   la navetta va dove va il dito. Si trascina col pollice destro per
+   avanzare/indietreggiare in profondità. Il fuoco è automatico.
+3. Si schivano i colpi nemici (mirati in 3D) cambiando quota o profondità,
+   si raccolgono le capsule di power-up volandoci sopra e si abbattono i
+   boss per superare l'ondata.
+4. 3 vite, ondate infinite: se la formazione raggiunge la navetta è game
+   over.
+
 ## File principali
 
 - **`MainActivity.kt`** — contiene la suite (`AppSuite`, `SchermataHub`,
-  l'enum `Gioco` e l'elenco `elencoGiochi` dei 9 giochi disponibili),
+  l'enum `Gioco` e l'elenco `elencoGiochi` dei 10 giochi disponibili),
   l'estensione `String.maiuscolo()` e il composable `BottoneTornaAiGiochi`
   (la freccia ⬅️ per uscire, riusata da ogni schermata di ogni gioco)
   condivisi da tutta la suite, e tutte le schermate Compose di Monster
@@ -460,6 +486,27 @@ insieme. Il record è salvato sul dispositivo.
   incastro, trasformazione). Il modello IA
   (`hand_landmarker.task`, circa 7,8 MB) non è nel repository: viene
   scaricato in fase di build dalla gradle task `scaricaModelloMano`.
+- **`invaders3d/`** — pacchetto separato con tutto Monster Invaders 3D,
+  porting di un progetto Android autonomo (Java puro + OpenGL ES 2.0
+  scritto a mano, nessun modello/texture): `MonsterInvaders3D.kt`
+  (composable `AppMonsterInvaders3D`, incapsula le view originali in un
+  `AndroidView` e ne replica il ciclo di vita con un `DisposableEffect` +
+  `LifecycleEventObserver`), `Game3D.java` (simulazione in Java puro, senza
+  dipendenze Android), `Scene.java` (scena del frame: camera, formazione,
+  boss, barriere, particelle), `Mesh.java`/`Shapes.java` (mesh procedurali),
+  `Mat4.java` (matrici 4x4), `Shaders.java` (sorgenti GLSL ES 1.00),
+  `GLView.java` (`GLSurfaceView` + renderer, record salvato in una
+  `SharedPreferences` propria), `HudView.java` (HUD, menu e comandi touch
+  su `Canvas`, stile "foglio topografico") e `Sfx.java` (`SoundPool` per i
+  suoni in `res/raw/`). Rispetto al progetto originale: pacchetto
+  rinominato, margine sinistro del punteggio nell'HUD spostato per non
+  coprire la freccia ⬅️ di uscita, titolo "MONSTER INVADERS 3D" al posto di
+  "SPACE INVADERS 3D".
+- **`res/drawable-nodpi/copertina_invasori_mostri.jpg`** — copertina usata
+  al posto dell'emoji nella voce di Monster Invaders 3D nella home.
+- **`res/raw/shoot.wav`, `alien.wav`, `player.wav`, `ufo.wav`, `level.wav`,
+  `powerup.wav`, `shield.wav`, `boss.wav`** — effetti sonori di Monster
+  Invaders 3D, caricati da `Sfx.java`.
 
 ## Come compilare
 

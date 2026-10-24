@@ -44,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import it.freebimbogames.app.acchiappamostri.AppAcchiappamostri
+import it.freebimbogames.app.invaders3d.AppMonsterInvaders3D
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -96,10 +97,15 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** I giochi della suite: tutti e nove sono giocabili. */
-enum class Gioco { MOSTRO, PANINO, PARCHEGGIO, MEMORY, VESTITI, RITMO, SPARA, CERCA, ACCHIAPPAMOSTRI }
+/** I giochi della suite: tutti e dieci sono giocabili. */
+enum class Gioco { MOSTRO, PANINO, PARCHEGGIO, MEMORY, VESTITI, RITMO, SPARA, CERCA, ACCHIAPPAMOSTRI, INVADERS3D }
 
-private data class VoceGioco(val nome: String, val emoji: String, val gioco: Gioco?)
+private data class VoceGioco(
+    val nome: String,
+    val emoji: String,
+    val gioco: Gioco?,
+    val copertina: Int? = null,
+)
 
 private val elencoGiochi = listOf(
     VoceGioco("Monster Restaurant", "🍽️👹", Gioco.MOSTRO),
@@ -110,7 +116,13 @@ private val elencoGiochi = listOf(
     VoceGioco("Ritmo Mostruoso", "🎵🐙", Gioco.RITMO),
     VoceGioco("Spara ai Mostri", "🚀👹", Gioco.SPARA),
     VoceGioco("Il Mostro Cerca", "🔍👹", Gioco.CERCA),
-    VoceGioco("L'Acchiappamostri", "🖐️👹", Gioco.ACCHIAPPAMOSTRI)
+    VoceGioco("L'Acchiappamostri", "🖐️👹", Gioco.ACCHIAPPAMOSTRI),
+    VoceGioco(
+        "Monster Invaders 3D",
+        "🐰🛸",
+        Gioco.INVADERS3D,
+        copertina = R.drawable.copertina_invasori_mostri,
+    )
 )
 
 /** Schermata iniziale della suite: da qui si sceglie a quale gioco giocare. */
@@ -129,6 +141,7 @@ fun AppSuite() {
         Gioco.SPARA -> AppSpara(onTornaAiGiochi = { giocoAttivo = null })
         Gioco.CERCA -> AppCerca(onTornaAiGiochi = { giocoAttivo = null })
         Gioco.ACCHIAPPAMOSTRI -> AppAcchiappamostri(onTornaAiGiochi = { giocoAttivo = null })
+        Gioco.INVADERS3D -> AppMonsterInvaders3D(onTornaAiGiochi = { giocoAttivo = null })
     }
 }
 
@@ -180,7 +193,18 @@ fun SchermataHub(onSeleziona: (Gioco) -> Unit) {
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = voce.emoji, fontSize = 32.sp)
+                    if (voce.copertina != null) {
+                        Image(
+                            painter = painterResource(id = voce.copertina),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                        )
+                    } else {
+                        Text(text = voce.emoji, fontSize = 32.sp)
+                    }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
