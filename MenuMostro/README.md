@@ -145,16 +145,22 @@ stessi. Dal livello 4 in poi esistono **4 griglie diverse per ciascun
 livello**, generate offline: a ogni partita se ne sceglie una a caso, così
 Monster Parking non ripropone mai lo stesso identico parcheggio. Sono
 generate partendo dall'auto rossa già "risolta" (attaccata al bordo
-destro) e mescolando con una sequenza di mosse singole valide — il che
-garantisce per costruzione che siano sempre risolvibili — ma stavolta con
-in più una **vera verifica della difficoltà**: una ricerca in ampiezza (con
-mosse "un'auto scorre di una qualunque distanza libera", esattamente come
-un trascinamento col dito) scarta ogni griglia risolvibile in meno mosse
-del minimo richiesto per quel livello. Prima capitava che un livello
-"mescolato tanto" fosse comunque risolvibile per caso in 1-2 mosse; ora
-ogni livello richiede verificatamente almeno 3-5 mosse-trascinamento, un
-minimo che cresce nei primi livelli e poi si mantiene alto insieme alla
-densità crescente di auto.
+destro), poi ritirata lontano dal traguardo e rimescolata a cicli insieme
+alle altre auto con una sequenza di mosse singole valide.
+
+Una generazione precedente di questi livelli, pur costruita con lo stesso
+principio, conteneva un bug che poteva comunque produrre griglie
+**impossibili** (un'altra auto restava bloccata per sempre nella colonna
+di uscita, senza alcun modo di liberarla): è stato segnalato dall'utente a
+partire dal livello 4 e confermato con una ricerca esaustiva indipendente,
+che ha trovato impossibili anche tutti i livelli 5. Ogni griglia attuale è
+quindi riverificata singolarmente, non solo "garantita per costruzione":
+una ricerca in ampiezza indipendente (con mosse "un'auto scorre di una
+qualunque distanza libera", esattamente come un trascinamento col dito)
+conferma che esiste davvero una soluzione e scarta ogni griglia
+risolvibile in meno di 2 mosse (quindi mai già risolta o risolvibile con
+un solo tocco). La difficoltà crescente resta affidata soprattutto alla
+densità di auto, che cresce con il livello come in tabella.
 
 ### Come si gioca
 
