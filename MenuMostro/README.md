@@ -153,14 +153,26 @@ principio, conteneva un bug che poteva comunque produrre griglie
 **impossibili** (un'altra auto restava bloccata per sempre nella colonna
 di uscita, senza alcun modo di liberarla): è stato segnalato dall'utente a
 partire dal livello 4 e confermato con una ricerca esaustiva indipendente,
-che ha trovato impossibili anche tutti i livelli 5. Ogni griglia attuale è
-quindi riverificata singolarmente, non solo "garantita per costruzione":
-una ricerca in ampiezza indipendente (con mosse "un'auto scorre di una
-qualunque distanza libera", esattamente come un trascinamento col dito)
-conferma che esiste davvero una soluzione e scarta ogni griglia
-risolvibile in meno di 2 mosse (quindi mai già risolta o risolvibile con
-un solo tocco). La difficoltà crescente resta affidata soprattutto alla
-densità di auto, che cresce con il livello come in tabella.
+che ha trovato impossibili anche tutti i livelli 5.
+
+Una seconda generazione successiva risolveva il problema (nessuna griglia
+più impossibile) ma restava comunque troppo facile: su un'auto o due
+bastava liberare la strada e si usciva, in 2-3 mosse a qualunque livello —
+segnalato di nuovo dall'utente. Le griglie attuali sono quindi costruite
+con una ricerca locale (hill-climbing): si parte da una griglia valida e
+la si perturba a piccoli passi, tenendo il risultato solo se non diventa
+più facile, finché non serve un numero di mosse-trascinamento
+**crescente col livello** per trovare l'uscita — non più un minimo fisso
+uguale per tutti. Ogni griglia è poi verificata in modo indipendente (non
+solo "garantita per costruzione") con una ricerca ammissibile (IDA*) che
+prova che non esiste una soluzione più corta di quella dichiarata. Le
+mosse minime effettivamente raggiunte, verificate: 3 ai livelli 4-5, 4 ai
+livelli 6-7, 5 agli 8-9, 6 ai 10-12, 6-7 dal 13 in su (oltre una certa
+densità di auto, costruire griglie ancora più dure richiederebbe una
+ricerca molto più lunga per un guadagno via via più piccolo, quindi ci si
+è fermati qui). La densità di auto continua comunque a crescere con il
+livello come in tabella, aggiungendo difficoltà visiva oltre a quella
+delle mosse.
 
 ### Come si gioca
 
